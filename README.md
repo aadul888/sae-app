@@ -295,4 +295,5 @@ $response = file_get_contents($endpoint, false, stream_context_create([
 
 ---
 *Sistem ini dikembangkan untuk keperluan administrasi sekolah dengan fokus pada efisiensi dan user experience*#   s a e  
+ #   s a e  
  
