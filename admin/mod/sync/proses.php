@@ -37,19 +37,7 @@ if (!function_exists('sync_bootstrap_tables')) {
 if (!function_exists('sync_bootstrap_required')) {
   function sync_bootstrap_required($connection)
   {
-    foreach (sync_bootstrap_tables() as $endpoint => $table_name) {
-      if (!sync_table_has_rows($connection, $table_name)) {
-        return true;
-      }
-
-      $status_query = "SELECT status FROM sync_log WHERE endpoint='" . $connection->real_escape_string($endpoint) . "' ORDER BY created_at DESC, id DESC LIMIT 1";
-      $status_result = $connection->query($status_query);
-      $status_row = $status_result ? $status_result->fetch_assoc() : null;
-      if (!$status_row || ($status_row['status'] ?? '') !== 'success') {
-        return true;
-      }
-    }
-    return false;
+    return !sync_bootstrap_completed($connection);
   }
 }
 
@@ -61,10 +49,9 @@ if (!function_exists('sync_bootstrap_completed')) {
         return false;
       }
 
-      $status_query = "SELECT status FROM sync_log WHERE endpoint='" . $connection->real_escape_string($endpoint) . "' ORDER BY created_at DESC, id DESC LIMIT 1";
+      $status_query = "SELECT 1 FROM sync_log WHERE endpoint='" . $connection->real_escape_string($endpoint) . "' AND status='success' LIMIT 1";
       $status_result = $connection->query($status_query);
-      $status_row = $status_result ? $status_result->fetch_assoc() : null;
-      if (!$status_row || ($status_row['status'] ?? '') !== 'success') {
+      if (!$status_result || !$status_result->num_rows) {
         return false;
       }
     }
@@ -275,6 +262,23 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
     $sql = "SHOW COLUMNS FROM `" . $connection->real_escape_string($table) . "` LIKE '" . $connection->real_escape_string($column) . "'";
     $res = $connection->query($sql);
     return ($res && $res->num_rows > 0);
+  }
+
+  function ensure_admin_gtk_reference_columns($connection)
+  {
+    $ddl_map = [
+      'gtk_status_kepegawaian' => "ALTER TABLE admin ADD COLUMN gtk_status_kepegawaian varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER jenis_ptk_id_str",
+      'gtk_jabatan_ptk' => "ALTER TABLE admin ADD COLUMN gtk_jabatan_ptk varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER gtk_status_kepegawaian",
+      'gtk_nip' => "ALTER TABLE admin ADD COLUMN gtk_nip varchar(40) COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER gtk_jabatan_ptk",
+      'gtk_nuptk' => "ALTER TABLE admin ADD COLUMN gtk_nuptk varchar(40) COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER gtk_nip",
+      'gtk_nik' => "ALTER TABLE admin ADD COLUMN gtk_nik varchar(30) COLLATE utf8mb4_unicode_ci DEFAULT NULL AFTER gtk_nuptk"
+    ];
+
+    foreach ($ddl_map as $column => $ddl) {
+      if (!column_exists($connection, 'admin', $column)) {
+        $connection->query($ddl);
+      }
+    }
   }
 
   function get_pkl_sync_config_path()
@@ -1125,6 +1129,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
       ob_clean();
       // Lepas lock session sebelum proses panjang agar polling get-status bisa berjalan paralel
       session_write_close();
+      ensure_admin_gtk_reference_columns($connection);
 
       $prefetch = sync_dapodik_sources_for_action(['getGtk', 'getPengguna']);
       if (($prefetch['status'] ?? '') !== 'success') {
@@ -1132,13 +1137,17 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
         exit;
       }
 
-      $processed = 0; $updated = 0; $inserted = 0; $skipped = 0; $failed = 0;
+      $processed = 0; $updated = 0; $inserted = 0; $skipped = 0; $failed = 0; $deactivated = 0;
       $failed_msgs = [];
 
-      // Preload jenis_ptk dari sync_gtk (ptk_id => jenis_ptk_id_str)
-      $gtk_jenis = [];
-      $gq = $connection->query("SELECT ptk_id, jenis_ptk_id_str FROM sync_gtk WHERE ptk_id IS NOT NULL AND ptk_id != ''");
-      if ($gq) { while ($gr = $gq->fetch_assoc()) { $gtk_jenis[$gr['ptk_id']] = $gr['jenis_ptk_id_str']; } }
+      // Preload referensi GTK dari sync_gtk (ptk_id => detail)
+      $gtk_ref = [];
+      $gq = $connection->query("SELECT ptk_id, jenis_ptk_id_str, status_kepegawaian_id_str, jabatan_ptk_id_str, nip, nuptk, nik FROM sync_gtk WHERE ptk_id IS NOT NULL AND ptk_id != ''");
+      if ($gq) {
+        while ($gr = $gq->fetch_assoc()) {
+          $gtk_ref[$gr['ptk_id']] = $gr;
+        }
+      }
 
       $result = $connection->query(
         "SELECT pengguna_id, username, nama, peran_id_str, password, no_hp, ptk_id
@@ -1167,6 +1176,12 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
         $phone          = $p['no_hp'] ?? '';
         $ptk_id         = $p['ptk_id'] ?? '';
         $email          = $username;
+        $is_ptk_role    = (strcasecmp(trim((string) $peran_id_str), 'PTK') === 0);
+        $has_sync_gtk   = (!empty($ptk_id) && isset($gtk_ref[$ptk_id]));
+        $force_inactive = ($is_ptk_role && !$has_sync_gtk);
+        $active_flag    = $force_inactive ? 'N' : 'Y';
+        $status_flag    = 'Offline';
+        $sync_flag      = $force_inactive ? 'manual' : 'synced';
         push_sync_progress('getPengguna', 'running', 'Memproses baris pengguna: ' . ($username ?: ($fullname ?: ('Baris ' . $processed))), [
           'scope' => 'row',
           'row_label' => $username ?: ($fullname ?: ('Baris ' . $processed)),
@@ -1191,15 +1206,21 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
         } elseif ($peran_id_str === 'Kepala Sekolah') {
           $level_id = 13;
         } elseif ($peran_id_str === 'PTK') {
-          $jenis_ptk_id_str = !empty($ptk_id) ? ($gtk_jenis[$ptk_id] ?? '') : '';
+          $jenis_ptk_id_str = !empty($ptk_id) ? (($gtk_ref[$ptk_id]['jenis_ptk_id_str'] ?? '')) : '';
           $level_id = (stripos($jenis_ptk_id_str, 'Guru') !== false) ? 2 : 3;
         } else {
           $level_id = 3;
         }
 
+        $gtk_status_kepegawaian = !empty($ptk_id) ? (($gtk_ref[$ptk_id]['status_kepegawaian_id_str'] ?? '')) : '';
+        $gtk_jabatan_ptk = !empty($ptk_id) ? (($gtk_ref[$ptk_id]['jabatan_ptk_id_str'] ?? '')) : '';
+        $gtk_nip = !empty($ptk_id) ? (($gtk_ref[$ptk_id]['nip'] ?? '')) : '';
+        $gtk_nuptk = !empty($ptk_id) ? (($gtk_ref[$ptk_id]['nuptk'] ?? '')) : '';
+        $gtk_nik = !empty($ptk_id) ? (($gtk_ref[$ptk_id]['nik'] ?? '')) : '';
+
         // Cek apakah sudah ada di admin berdasarkan pengguna_id
         $cek = $connection->prepare(
-          "SELECT admin_id, avatar, gelar_depan, gelar_belakang, tugas_tambahan FROM admin WHERE pengguna_id = ? LIMIT 1"
+          "SELECT admin_id, avatar, gelar_depan, gelar_belakang, tugas_tambahan, jenis_ptk_id_str, gtk_status_kepegawaian, gtk_jabatan_ptk, gtk_nip, gtk_nuptk, gtk_nik FROM admin WHERE pengguna_id = ? LIMIT 1"
         );
         $cek->bind_param('s', $pengguna_id);
         $cek->execute();
@@ -1212,31 +1233,42 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
           $gelar_d = $row['gelar_depan'] ?? '';
           $gelar_b = $row['gelar_belakang'] ?? '';
           $tugas   = $row['tugas_tambahan'] ?? '';
+          if ($jenis_ptk_id_str === '') $jenis_ptk_id_str = (string)($row['jenis_ptk_id_str'] ?? '');
+          if ($gtk_status_kepegawaian === '') $gtk_status_kepegawaian = (string)($row['gtk_status_kepegawaian'] ?? '');
+          if ($gtk_jabatan_ptk === '') $gtk_jabatan_ptk = (string)($row['gtk_jabatan_ptk'] ?? '');
+          if ($gtk_nip === '') $gtk_nip = (string)($row['gtk_nip'] ?? '');
+          if ($gtk_nuptk === '') $gtk_nuptk = (string)($row['gtk_nuptk'] ?? '');
+          if ($gtk_nik === '') $gtk_nik = (string)($row['gtk_nik'] ?? '');
           $aid     = intval($row['admin_id']);
+          $aid_str = (string) $aid;
           $upd = $connection->prepare(
             "UPDATE admin SET
                username=?, email=?, password=?, fullname=?, phone=?,
                avatar=?, gelar_depan=?, gelar_belakang=?, level_id=?,
-               peran_id_str=?, ptk_id=?, jenis_ptk_id_str=?, tugas_tambahan=?,
-               active='Y', status='Offline',
-               sync_status='synced', last_sync_at=NOW(), updated_at=NOW()
+               peran_id_str=?, ptk_id=?, jenis_ptk_id_str=?, gtk_status_kepegawaian=?, gtk_jabatan_ptk=?, gtk_nip=?, gtk_nuptk=?, gtk_nik=?, tugas_tambahan=?,
+               active=?, status=?,
+               sync_status=?, last_sync_at=NOW(), updated_at=NOW()
              WHERE admin_id=?"
           );
-          // 13 strings + 1 int (admin_id)
-          $upd->bind_param('sssssssssssssi',
+          // 22 params, gunakan string untuk menjaga fleksibilitas casting MySQL
+          $upd->bind_param(str_repeat('s', 22),
             $username, $email, $password, $fullname, $phone,
             $avatar, $gelar_d, $gelar_b, $level_id,
-            $peran_id_str, $ptk_id, $jenis_ptk_id_str, $tugas,
-            $aid
+            $peran_id_str, $ptk_id, $jenis_ptk_id_str, $gtk_status_kepegawaian, $gtk_jabatan_ptk, $gtk_nip, $gtk_nuptk, $gtk_nik, $tugas,
+            $active_flag, $status_flag, $sync_flag,
+            $aid_str
           );
-          if ($upd->execute()) { $updated++; }
+          if ($upd->execute()) {
+            $updated++;
+            if ($force_inactive) {
+              $deactivated++;
+            }
+          }
           else { $failed++; $failed_msgs[] = "Update $username: " . $upd->error; }
           $upd->close();
         } else {
           // INSERT
           $avatar  = 'avatar.jpg';
-          $active  = 'Y';
-          $status  = 'Offline';
           $tugas   = '';
           $gelar_d = '';
           $gelar_b = '';
@@ -1246,24 +1278,55 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
             "INSERT INTO admin
                (pengguna_id, username, email, password, fullname, phone, avatar,
                 gelar_depan, gelar_belakang, level_id, peran_id_str, ptk_id,
-                jenis_ptk_id_str, active, status, tugas_tambahan, time, ip, browser,
+               jenis_ptk_id_str, gtk_status_kepegawaian, gtk_jabatan_ptk, gtk_nip, gtk_nuptk, gtk_nik,
+               active, status, tugas_tambahan, time, ip, browser,
                 sync_status, last_sync_at, created_at, updated_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                     'synced', NOW(), NOW(), NOW())"
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+                     ?, NOW(), NOW(), NOW())"
           );
-          // 19 params, all strings (level_id as string — MySQL auto-casts to int)
-          $ins->bind_param('sssssssssssssssssss',
+           // 25 params, gunakan string untuk menjaga fleksibilitas casting MySQL
+           $ins->bind_param(str_repeat('s', 25),
             $pengguna_id, $username, $email, $password, $fullname, $phone, $avatar,
             $gelar_d, $gelar_b, $level_id, $peran_id_str, $ptk_id,
-            $jenis_ptk_id_str, $active, $status, $tugas, $now, $ip_val, $br_val
+            $jenis_ptk_id_str, $gtk_status_kepegawaian, $gtk_jabatan_ptk, $gtk_nip, $gtk_nuptk, $gtk_nik,
+            $active_flag, $status_flag, $tugas, $now, $ip_val, $br_val,
+            $sync_flag
           );
-          if ($ins->execute()) { $inserted++; }
+          if ($ins->execute()) {
+            $inserted++;
+            if ($force_inactive) {
+              $deactivated++;
+            }
+          }
           else { $failed++; $failed_msgs[] = "Insert $username: " . $ins->error; }
           $ins->close();
         }
       }
 
-      $msg = "Processed: $processed, Updated: $updated, Inserted: $inserted, Skipped: $skipped, Failed: $failed";
+      // Hard safeguard: jika PTK tidak ditemukan lagi di sync_gtk, paksa nonaktif walau ada di sync_pengguna
+      $deactivate_sql = "
+        UPDATE admin a
+        LEFT JOIN sync_gtk g ON TRIM(COALESCE(g.ptk_id, '')) = TRIM(COALESCE(a.ptk_id, ''))
+        SET
+          a.active = 'N',
+          a.status = 'Offline',
+          a.sync_status = 'manual',
+          a.updated_at = NOW()
+        WHERE
+          a.ptk_id IS NOT NULL
+          AND TRIM(a.ptk_id) <> ''
+          AND g.ptk_id IS NULL
+          AND (COALESCE(a.peran_id_str, '') = 'PTK' OR a.level_id IN (2,3))
+          AND UPPER(TRIM(COALESCE(a.active, 'N'))) = 'Y'
+      ";
+      if ($connection->query($deactivate_sql)) {
+        $deactivated += (int) $connection->affected_rows;
+      } else {
+        $failed++;
+        $failed_msgs[] = 'Nonaktifkan admin PTK tanpa sync_gtk gagal: ' . $connection->error;
+      }
+
+      $msg = "Processed: $processed, Updated: $updated, Inserted: $inserted, Skipped: $skipped, Deactivated: $deactivated, Failed: $failed";
       if ($failed > 0) $msg .= "\nDetails: " . implode('; ', $failed_msgs);
       push_sync_progress('getPengguna', $failed > 0 ? 'failed' : 'success', $msg, [
         'scope' => 'table',
@@ -1284,6 +1347,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
       ob_clean();
       // Lepas lock session sebelum proses panjang agar polling get-status bisa berjalan paralel
       session_write_close();
+      ensure_admin_gtk_reference_columns($connection);
 
       $prefetch = sync_dapodik_sources_for_action(['getGtk', 'getPengguna']);
       if (($prefetch['status'] ?? '') !== 'success') {
@@ -1305,7 +1369,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
       if ($pq) { while ($pr = $pq->fetch_assoc()) { $pengguna_by_ptk[$pr['ptk_id']] = $pr; } }
 
       $result = $connection->query(
-        "SELECT ptk_id, nama, jenis_ptk_id_str
+        "SELECT ptk_id, nama, jenis_ptk_id_str, status_kepegawaian_id_str, jabatan_ptk_id_str, nip, nuptk, nik
          FROM sync_gtk WHERE nama IS NOT NULL AND nama != '' ORDER BY nama"
       );
       if (!$result || $result->num_rows == 0) {
@@ -1313,7 +1377,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
         exit;
       }
 
-      $processed = 0; $updated = 0; $inserted = 0; $skipped = 0; $failed = 0;
+      $processed = 0; $updated = 0; $inserted = 0; $skipped = 0; $failed = 0; $deactivated = 0;
       $failed_msgs = [];
       $now = date('Y-m-d H:i:s');
       $total_rows = intval($result->num_rows);
@@ -1325,6 +1389,11 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
         if (empty($ptk_id)) { $skipped++; continue; }
         $fullname  = $gtk['nama'] ?? '';
         $jenis_ptk = $gtk['jenis_ptk_id_str'] ?? '';
+        $gtk_status_kepegawaian = $gtk['status_kepegawaian_id_str'] ?? '';
+        $gtk_jabatan_ptk = $gtk['jabatan_ptk_id_str'] ?? '';
+        $gtk_nip = $gtk['nip'] ?? '';
+        $gtk_nuptk = $gtk['nuptk'] ?? '';
+        $gtk_nik = $gtk['nik'] ?? '';
         $level_id  = (stripos($jenis_ptk, 'Guru') !== false) ? 2 : 3;
 
         $pengguna    = $pengguna_by_ptk[$ptk_id] ?? null;
@@ -1348,7 +1417,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
         ]);
 
         $cek = $connection->prepare(
-          "SELECT admin_id, level_id, avatar, gelar_depan, gelar_belakang FROM admin WHERE ptk_id = ? LIMIT 1"
+          "SELECT admin_id, level_id, avatar, gelar_depan, gelar_belakang, gtk_status_kepegawaian, gtk_jabatan_ptk, gtk_nip, gtk_nuptk, gtk_nik FROM admin WHERE ptk_id = ? LIMIT 1"
         );
         $cek->bind_param('s', $ptk_id);
         $cek->execute();
@@ -1361,21 +1430,30 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
           $avatar    = !empty($row['avatar']) ? $row['avatar'] : 'avatar.jpg';
           $gelar_d   = $row['gelar_depan'] ?? '';
           $gelar_b   = $row['gelar_belakang'] ?? '';
+          if ($gtk_status_kepegawaian === '') $gtk_status_kepegawaian = (string)($row['gtk_status_kepegawaian'] ?? '');
+          if ($gtk_jabatan_ptk === '') $gtk_jabatan_ptk = (string)($row['gtk_jabatan_ptk'] ?? '');
+          if ($gtk_nip === '') $gtk_nip = (string)($row['gtk_nip'] ?? '');
+          if ($gtk_nuptk === '') $gtk_nuptk = (string)($row['gtk_nuptk'] ?? '');
+          if ($gtk_nik === '') $gtk_nik = (string)($row['gtk_nik'] ?? '');
           // Tidak override level Operator Sekolah (1) dan Kepala Sekolah (13)
           if ($cur_level == 1 || $cur_level == 13) {
             $upd = $connection->prepare(
-              "UPDATE admin SET fullname=?, jenis_ptk_id_str=?, avatar=?, gelar_depan=?, gelar_belakang=?,
+              "UPDATE admin SET fullname=?, jenis_ptk_id_str=?, gtk_status_kepegawaian=?, gtk_jabatan_ptk=?, gtk_nip=?, gtk_nuptk=?, gtk_nik=?, avatar=?, gelar_depan=?, gelar_belakang=?,
+               active='Y', status='Offline',
                sync_status='synced', last_sync_at=NOW(), updated_at=NOW()
                WHERE admin_id=?"
             );
-            $upd->bind_param('sssssi', $fullname, $jenis_ptk, $avatar, $gelar_d, $gelar_b, $aid);
+            $aid_str = (string) $aid;
+            $upd->bind_param(str_repeat('s', 11), $fullname, $jenis_ptk, $gtk_status_kepegawaian, $gtk_jabatan_ptk, $gtk_nip, $gtk_nuptk, $gtk_nik, $avatar, $gelar_d, $gelar_b, $aid_str);
           } else {
             $upd = $connection->prepare(
-              "UPDATE admin SET fullname=?, jenis_ptk_id_str=?, level_id=?, avatar=?, gelar_depan=?, gelar_belakang=?,
+              "UPDATE admin SET fullname=?, jenis_ptk_id_str=?, level_id=?, gtk_status_kepegawaian=?, gtk_jabatan_ptk=?, gtk_nip=?, gtk_nuptk=?, gtk_nik=?, avatar=?, gelar_depan=?, gelar_belakang=?,
+               active='Y', status='Offline',
                sync_status='synced', last_sync_at=NOW(), updated_at=NOW()
                WHERE admin_id=?"
             );
-            $upd->bind_param('ssssssi', $fullname, $jenis_ptk, $level_id, $avatar, $gelar_d, $gelar_b, $aid);
+            $aid_str = (string) $aid;
+            $upd->bind_param(str_repeat('s', 12), $fullname, $jenis_ptk, $level_id, $gtk_status_kepegawaian, $gtk_jabatan_ptk, $gtk_nip, $gtk_nuptk, $gtk_nik, $avatar, $gelar_d, $gelar_b, $aid_str);
           }
           if ($upd->execute()) { $updated++; }
           else { $failed++; $failed_msgs[] = "Update ptk $ptk_id: " . $upd->error; }
@@ -1394,16 +1472,18 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
             "INSERT INTO admin
                (ptk_id, pengguna_id, fullname, jenis_ptk_id_str, level_id,
                 username, email, password, phone, avatar, gelar_depan, gelar_belakang,
-                peran_id_str, active, status, tugas_tambahan, time, ip, browser,
+                peran_id_str, gtk_status_kepegawaian, gtk_jabatan_ptk, gtk_nip, gtk_nuptk, gtk_nik,
+                active, status, tugas_tambahan, time, ip, browser,
                 sync_status, last_sync_at, created_at, updated_at)
-             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
+             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
                      'synced', NOW(), NOW(), NOW())"
           );
-          // 19 params, all strings
-          $ins->bind_param('sssssssssssssssssss',
+          // 25 params, gunakan string untuk menjaga fleksibilitas casting MySQL
+          $ins->bind_param(str_repeat('s', 25),
             $ptk_id, $pengguna_id, $fullname, $jenis_ptk, $level_id,
             $username, $email, $password, $phone, $avatar, $gelar_d, $gelar_b,
-            $peran, $active, $status, $tugas, $now, $ip_val, $br_val
+            $peran, $gtk_status_kepegawaian, $gtk_jabatan_ptk, $gtk_nip, $gtk_nuptk, $gtk_nik,
+            $active, $status, $tugas, $now, $ip_val, $br_val
           );
           if ($ins->execute()) { $inserted++; }
           else { $failed++; $failed_msgs[] = "Insert ptk $ptk_id: " . $ins->error; }
@@ -1411,7 +1491,29 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY']) && !$allow_public_b
         }
       }
 
-      $msg = "Processed: $processed, Updated: $updated, Inserted: $inserted, Skipped: $skipped, Failed: $failed";
+      // Nonaktifkan admin berbasis GTK yang sudah tidak ada lagi di tabel sync_gtk
+      $deactivate_sql = "
+        UPDATE admin a
+        LEFT JOIN sync_gtk g ON TRIM(COALESCE(g.ptk_id, '')) = TRIM(COALESCE(a.ptk_id, ''))
+        SET
+          a.active = 'N',
+          a.status = 'Offline',
+          a.sync_status = 'manual',
+          a.updated_at = NOW()
+        WHERE
+          a.ptk_id IS NOT NULL
+          AND TRIM(a.ptk_id) <> ''
+          AND g.ptk_id IS NULL
+          AND UPPER(TRIM(COALESCE(a.active, 'N'))) = 'Y'
+      ";
+      if ($connection->query($deactivate_sql)) {
+        $deactivated = (int) $connection->affected_rows;
+      } else {
+        $failed++;
+        $failed_msgs[] = 'Nonaktifkan admin GTK tidak sinkron gagal: ' . $connection->error;
+      }
+
+      $msg = "Processed: $processed, Updated: $updated, Inserted: $inserted, Skipped: $skipped, Deactivated: $deactivated, Failed: $failed";
       if ($failed > 0) $msg .= "\nDetails: " . implode('; ', $failed_msgs);
       push_sync_progress('getGtk', $failed > 0 ? 'failed' : 'success', $msg, [
         'scope' => 'table',

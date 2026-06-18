@@ -694,10 +694,9 @@ if (!function_exists('sae_sync_bootstrap_completed')) {
         return false;
       }
 
-      $status_query = "SELECT status FROM sync_log WHERE endpoint='" . $db->real_escape_string($endpoint) . "' ORDER BY created_at DESC, id DESC LIMIT 1";
+      $status_query = "SELECT 1 FROM sync_log WHERE endpoint='" . $db->real_escape_string($endpoint) . "' AND status='success' LIMIT 1";
       $status_result = $db->query($status_query);
-      $status_row = $status_result ? $status_result->fetch_assoc() : null;
-      if (!$status_row || strtolower((string) ($status_row['status'] ?? '')) !== 'success') {
+      if (!$status_result || !$status_result->num_rows) {
         return false;
       }
     }
@@ -714,6 +713,10 @@ if (!function_exists('sae_sync_has_logged_failure')) {
     $db = $db ?: $connection;
     if (!$db) {
       return true;
+    }
+
+    if (sae_sync_bootstrap_completed($db)) {
+      return false;
     }
 
     foreach (sae_sync_bootstrap_tables() as $endpoint => $table_name) {
@@ -733,15 +736,20 @@ if (!function_exists('sae_sync_has_logged_failure')) {
 if (!function_exists('sae_registration_sync_required')) {
   function sae_registration_sync_required($db = null)
   {
-    return !sae_sync_bootstrap_completed($db) || sae_sync_has_logged_failure($db);
+    return !sae_sync_bootstrap_completed($db);
   }
 }
 
 if (!function_exists('sae_registrasi_url')) {
   function sae_registrasi_url()
   {
-    $core_base = rtrim((string) base_url(false, true), '/');
-    return $core_base . '/registrasi/';
+    $script_name = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', (string) $_SERVER['SCRIPT_NAME']) : '/index.php';
+    $base_dir = rtrim((string) dirname($script_name), '/');
+    if ($base_dir === '.' || $base_dir === DIRECTORY_SEPARATOR) {
+      $base_dir = '';
+    }
+
+    return $base_dir . '/registrasi/';
   }
 }
 
@@ -772,35 +780,7 @@ function checkSystemMaintenance()
   }
 
   // Selama bootstrap data awal belum lengkap, izinkan alur publik menuju registrasi.
-  $sync_bootstrap_tables = [
-    'getSekolah' => 'sync_sekolah',
-    'getGtk' => 'sync_gtk',
-    'getRombonganBelajar' => 'sync_rombongan_belajar',
-    'getPesertaDidik' => 'sync_peserta_didik',
-    'getPengguna' => 'sync_pengguna'
-  ];
-  $bootstrap_completed = true;
-  foreach ($sync_bootstrap_tables as $endpoint => $table_name) {
-    $table_check = $connection->query("SHOW TABLES LIKE '" . $connection->real_escape_string($table_name) . "'");
-    if (!$table_check || !$table_check->num_rows) {
-      $bootstrap_completed = false;
-      break;
-    }
-
-    $row_check = $connection->query("SELECT 1 FROM `{$table_name}` LIMIT 1");
-    if (!$row_check || !$row_check->num_rows) {
-      $bootstrap_completed = false;
-      break;
-    }
-
-    $status_query = "SELECT status FROM sync_log WHERE endpoint='" . $connection->real_escape_string($endpoint) . "' ORDER BY created_at DESC, id DESC LIMIT 1";
-    $status_result = $connection->query($status_query);
-    $status_row = $status_result ? $status_result->fetch_assoc() : null;
-    if (!$status_row || ($status_row['status'] ?? '') !== 'success') {
-      $bootstrap_completed = false;
-      break;
-    }
-  }
+  $bootstrap_completed = sae_sync_bootstrap_completed($connection);
 
   if (!$bootstrap_completed) {
     // Bootstrap belum selesai — jangan redirect ke maintenance.

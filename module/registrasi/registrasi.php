@@ -6,7 +6,11 @@ if (empty($connection)) {
 
 $registrasi_site_name = 'Smart Apps Education';
 $registrasi_base_url = rtrim(isset($base_url) ? $base_url : './', '/');
-$registrasi_app_root = rtrim((string) base_url(false, true), '/');
+$registrasi_script = isset($_SERVER['SCRIPT_NAME']) ? str_replace('\\', '/', (string) $_SERVER['SCRIPT_NAME']) : '/index.php';
+$registrasi_app_root = rtrim((string) dirname($registrasi_script), '/');
+if ($registrasi_app_root === '.' || $registrasi_app_root === DIRECTORY_SEPARATOR) {
+  $registrasi_app_root = '';
+}
 
 $registrasi_defaults = [
   'base_url' => '',

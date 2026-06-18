@@ -25,10 +25,9 @@ if (!function_exists('maintenance_sync_bootstrap_completed')) {
                 return false;
             }
 
-            $status_query = "SELECT status FROM sync_log WHERE endpoint='" . $connection->real_escape_string($endpoint) . "' ORDER BY created_at DESC, id DESC LIMIT 1";
+            $status_query = "SELECT 1 FROM sync_log WHERE endpoint='" . $connection->real_escape_string($endpoint) . "' AND status='success' LIMIT 1";
             $status_result = $connection->query($status_query);
-            $status_row = $status_result ? $status_result->fetch_assoc() : null;
-            if (!$status_row || ($status_row['status'] ?? '') !== 'success') {
+            if (!$status_result || !$status_result->num_rows) {
                 return false;
             }
         }

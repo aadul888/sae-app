@@ -573,57 +573,28 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             <p class="text-muted mb-3">Backup file sistem fokus pada aset penting di folder <strong>content</strong>. Anda bisa memilih aset yang ingin diunduh.</p>
 
             <div class="mb-3">
-              <label class="font-weight-bold d-block mb-2">Pilih aset content:</label>
-              <div id="backupAssetFolders" class="pl-1">
-                <div class="custom-control custom-checkbox mb-2">
-                  <input type="checkbox" class="custom-control-input backup-asset-folder" id="assetAgenda" value="agenda" checked>
-                  <label class="custom-control-label" for="assetAgenda">agenda</label>
-                </div>
-                <div class="custom-control custom-checkbox mb-2">
-                  <input type="checkbox" class="custom-control-input backup-asset-folder" id="assetAvatar" value="avatar" checked>
-                  <label class="custom-control-label" for="assetAvatar">avatar</label>
-                </div>
-                <div class="custom-control custom-checkbox mb-2">
-                  <input type="checkbox" class="custom-control-input backup-asset-folder" id="assetBerkas" value="berkas" checked>
-                  <label class="custom-control-label" for="assetBerkas">berkas</label>
-                </div>
-                <div class="custom-control custom-checkbox mb-2">
-                  <input type="checkbox" class="custom-control-input backup-asset-folder" id="assetCapture" value="capture" checked>
-                  <label class="custom-control-label" for="assetCapture">capture</label>
-                </div>
-                <div class="custom-control custom-checkbox mb-2">
-                  <input type="checkbox" class="custom-control-input backup-asset-folder" id="assetPelanggaran" value="pelanggaran" checked>
-                  <label class="custom-control-label" for="assetPelanggaran">pelanggaran</label>
-                </div>
-                <div class="custom-control custom-checkbox mb-2">
-                  <input type="checkbox" class="custom-control-input backup-asset-folder" id="assetUsulanPip" value="usulan-pip" checked>
-                  <label class="custom-control-label" for="assetUsulanPip">usulan-pip</label>
-                </div>
-              </div>
-            </div>
-
-            <div class="mb-3">
-              <label class="font-weight-bold d-block mb-2">Mode unduh:</label>
-              <div class="custom-control custom-radio mb-2">
-                <input type="radio" id="backupModePerFolder" name="backup_mode" class="custom-control-input" value="per-folder" checked>
-                <label class="custom-control-label" for="backupModePerFolder">Per folder (direkomendasikan untuk file besar)</label>
-              </div>
-              <div class="custom-control custom-radio mb-2">
-                <input type="radio" id="backupModeSingle" name="backup_mode" class="custom-control-input" value="single">
-                <label class="custom-control-label" for="backupModeSingle">Gabung 1 file ZIP</label>
-              </div>
+              <label class="font-weight-bold d-block mb-2" for="backupAssetFolder">Pilih aset content:</label>
+              <select id="backupAssetFolder" class="custom-select backup-asset-folder">
+                <option value="agenda" selected>agenda</option>
+                <option value="avatar">avatar</option>
+                <option value="berkas">berkas</option>
+                <option value="capture">capture</option>
+                <option value="pelanggaran">pelanggaran</option>
+                <option value="usulan-pip">usulan-pip</option>
+              </select>
+              <small class="form-text text-muted mt-2">Satu folder diproses setiap kali unduh.</small>
             </div>
             
             <div class="alert alert-info">
               <i class="fas fa-info-circle mr-2"></i>
-              <strong>Catatan:</strong> Sistem akan membuat ZIP sesuai aset yang dipilih. Proses selesai akan otomatis memulai unduhan.
+              <strong>Catatan:</strong> Sistem akan membuat ZIP untuk satu folder yang dipilih. Proses selesai akan otomatis memulai unduhan.
             </div>
           </div>
           <div class="col-md-6 text-center">
             <div class="mb-3">
               <i class="fas fa-folder-open fa-4x text-success mb-3"></i>
               <h5>File System Backup</h5>
-              <small id="backupAssetSummary" class="text-muted d-block">Aset terpilih: 6 folder</small>
+              <small id="backupAssetSummary" class="text-muted d-block">Aset terpilih: agenda</small>
             </div>
             <button class="btn btn-success btn-lg" onclick="backupFiles()">
               <i class="fas fa-download mr-2"></i>Download Backup Files

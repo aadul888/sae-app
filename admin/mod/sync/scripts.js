@@ -157,29 +157,6 @@ document.addEventListener("DOMContentLoaded", function () {
   loadSetting(7);
 });
 
-/** Handler untuk tombol refresh status */
-$(document).on("click", "#btnRefreshStatus", function () {
-  const $button = $(this);
-  const originalText = $button.html();
-
-  $button
-    .prop("disabled", true)
-    .html('<i class="fas fa-spinner fa-spin mr-1"></i> Refresh...');
-
-  // Reload halaman tarik data
-  loadSetting(8);
-
-  setTimeout(function () {
-    $button.prop("disabled", false).html(originalText);
-    swal({
-      title: "Status Diperbarui!",
-      text: "Data status sinkronisasi telah diperbarui",
-      icon: "success",
-      timer: 2000,
-    });
-  }, 1500);
-});
-
 function getDapodikConfigPayload() {
   return {
     base_url: ($("#dapodik-base-url").val() || "").trim(),

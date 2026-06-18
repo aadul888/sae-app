@@ -197,228 +197,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     $api_endpoint = $protocol . $domain . $path;
 
     echo '
-    <style>
-      #syncFloatingProgress {
-        --registrasi-progress: 0%;
-        position: fixed;
-        inset: 0;
-        z-index: 2000;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      #syncFloatingProgress[hidden] {
-        display: none !important;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-backdrop {
-        position: absolute;
-        inset: 0;
-        background: rgba(15, 23, 42, 0.34);
-        backdrop-filter: blur(2px);
-        -webkit-backdrop-filter: blur(2px);
-      }
-
-      #syncFloatingProgress .sae-floating-progress-dialog {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1rem;
-        width: min(540px, calc(100vw - 2rem));
-        max-height: calc(100vh - 2rem);
-        overflow: auto;
-        padding: 1.35rem 1.2rem 1.15rem;
-        border-radius: 28px;
-        background: rgba(255, 255, 255, 0.94);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        box-shadow: 0 18px 34px rgba(15, 23, 42, 0.16);
-        backdrop-filter: blur(14px);
-        -webkit-backdrop-filter: blur(14px);
-        opacity: 0;
-        transform: translateY(18px);
-        transition: opacity 0.2s ease, transform 0.2s ease;
-      }
-
-      #syncFloatingProgress.is-visible .sae-floating-progress-dialog {
-        opacity: 1;
-        transform: translateY(0);
-      }
-
-      #syncFloatingProgress .sae-floating-progress-ring {
-        position: relative;
-        width: 64px;
-        height: 64px;
-        border-radius: 50%;
-        background: conic-gradient(#2563eb var(--registrasi-progress), rgba(226, 232, 240, 0.95) 0);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-ring::before {
-        content: "";
-        position: absolute;
-        inset: 7px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.98);
-      }
-
-      #syncFloatingProgress .sae-floating-progress-ring span {
-        position: relative;
-        z-index: 1;
-        color: #0f172a;
-        font-size: 0.86rem;
-        font-weight: 800;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-copy {
-        display: grid;
-        gap: 0.15rem;
-        text-align: center;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-copy strong {
-        color: #0f172a;
-        font-size: 0.95rem;
-        font-weight: 800;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-copy span {
-        color: #64748b;
-        font-size: 0.84rem;
-        line-height: 1.55;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-warning {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.6rem;
-        width: 100%;
-        padding: 0.85rem 0.95rem;
-        border-radius: 18px;
-        background: rgba(245, 158, 11, 0.1);
-        border: 1px solid rgba(245, 158, 11, 0.18);
-        color: #92400e;
-        font-size: 0.88rem;
-        line-height: 1.55;
-      }
-
-      #syncFloatingProgress .sae-reg-step-bar-wrap {
-        width: 100%;
-      }
-
-      #syncFloatingProgress .sae-reg-step-bar-track {
-        width: 100%;
-        max-width: none;
-        height: 10px;
-        border-radius: 999px;
-        overflow: hidden;
-        background: rgba(203, 213, 225, 0.55);
-      }
-
-      #syncFloatingProgress .sae-reg-step-bar {
-        min-width: 0;
-        transition: width 0.18s linear;
-      }
-
-      #syncFloatingProgress .sae-reg-step-bar-text {
-        margin-top: 0.45rem;
-        color: #1e3a8a;
-        font-weight: 600;
-        text-align: center;
-        display: none;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-stream {
-        width: 100%;
-        min-height: 64px;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-stream-empty {
-        padding: 0.9rem 1rem;
-        border-radius: 16px;
-        background: rgba(248, 250, 252, 0.92);
-        border: 1px dashed rgba(148, 163, 184, 0.26);
-        color: #64748b;
-        font-size: 0.88rem;
-        text-align: center;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item {
-        position: relative;
-        padding: 0.8rem 0.9rem 0.75rem;
-        border-radius: 18px;
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
-        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
-        overflow: hidden;
-        margin-top: 0.45rem;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item::before {
-        content: "";
-        position: absolute;
-        inset: 0 auto 0 0;
-        width: 4px;
-        background: #cbd5e1;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item.is-running::before {
-        background: linear-gradient(180deg, #2563eb, #0ea5e9);
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item.is-success::before {
-        background: #16a34a;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item.is-failed::before {
-        background: #dc2626;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item-head {
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-        margin-bottom: 0.25rem;
-        color: #0f172a;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item-head strong {
-        font-size: 0.88rem;
-        font-weight: 800;
-      }
-
-      #syncFloatingProgress .sae-progress-icon {
-        width: 1rem;
-        text-align: center;
-        color: #2563eb;
-        font-size: 0.78rem;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item.is-success .sae-progress-icon {
-        color: #16a34a;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item.is-failed .sae-progress-icon {
-        color: #dc2626;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item em,
-      #syncFloatingProgress .sae-floating-progress-item span {
-        display: block;
-        font-style: normal;
-        color: #64748b;
-        font-size: 0.82rem;
-        line-height: 1.45;
-      }
-
-      #syncFloatingProgress .sae-floating-progress-item em {
-        margin-top: 0.18rem;
-      }
-    </style>
-
     <div class="row">
       <div class="col-12">
         <div class="alert alert-success" role="alert">
@@ -431,20 +209,14 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     </div>
 
     <div class="card shadow">
-      <div class="card-header bg-white">
-        <div class="row align-items-center">
-          <div class="col">
-            <h4 class="mb-0"><i class="fas fa-database text-primary mr-2"></i>Kelola Data Sinkronisasi</h4>
-          </div>
-          <div class="col-auto">
-            <button class="btn btn-success btn-sm mr-2" id="btnSyncAllData">
-              <i class="fas fa-download mr-1"></i> Tarik Data Dapodik
-            </button>
-            <button class="btn btn-primary btn-sm" id="btnRefreshStatus">
-              <i class="fas fa-sync-alt mr-1"></i> Refresh Status
-            </button>
-          </div>
+      <div class="card-header bg-white py-3 sync-simple-header">
+        <h4 class="mb-3"><i class="fas fa-database text-primary mr-2"></i>Tarik Data Dapodik</h4>
+        <div class="sync-main-btn-wrap">
+          <button class="btn btn-success btn-lg px-5 sync-main-btn" id="btnSyncAllData">
+            <i class="fas fa-download mr-1"></i> Tarik Data Dapodik
+          </button>
         </div>
+        <div class="mt-2 text-muted small text-center">Satu tombol untuk tarik semua data terbaru secara berurutan.</div>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -455,8 +227,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                 <th class="border-0 text-center">JML DATA DAPODIK</th>
                 <th class="border-0 text-center">JML DATA LOKAL</th>
                 <th class="border-0 text-center">TERAKHIR SYNC</th>
-                <th class="border-0 text-center">STATUS</th>
-                <th class="border-0 text-center">AKSI</th>
+                <th class="border-0">LOG</th>
               </tr>
             </thead>
             <tbody>';
@@ -484,23 +255,17 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             <td class="text-center">
               <small class="text-muted">' . ($sekolah_date ? date('d/m/Y H:i', strtotime($sekolah_date)) : 'Belum pernah') . '</small>
             </td>
-            <td class="text-center">';
+            <td>';
 
     if ($sekolah_status == 'success') {
-      echo '<span class="badge badge-success px-3 py-2">Lengkap</span>';
+      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
     } elseif ($sekolah_status == 'failed') {
-      echo '<span class="badge badge-danger px-3 py-2">Gagal</span>';
+      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
     } else {
-      echo '<span class="badge badge-secondary px-3 py-2">Belum Sync</span>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
     }
 
     echo '</td>
-            <td class="text-center">
-              <small class="text-muted">
-                <i class="fas fa-info-circle mr-1"></i>
-                Data Display Only
-              </small>
-            </td>
           </tr>';
 
     // Data GTK  
@@ -526,18 +291,17 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             <td class="text-center">
               <small class="text-muted">' . ($gtk_date ? date('d/m/Y H:i', strtotime($gtk_date)) : 'Belum pernah') . '</small>
             </td>
-            <td class="text-center">';
+            <td>';
 
     if ($gtk_status == 'success') {
-      echo '<span class="badge badge-success px-3 py-2">Lengkap</span>';
+      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
     } elseif ($gtk_status == 'failed') {
-      echo '<span class="badge badge-danger px-3 py-2">Gagal</span>';
+      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
     } else {
-      echo '<span class="badge badge-secondary px-3 py-2">Belum Sync</span>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
     }
 
     echo '</td>
-            <td class="text-center"><small class="text-muted">Diproses otomatis</small></td>
           </tr>';
 
     // Data Rombongan Belajar
@@ -563,18 +327,17 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             <td class="text-center">
               <small class="text-muted">' . ($rombel_date ? date('d/m/Y H:i', strtotime($rombel_date)) : 'Belum pernah') . '</small>
             </td>
-            <td class="text-center">';
+            <td>';
 
     if ($rombel_status == 'success') {
-      echo '<span class="badge badge-success px-3 py-2">Lengkap</span>';
+      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
     } elseif ($rombel_status == 'failed') {
-      echo '<span class="badge badge-danger px-3 py-2">Gagal</span>';
+      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
     } else {
-      echo '<span class="badge badge-secondary px-3 py-2">Belum Sync</span>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
     }
 
     echo '</td>
-            <td class="text-center"><small class="text-muted">Diproses otomatis</small></td>
           </tr>';
 
     // Data Peserta Didik
@@ -606,18 +369,17 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             <td class="text-center">
               <small class="text-muted">' . ($siswa_date ? date('d/m/Y H:i', strtotime($siswa_date)) : 'Belum pernah') . '</small>
             </td>
-            <td class="text-center">';
+            <td>';
 
     if ($siswa_status == 'success') {
-      echo '<span class="badge badge-success px-3 py-2">Lengkap</span>';
+      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
     } elseif ($siswa_status == 'failed') {
-      echo '<span class="badge badge-danger px-3 py-2">Gagal</span>';
+      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
     } else {
-      echo '<span class="badge badge-secondary px-3 py-2">Belum Sync</span>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
     }
 
     echo '</td>
-            <td class="text-center"><small class="text-muted">Diproses otomatis</small></td>
           </tr>';
 
     // Data Pengguna
@@ -643,18 +405,17 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             <td class="text-center">
               <small class="text-muted">' . ($user_date ? date('d/m/Y H:i', strtotime($user_date)) : 'Belum pernah') . '</small>
             </td>
-            <td class="text-center">';
+            <td>';
 
     if ($user_status == 'success') {
-      echo '<span class="badge badge-success px-3 py-2">Lengkap</span>';
+      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
     } elseif ($user_status == 'failed') {
-      echo '<span class="badge badge-danger px-3 py-2">Gagal</span>';
+      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
     } else {
-      echo '<span class="badge badge-secondary px-3 py-2">Belum Sync</span>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
     }
 
     echo '</td>
-            <td class="text-center"><small class="text-muted">Diproses otomatis</small></td>
           </tr>';
 
     echo '    </tbody>

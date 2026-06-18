@@ -39,8 +39,12 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     function backup_normalize_requested_folders($input)
     {
       $allowed = array_keys(backup_asset_folder_map());
+      if (is_string($input)) {
+        $input = [$input];
+      }
+
       if (!is_array($input)) {
-        $input = [];
+        return [];
       }
 
       $normalized = [];
@@ -52,7 +56,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       }
 
       $normalized = array_values(array_unique($normalized));
-      return !empty($normalized) ? $normalized : $allowed;
+      return $normalized;
     }
   }
 
@@ -132,11 +136,73 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
         $absolutePath = $fileInfo->getPathname();
         $relativePath = 'content/' . $folder . '/' . str_replace('\\', '/', substr($absolutePath, strlen($target) + 1));
-        $zip->addFile($absolutePath, $relativePath);
+
+        if (class_exists('ZipArchive') && $zip instanceof ZipArchive) {
+          $zip->addFile($absolutePath, $relativePath);
+        } elseif (method_exists($zip, 'addFileFromPath')) {
+          $zip->addFileFromPath($relativePath, $absolutePath);
+        }
+
         $added++;
       }
 
       return ['added' => $added];
+    }
+  }
+
+  if (!function_exists('backup_open_archive_writer')) {
+    function backup_open_archive_writer($filePath, &$writerType, &$streamHandle, &$errorMessage)
+    {
+      $writerType = '';
+      $streamHandle = null;
+      $errorMessage = '';
+
+      if (class_exists('ZipArchive')) {
+        $zip = new ZipArchive();
+        if ($zip->open($filePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+          $errorMessage = 'Gagal membuka writer ZIP (ZipArchive).';
+          return null;
+        }
+        $writerType = 'ziparchive';
+        return $zip;
+      }
+
+      $autoloadPath = __DIR__ . '/../../assets/vendor/autoload.php';
+      if (file_exists($autoloadPath)) {
+        require_once $autoloadPath;
+      }
+
+      if (class_exists('ZipStream\\ZipStream') && class_exists('ZipStream\\Option\\Archive')) {
+        $streamHandle = @fopen($filePath, 'wb');
+        if (!$streamHandle) {
+          $errorMessage = 'Tidak dapat menulis file ZIP ke folder backup-temp.';
+          return null;
+        }
+
+        $options = new \ZipStream\Option\Archive();
+        $options->setSendHttpHeaders(false);
+        $options->setOutputStream($streamHandle);
+
+        $writerType = 'zipstream';
+        return new \ZipStream\ZipStream(null, $options);
+      }
+
+      $errorMessage = 'Ekstensi ZipArchive tidak tersedia dan fallback ZipStream tidak ditemukan.';
+      return null;
+    }
+  }
+
+  if (!function_exists('backup_close_archive_writer')) {
+    function backup_close_archive_writer($zip, $writerType, $streamHandle = null)
+    {
+      if ($writerType === 'ziparchive' && $zip) {
+        $zip->close();
+      } elseif ($writerType === 'zipstream' && $zip) {
+        $zip->finish();
+        if (is_resource($streamHandle)) {
+          fclose($streamHandle);
+        }
+      }
     }
   }
 
@@ -573,9 +639,16 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       /** Backup Database */
       break;
     case 'backup-assets-scan':
-      $requestedFolders = isset($_POST['folders']) ? $_POST['folders'] : [];
-      $folders = backup_normalize_requested_folders($requestedFolders);
+      $requestedFolder = isset($_POST['folder']) ? trim((string) $_POST['folder']) : '';
+      $folders = backup_normalize_requested_folders($requestedFolder);
       $labels = backup_asset_folder_map();
+
+      if (empty($folders)) {
+        backup_json_response([
+          'status' => 'error',
+          'message' => 'Folder backup tidak valid.'
+        ]);
+      }
 
       $byFolder = [];
       $totalFiles = 0;
@@ -604,91 +677,84 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       break;
 
     case 'backup-assets-create':
-      if (!class_exists('ZipArchive')) {
-        backup_json_response([
-          'status' => 'error',
-          'message' => 'Ekstensi ZipArchive tidak tersedia di server.'
-        ]);
-      }
-
-      $requestedFolders = isset($_POST['folders']) ? $_POST['folders'] : [];
-      $folders = backup_normalize_requested_folders($requestedFolders);
-      $mode = isset($_POST['mode']) ? trim((string) $_POST['mode']) : 'per-folder';
+      $requestedFolder = isset($_POST['folder']) ? trim((string) $_POST['folder']) : '';
+      $folders = backup_normalize_requested_folders($requestedFolder);
       $labels = backup_asset_folder_map();
-      $tempDir = backup_temp_dir();
 
-      if (!is_dir($tempDir)) {
-        backup_json_response([
-          'status' => 'error',
-          'message' => 'Folder temp backup tidak tersedia.'
-        ]);
-      }
-
-      if ($mode === 'single') {
-        $fileName = 'backup_content_assets_' . date('Ymd_His') . '.zip';
-        $filePath = $tempDir . DIRECTORY_SEPARATOR . $fileName;
-
-        $zip = new ZipArchive();
-        if ($zip->open($filePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-          backup_json_response(['status' => 'error', 'message' => 'Gagal membuat file ZIP backup.']);
-        }
-
-        $totalAdded = 0;
-        foreach ($folders as $folder) {
-          $result = backup_add_folder_to_zip($zip, $folder);
-          $totalAdded += (int) $result['added'];
-        }
-        $zip->close();
-
-        $token = backup_issue_download_token($filePath, $fileName);
-        backup_json_response([
-          'status' => 'success',
-          'message' => 'Backup ZIP gabungan selesai dibuat.',
-          'data' => [
-            'mode' => 'single',
-            'file_count' => $totalAdded,
-            'download_name' => $fileName,
-            'download_url' => './mod/pengaturan/proses.php?action=backup-assets-download&token=' . urlencode($token)
-          ]
-        ]);
-      }
-
-      $folder = isset($_POST['folder']) ? trim((string) $_POST['folder']) : '';
-      if ($folder === '' || !isset($labels[$folder])) {
+      if (empty($folders)) {
         backup_json_response([
           'status' => 'error',
           'message' => 'Folder backup tidak valid.'
         ]);
       }
 
-      $safeFolder = preg_replace('/[^a-zA-Z0-9\-_]/', '', $folder);
-      $fileName = 'backup_' . $safeFolder . '_' . date('Ymd_His') . '.zip';
-      $filePath = $tempDir . DIRECTORY_SEPARATOR . $fileName;
-
-      $zip = new ZipArchive();
-      if ($zip->open($filePath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
-        backup_json_response(['status' => 'error', 'message' => 'Gagal membuat ZIP folder ' . $folder . '.']);
+      $folder = $folders[0];
+      $result = backup_count_folder_payload($folder);
+      if ((int) $result['file_count'] < 1) {
+        backup_json_response([
+          'status' => 'error',
+          'message' => 'Tidak ada file di folder aset terpilih.'
+        ]);
       }
 
-      $result = backup_add_folder_to_zip($zip, $folder);
-      $zip->close();
-
-      $token = backup_issue_download_token($filePath, $fileName);
       backup_json_response([
         'status' => 'success',
-        'message' => 'Backup folder ' . $labels[$folder] . ' selesai dibuat.',
+        'message' => 'Backup folder ' . $labels[$folder] . ' siap diunduh.',
         'data' => [
           'mode' => 'per-folder',
           'folder' => $folder,
           'label' => $labels[$folder],
-          'file_count' => (int) $result['added'],
-          'download_name' => $fileName,
-          'download_url' => './mod/pengaturan/proses.php?action=backup-assets-download&token=' . urlencode($token)
+          'file_count' => (int) $result['file_count'],
+          'download_url' => './mod/pengaturan/proses.php?action=backup-assets-download&folder=' . urlencode($folder)
         ]
       ]);
       break;
 
     case 'backup-assets-download':
+      $folderParam = isset($_GET['folder']) ? trim((string) $_GET['folder']) : '';
+      if ($folderParam !== '') {
+        $folders = backup_normalize_requested_folders($folderParam);
+        $labels = backup_asset_folder_map();
+
+        if (empty($folders)) {
+          header('HTTP/1.1 400 Bad Request');
+          echo 'Folder backup tidak valid.';
+          exit;
+        }
+
+        $folder = $folders[0];
+        $stats = backup_count_folder_payload($folder);
+        if ((int) $stats['file_count'] < 1) {
+          header('HTTP/1.1 404 Not Found');
+          echo 'Tidak ada file di folder aset terpilih.';
+          exit;
+        }
+
+        $autoloadPath = __DIR__ . '/../../assets/vendor/autoload.php';
+        if (file_exists($autoloadPath)) {
+          require_once $autoloadPath;
+        }
+
+        if (!class_exists('ZipStream\\ZipStream') || !class_exists('ZipStream\\Option\\Archive')) {
+          header('HTTP/1.1 500 Internal Server Error');
+          echo 'Library ZIP streaming tidak tersedia.';
+          exit;
+        }
+
+        $safeFolder = preg_replace('/[^a-zA-Z0-9\-_]/', '', $folder);
+        $downloadName = 'backup_' . $safeFolder . '_' . date('Ymd_His') . '.zip';
+
+        $options = new \ZipStream\Option\Archive();
+        $options->setSendHttpHeaders(true);
+        $options->setContentType('application/zip');
+        $options->setContentDisposition('attachment');
+
+        $zip = new \ZipStream\ZipStream($downloadName, $options);
+        backup_add_folder_to_zip($zip, $folder);
+        $zip->finish();
+        exit;
+      }
+
       $token = isset($_GET['token']) ? trim((string) $_GET['token']) : '';
       if ($token === '' || !isset($_SESSION['backup_file_tokens'][$token])) {
         header('HTTP/1.1 404 Not Found');

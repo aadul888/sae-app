@@ -238,24 +238,9 @@ if ($nama_length <= 8) {
 
 // Jika parameter modal=1, tampilkan konten untuk modal
 if (isset($_GET['modal']) && $_GET['modal'] == '1') {
-    // Prefer relative URLs using `$base` (module-relative) so hosting path resolution matches berkas module
-    $paths_out_rel = [];
-    foreach ($paths_fs as $k => $fs_path) {
-        if (empty($fs_path)) {
-            $paths_out_rel[$k] = '';
-            continue;
-        }
-        // compute path relative to fs_root
-        $rel = str_replace(str_replace('\\', '/', $fs_root), '', str_replace('\\', '/', $fs_path));
-        $rel = ltrim(str_replace(DIRECTORY_SEPARATOR, '/', $rel), '/');
-        // Use site-root absolute URLs to ensure correct resolution when HTML is injected via AJAX
-        $asset_base = rtrim($site_root_url, '/');
-        $url = $asset_base . '/' . $rel;
-        if (file_exists($fs_path)) $url .= '?t=' . filemtime($fs_path);
-        $paths_out_rel[$k] = $url;
-    }
-
     header('Content-Type: text/html; charset=utf-8');
+    $front_url = './mod/user/download_kartu.php?user_id=' . rawurlencode($user_id) . '&side=depan&inline=1&t=' . time();
+    $back_url = './mod/user/download_kartu.php?user_id=' . rawurlencode($user_id) . '&side=belakang&inline=1&t=' . time();
 ?>
     <div class="modal-body">
         <div class="text-center mb-3">
@@ -266,64 +251,9 @@ if (isset($_GET['modal']) && $_GET['modal'] == '1') {
             <small class="text-muted"><?= htmlspecialchars($nama) ?> - <?= htmlspecialchars($nisn) ?></small>
         </div>
 
-
-
-        <div class="kartu-pelajar-portrait-wrapper w-100" style="max-width:370px; margin: 0 auto;">
-            <!-- Kartu Depan -->
-            <div class="kartu-pelajar-portrait position-relative mx-auto" id="kartu-depan-modal">
-                <?php if (!empty($paths_fs['kartu_depan']) && file_exists($paths_fs['kartu_depan'])): ?>
-                    <img src="<?= ($paths_out_rel['kartu_depan'] ?? '') ?>" alt="Kartu Pelajar Depan" class="kartu-bg" loading="lazy" crossorigin="anonymous">
-                <?php else: ?>
-                    <!-- Fallback jika kartu depan tidak ada -->
-                    <div class="kartu-bg-fallback" style="width: 340px; height: 214px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 18px; position: relative;"></div>
-                <?php endif; ?>
-
-                <div class="kartu-content">
-                    <!-- Logo Jurusan Background -->
-                    <?php if (!empty($paths_fs['logo_jurusan']) && file_exists($paths_fs['logo_jurusan'])): ?>
-                        <div class="kartu-jurusan-row">
-                            <img src="<?= ($paths_out_rel['logo_jurusan'] ?? '') ?>" alt="Logo Jurusan" class="kartu-logo-jurusan" loading="lazy" crossorigin="anonymous">
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Foto Siswa -->
-                    <?php if (!empty($paths_fs['foto']) && file_exists($paths_fs['foto'])): ?>
-                        <div class="kartu-foto-row">
-                            <img src="<?= ($paths_out_rel['foto'] ?? '') ?>" alt="Foto Siswa" class="kartu-foto-siswa" loading="lazy" crossorigin="anonymous">
-                        </div>
-                    <?php else: ?>
-                        <div class="kartu-foto-row">
-                            <div class="kartu-foto-siswa" style="background: #f8f9fa; display: flex; align-items: center; justify-content: center; color: #6c757d;">
-                                <i class="fas fa-user fa-2x"></i>
-                            </div>
-                        </div>
-                    <?php endif; ?>
-
-                    <!-- Nama Siswa -->
-                    <div class="<?= $nama_class ?>"><?= htmlspecialchars($nama) ?></div>
-
-                    <!-- NISN -->
-                    <div class="kartu-nisn-row"><strong><?= htmlspecialchars($nisn) ?></strong></div>
-
-                    <!-- QR Code -->
-                    <div class="kartu-bottom-row">
-                        <?php if (!empty($paths_fs['qrcode']) && file_exists($paths_fs['qrcode'])): ?>
-                            <img src="<?= ($paths_out_rel['qrcode'] ?? '') ?>" alt="QR Code" class="kartu-qrcode" loading="lazy" crossorigin="anonymous">
-                        <?php else: ?>
-                            <div class="kartu-qrcode" style="background: #f8f9fa; display: flex; align-items: center; justify-content: center; color: #6c757d; font-size: 10px;">
-                                QR Code
-                            </div>
-                        <?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Kartu Belakang -->
-            <div class="kartu-pelajar-portrait position-relative mx-auto" id="kartu-belakang-modal" style="display: none; margin-top: 20px;">
-                <?php if (!empty($paths_fs['kartu_belakang']) && file_exists($paths_fs['kartu_belakang'])): ?>
-                    <img src="<?= ($paths_out_rel['kartu_belakang'] ?? '') ?>" alt="Kartu Pelajar Belakang" class="kartu-bg" loading="lazy" crossorigin="anonymous">
-                <?php endif; ?>
-            </div>
+        <div class="text-center" style="max-width:370px; margin: 0 auto;">
+            <img id="kartu-depan-modal" src="<?= htmlspecialchars($front_url) ?>" alt="Kartu Pelajar Depan" style="width:100%; border-radius:18px; box-shadow:0 8px 24px rgba(15,23,42,0.16);" loading="lazy">
+            <img id="kartu-belakang-modal" src="<?= htmlspecialchars($back_url) ?>" alt="Kartu Pelajar Belakang" style="display:none; width:100%; border-radius:18px; box-shadow:0 8px 24px rgba(15,23,42,0.16);" loading="lazy">
         </div>
     </div>
     <div class="modal-footer">
@@ -337,11 +267,6 @@ if (isset($_GET['modal']) && $_GET['modal'] == '1') {
             <i class="fas fa-times mr-2"></i>Tutup
         </button>
     </div>
-
-    <!-- Load global admin stylesheet -->
-    <link rel="stylesheet" href="<?= $public_base ?>/assets/css/style.css">
-
-
 
 <?php
     exit;
@@ -904,8 +829,13 @@ if ($side === 'depan') {
 
 // Output PNG for download
 $filename = 'kartu-pelajar-' . ($nisn ?: $user_id) . '-' . $side . '.png';
+$is_inline = isset($_GET['inline']) && $_GET['inline'] == '1';
 header('Content-Type: image/png');
-header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
+if ($is_inline) {
+    header('Content-Disposition: inline; filename="' . basename($filename) . '"');
+} else {
+    header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
+}
 imagepng($canvas);
 imagedestroy($canvas);
 exit;

@@ -297,7 +297,7 @@
 
   function fetchProgressSnapshot() {
     return $.ajax({
-      url: "./admin/mod/sync/proses.php?action=get-status&_=" + Date.now(),
+      url: appUrl("admin/mod/sync/proses.php?action=get-status&_=" + Date.now()),
       type: "GET",
       cache: false,
       timeout: 10000
@@ -355,21 +355,31 @@
     const $btn = $(this);
     $btn.prop("disabled", true).html('<i class="fas fa-spinner fa-spin"></i> Menghapus...');
     $.ajax({
-      url: "./admin/mod/sync/proses.php?action=clear-sync-tables",
+      url: appUrl("admin/mod/sync/proses.php?action=clear-sync-tables"),
       type: "POST",
       timeout: 15000,
       success: function (data) {
-        const result = typeof data === "string" ? JSON.parse(data) : data;
+        const result = parseResponse(data);
         if (result.status === "success") {
           $btn.html('<i class="fas fa-check"></i> Berhasil, memuat ulang...');
           window.setTimeout(function () {
             window.location.reload();
           }, 1200);
         } else {
+          const message = result.message || "Gagal menghapus data sinkron.";
+          setFloatingProgress(0, "Gagal menghapus data", compactText(message, 120));
           $btn.prop("disabled", false).html('<i class="fas fa-trash-alt"></i> Hapus Data &amp; Ulangi');
         }
       },
-      error: function () {
+      error: function (xhr, status) {
+        let message = "Gagal menghapus data sinkron.";
+        if (status === "timeout") {
+          message = "Request timeout saat menghapus data sinkron.";
+        } else if (xhr && xhr.responseText) {
+          const parsed = parseResponse(xhr.responseText);
+          message = parsed.message || compactText(xhr.responseText, 120);
+        }
+        setFloatingProgress(0, "Gagal menghapus data", compactText(message, 120));
         $btn.prop("disabled", false).html('<i class="fas fa-trash-alt"></i> Hapus Data &amp; Ulangi');
       }
     });
@@ -402,7 +412,7 @@
   function runAction(config) {
     return new Promise(function (resolve) {
       $.ajax({
-        url: "./admin/mod/sync/proses.php?action=" + config.action,
+        url: appUrl("admin/mod/sync/proses.php?action=" + config.action),
         type: "POST",
         timeout: config.timeout,
         success: function (data) {
@@ -460,7 +470,7 @@
     startProgressPolling();
 
     $.ajax({
-      url: "./admin/mod/sync/proses.php?action=save-dapodik-config",
+      url: appUrl("admin/mod/sync/proses.php?action=save-dapodik-config"),
       type: "POST",
       data: payload,
       timeout: 15000,

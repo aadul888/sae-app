@@ -6,23 +6,23 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
   $modul_id = 46;
   include __DIR__ . '/../check_role.php';
   if ($has_access) {
-    $stats_q = $connection->query("SELECT COUNT(*) AS total, COUNT(DISTINCT COALESCE(jenis_ptk_id_str, '')) AS jenis, COUNT(DISTINCT COALESCE(status_kepegawaian_id_str, '')) AS kepegawaian FROM sync_gtk g LEFT JOIN admin a ON a.ptk_id = g.ptk_id WHERE g.nama IS NOT NULL AND g.nama != '' AND COALESCE(a.active, 'N') != 'Y'");
+    $stats_q = $connection->query("SELECT COUNT(*) AS total, COUNT(DISTINCT NULLIF(TRIM(COALESCE(g.jenis_ptk_id_str, '')), '')) AS jenis, COUNT(DISTINCT NULLIF(TRIM(COALESCE(g.status_kepegawaian_id_str, '')), '')) AS kepegawaian FROM admin a LEFT JOIN sync_gtk g ON TRIM(COALESCE(g.ptk_id, '')) = TRIM(COALESCE(a.ptk_id, '')) WHERE a.ptk_id IS NOT NULL AND TRIM(a.ptk_id) <> '' AND UPPER(TRIM(COALESCE(a.active, 'N'))) != 'Y' AND (COALESCE(a.peran_id_str, '') = 'PTK' OR a.level_id IN (2,3))");
     $stats = $stats_q ? $stats_q->fetch_assoc() : ['total' => 0, 'jenis' => 0, 'kepegawaian' => 0];
 
     $jenis_list = [];
-    $jenis_q = $connection->query("SELECT DISTINCT jenis_ptk_id_str FROM sync_gtk g LEFT JOIN admin a ON a.ptk_id = g.ptk_id WHERE g.nama IS NOT NULL AND g.nama != '' AND COALESCE(a.active, 'N') != 'Y' AND jenis_ptk_id_str IS NOT NULL AND jenis_ptk_id_str != '' ORDER BY jenis_ptk_id_str ASC");
+    $jenis_q = $connection->query("SELECT DISTINCT g.jenis_ptk_id_str FROM admin a INNER JOIN sync_gtk g ON TRIM(COALESCE(g.ptk_id, '')) = TRIM(COALESCE(a.ptk_id, '')) WHERE a.ptk_id IS NOT NULL AND TRIM(a.ptk_id) <> '' AND UPPER(TRIM(COALESCE(a.active, 'N'))) != 'Y' AND (COALESCE(a.peran_id_str, '') = 'PTK' OR a.level_id IN (2,3)) AND g.jenis_ptk_id_str IS NOT NULL AND TRIM(g.jenis_ptk_id_str) <> '' ORDER BY g.jenis_ptk_id_str ASC");
     if ($jenis_q) {
       while ($r = $jenis_q->fetch_assoc()) $jenis_list[] = $r['jenis_ptk_id_str'];
     }
 
     $kepeg_list = [];
-    $kepeg_q = $connection->query("SELECT DISTINCT status_kepegawaian_id_str FROM sync_gtk g LEFT JOIN admin a ON a.ptk_id = g.ptk_id WHERE g.nama IS NOT NULL AND g.nama != '' AND COALESCE(a.active, 'N') != 'Y' AND status_kepegawaian_id_str IS NOT NULL AND status_kepegawaian_id_str != '' ORDER BY status_kepegawaian_id_str ASC");
+    $kepeg_q = $connection->query("SELECT DISTINCT g.status_kepegawaian_id_str FROM admin a INNER JOIN sync_gtk g ON TRIM(COALESCE(g.ptk_id, '')) = TRIM(COALESCE(a.ptk_id, '')) WHERE a.ptk_id IS NOT NULL AND TRIM(a.ptk_id) <> '' AND UPPER(TRIM(COALESCE(a.active, 'N'))) != 'Y' AND (COALESCE(a.peran_id_str, '') = 'PTK' OR a.level_id IN (2,3)) AND g.status_kepegawaian_id_str IS NOT NULL AND TRIM(g.status_kepegawaian_id_str) <> '' ORDER BY g.status_kepegawaian_id_str ASC");
     if ($kepeg_q) {
       while ($r = $kepeg_q->fetch_assoc()) $kepeg_list[] = $r['status_kepegawaian_id_str'];
     }
 
     $jabatan_list = [];
-    $jabatan_q = $connection->query("SELECT DISTINCT jabatan_ptk_id_str FROM sync_gtk g LEFT JOIN admin a ON a.ptk_id = g.ptk_id WHERE g.nama IS NOT NULL AND g.nama != '' AND COALESCE(a.active, 'N') != 'Y' AND jabatan_ptk_id_str IS NOT NULL AND jabatan_ptk_id_str != '' ORDER BY jabatan_ptk_id_str ASC");
+    $jabatan_q = $connection->query("SELECT DISTINCT g.jabatan_ptk_id_str FROM admin a INNER JOIN sync_gtk g ON TRIM(COALESCE(g.ptk_id, '')) = TRIM(COALESCE(a.ptk_id, '')) WHERE a.ptk_id IS NOT NULL AND TRIM(a.ptk_id) <> '' AND UPPER(TRIM(COALESCE(a.active, 'N'))) != 'Y' AND (COALESCE(a.peran_id_str, '') = 'PTK' OR a.level_id IN (2,3)) AND g.jabatan_ptk_id_str IS NOT NULL AND TRIM(g.jabatan_ptk_id_str) <> '' ORDER BY g.jabatan_ptk_id_str ASC");
     if ($jabatan_q) {
       while ($r = $jabatan_q->fetch_assoc()) $jabatan_list[] = $r['jabatan_ptk_id_str'];
     }

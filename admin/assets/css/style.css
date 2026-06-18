@@ -277,6 +277,247 @@
   border-radius: 10px;
 }
 
+#syncFloatingProgress {
+  --registrasi-progress: 0%;
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#syncFloatingProgress[hidden] {
+  display: none !important;
+}
+
+#syncFloatingProgress .sae-floating-progress-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+#syncFloatingProgress .sae-floating-progress-dialog {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: min(540px, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 1.35rem 1.2rem 1.15rem;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#syncFloatingProgress.is-visible .sae-floating-progress-dialog {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#syncFloatingProgress .sae-floating-progress-ring {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: conic-gradient(#2563eb var(--registrasi-progress), rgba(226, 232, 240, 0.95) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#syncFloatingProgress .sae-floating-progress-ring::before {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.98);
+}
+
+#syncFloatingProgress .sae-floating-progress-ring span {
+  position: relative;
+  z-index: 1;
+  color: #0f172a;
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+#syncFloatingProgress .sae-floating-progress-copy {
+  display: grid;
+  gap: 0.15rem;
+  text-align: center;
+}
+
+#syncFloatingProgress .sae-floating-progress-copy strong {
+  color: #0f172a;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+#syncFloatingProgress .sae-floating-progress-copy span {
+  color: #64748b;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+#syncFloatingProgress .sae-floating-progress-warning {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.85rem 0.95rem;
+  border-radius: 18px;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.18);
+  color: #92400e;
+  font-size: 0.88rem;
+  line-height: 1.55;
+}
+
+#syncFloatingProgress .sae-reg-step-bar-wrap {
+  width: 100%;
+}
+
+#syncFloatingProgress .sae-reg-step-bar-track {
+  width: 100%;
+  max-width: none;
+  height: 10px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(203, 213, 225, 0.55);
+}
+
+#syncFloatingProgress .sae-reg-step-bar {
+  min-width: 0;
+  transition: width 0.18s linear;
+}
+
+#syncFloatingProgress .sae-reg-step-bar-text {
+  margin-top: 0.45rem;
+  color: #1e3a8a;
+  font-weight: 600;
+  text-align: center;
+  display: none;
+}
+
+#syncFloatingProgress .sae-floating-progress-stream {
+  width: 100%;
+  min-height: 64px;
+}
+
+#syncFloatingProgress .sae-floating-progress-stream-empty {
+  padding: 0.9rem 1rem;
+  border-radius: 16px;
+  background: rgba(248, 250, 252, 0.92);
+  border: 1px dashed rgba(148, 163, 184, 0.26);
+  color: #64748b;
+  font-size: 0.88rem;
+  text-align: center;
+}
+
+#syncFloatingProgress .sae-floating-progress-item {
+  position: relative;
+  padding: 0.8rem 0.9rem 0.75rem;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96));
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+  margin-top: 0.45rem;
+}
+
+#syncFloatingProgress .sae-floating-progress-item::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: #cbd5e1;
+}
+
+#syncFloatingProgress .sae-floating-progress-item.is-running::before {
+  background: linear-gradient(180deg, #2563eb, #0ea5e9);
+}
+
+#syncFloatingProgress .sae-floating-progress-item.is-success::before {
+  background: #16a34a;
+}
+
+#syncFloatingProgress .sae-floating-progress-item.is-failed::before {
+  background: #dc2626;
+}
+
+#syncFloatingProgress .sae-floating-progress-item-head {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.25rem;
+  color: #0f172a;
+}
+
+#syncFloatingProgress .sae-floating-progress-item-head strong {
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+#syncFloatingProgress .sae-progress-icon {
+  width: 1rem;
+  text-align: center;
+  color: #2563eb;
+  font-size: 0.78rem;
+}
+
+#syncFloatingProgress .sae-floating-progress-item.is-success .sae-progress-icon {
+  color: #16a34a;
+}
+
+#syncFloatingProgress .sae-floating-progress-item.is-failed .sae-progress-icon {
+  color: #dc2626;
+}
+
+#syncFloatingProgress .sae-floating-progress-item em,
+#syncFloatingProgress .sae-floating-progress-item span {
+  display: block;
+  font-style: normal;
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+#syncFloatingProgress .sae-floating-progress-item em {
+  margin-top: 0.18rem;
+}
+
+.sync-simple-header {
+  display: block !important;
+  text-align: center;
+}
+
+.sync-simple-header h4 {
+  text-align: center;
+}
+
+.sync-main-btn-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+
+.sync-main-btn {
+  min-width: 320px;
+  max-width: 100%;
+}
+
 .sync-pkl-page .sync-pkl-intro-alert {
   box-shadow: 0 6px 18px rgba(59, 130, 246, 0.16);
 }
@@ -315,6 +556,18 @@
   .sync-pkl-page .sync-pkl-btn {
     width: 100%;
     min-width: 0;
+  }
+
+  .sync-simple-header {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  .sync-main-btn {
+    width: 100%;
+    min-width: 0 !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
   }
 }
 
@@ -517,6 +770,42 @@
 .user-module-page .datatable-user th,
 .user-module-page .datatable-user td {
   white-space: nowrap;
+}
+
+.guru-id-stack {
+  display: grid;
+  gap: 4px;
+}
+
+.guru-id-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.25;
+}
+
+.guru-id-item small {
+  margin: 0;
+  min-width: 44px;
+}
+
+.guru-id-item .copy-id-value {
+  color: #1e3a8a;
+  font-weight: 700;
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(30, 58, 138, 0.28);
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.guru-id-item .copy-id-value:hover,
+.guru-id-item .copy-id-value:focus {
+  color: #1d4ed8;
+  border-bottom-color: rgba(29, 78, 216, 0.52);
+  text-decoration: none;
+}
+
+.guru-id-item .copy-id-value:active {
+  color: #0f172a;
 }
 
 .module-table-card .dataTables_wrapper .dataTables_length,

@@ -10,8 +10,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     if (file_exists(__DIR__ . '/../../login/user.php')) {
         require_once __DIR__ . '/../../login/user.php';
     }
-    require_once '../../../library/phpqrcode/qrlib.php';
-
     $aColumns = ['user_id', 'nisn', 'nama_lengkap', 'tanggal_lahir', 'jenis_kelamin', 'kelas', 'avatar', 'status', 'konfirmasi', 'telp', 'koordinator'];
     $sIndexColumn = "user_id";
     $sTable = "user";
@@ -22,35 +20,45 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
     $gaSql['link'] =  new mysqli($gaSql['server'], $gaSql['user'], $gaSql['password'], $gaSql['db']);
 
+    $request = $_REQUEST;
+    $draw = isset($request['draw']) ? intval($request['draw']) : (isset($request['sEcho']) ? intval($request['sEcho']) : 0);
+    $start = isset($request['start']) ? intval($request['start']) : (isset($request['iDisplayStart']) ? intval($request['iDisplayStart']) : 0);
+    $length = isset($request['length']) ? intval($request['length']) : (isset($request['iDisplayLength']) ? intval($request['iDisplayLength']) : 25);
+
     $sLimit = "";
-    if (isset($_GET['iDisplayStart']) && $_GET['iDisplayLength'] != '-1') {
-        $sLimit = "LIMIT " . mysqli_real_escape_string($gaSql['link'], $_GET['iDisplayStart']) . ", " .
-            mysqli_real_escape_string($gaSql['link'], $_GET['iDisplayLength']);
+    if ($length != -1) {
+        $sLimit = "LIMIT " . max(0, $start) . ", " . max(1, $length);
     }
 
     $sOrder = "ORDER BY nama_lengkap ASC";
-    if (isset($_GET['iSortCol_0'])) {
-        $sOrder = "ORDER BY nama_lengkap ASC";
-        for ($i = 0; $i < intval($_GET['iSortingCols']); $i++) {
-            if ($_GET['bSortable_' . intval($_GET['iSortCol_' . $i])] == "true") {
-                $sOrder .= $aColumns[intval($_GET['iSortCol_' . $i])] . "
-                    " . mysqli_real_escape_string($gaSql['link'], $_GET['sSortDir_' . $i]) . ", ";
-            }
+    if (isset($request['order'][0]['column'])) {
+        $colIdx = intval($request['order'][0]['column']);
+        $dir = strtolower((string)($request['order'][0]['dir'] ?? 'asc')) === 'desc' ? 'DESC' : 'ASC';
+        if (isset($aColumns[$colIdx])) {
+            $sOrder = "ORDER BY " . $aColumns[$colIdx] . " " . $dir;
         }
-
-        $sOrder = substr_replace($sOrder, "", -2);
-        if ($sOrder == "ORDER BY nama_lengkap ASC") {
-            $sOrder = "ORDER BY nama_lengkap ASC";
+    } elseif (isset($request['iSortCol_0'])) {
+        $colIdx = intval($request['iSortCol_0']);
+        $dir = (isset($request['sSortDir_0']) && strtolower($request['sSortDir_0']) === 'desc') ? 'DESC' : 'ASC';
+        if (isset($aColumns[$colIdx])) {
+            $sOrder = "ORDER BY " . $aColumns[$colIdx] . " " . $dir;
         }
     }
 
     // Selalu filter status = 'Aktif' paling awal
     $sWhere = "WHERE status = 'Aktif'";
     // Pencarian global
-    if (isset($_GET['sSearch']) && $_GET['sSearch'] != "") {
+    $searchValue = '';
+    if (isset($request['search']) && is_array($request['search']) && isset($request['search']['value'])) {
+        $searchValue = trim((string)$request['search']['value']);
+    } elseif (isset($request['sSearch'])) {
+        $searchValue = trim((string)$request['sSearch']);
+    }
+
+    if ($searchValue != "") {
         $sWhere .= " AND (";
         for ($i = 0; $i < count($aColumns); $i++) {
-            $sWhere .= $aColumns[$i] . " LIKE '%" . mysqli_real_escape_string($gaSql['link'], $_GET['sSearch']) . "%' OR ";
+            $sWhere .= $aColumns[$i] . " LIKE '%" . mysqli_real_escape_string($gaSql['link'], $searchValue) . "%' OR ";
         }
         $sWhere = substr_replace($sWhere, "", -3);
         $sWhere .= ')';
@@ -98,8 +106,8 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     }
 
     // Explicit client-side filter: use provided kelas parameter (POST has priority)
-    if ((isset($_POST['kelas']) && $_POST['kelas'] != '') || (isset($_GET['kelas']) && $_GET['kelas'] != '')) {
-        $req_kelas = isset($_POST['kelas']) ? mysqli_real_escape_string($gaSql['link'], $_POST['kelas']) : mysqli_real_escape_string($gaSql['link'], $_GET['kelas']);
+    if ((isset($request['kelas']) && $request['kelas'] != '')) {
+        $req_kelas = mysqli_real_escape_string($gaSql['link'], $request['kelas']);
         if (!empty($req_kelas)) {
             $kelas_id = $req_kelas;
         }
@@ -124,13 +132,13 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
     // Kolom pencarian individual
     for ($i = 0; $i < count($aColumns); $i++) {
-        if (isset($_GET['bSearchable_' . $i]) && $_GET['bSearchable_' . $i] == "true" && $_GET['sSearch_' . $i] != '') {
+        if (isset($request['bSearchable_' . $i]) && $request['bSearchable_' . $i] == "true" && isset($request['sSearch_' . $i]) && $request['sSearch_' . $i] != '') {
             if ($sWhere == "") {
                 $sWhere = "WHERE ";
             } else {
                 $sWhere .= " AND ";
             }
-            $sWhere .= $aColumns[$i] . " LIKE '%" . mysqli_real_escape_string($gaSql['link'], $_GET['sSearch_' . $i]) . "%' ";
+            $sWhere .= $aColumns[$i] . " LIKE '%" . mysqli_real_escape_string($gaSql['link'], $request['sSearch_' . $i]) . "%' ";
         }
     }
 
@@ -166,13 +174,16 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     $aResultFilterTotal = mysqli_fetch_array($rResultFilterTotal);
     $iFilteredTotal = $aResultFilterTotal[0];
 
-    $sQuery = "SELECT COUNT(" . $sIndexColumn . ") FROM   $sTable";
+    $sQuery = "SELECT COUNT(" . $sIndexColumn . ") FROM $sTable WHERE status = 'Aktif'";
     $rResultTotal = mysqli_query($gaSql['link'], $sQuery);
     $aResultTotal = mysqli_fetch_array($rResultTotal);
     $iTotal = $aResultTotal[0];
 
     $output = array(
-        // "sEcho" => intval($_GET['sEcho']),
+        "draw" => $draw,
+        "recordsTotal" => intval($iTotal),
+        "recordsFiltered" => intval($iFilteredTotal),
+        "data" => array(),
         "iTotalRecords" => $iTotal,
         "iTotalDisplayRecords" => $iFilteredTotal,
         "aaData" => array()
@@ -260,19 +271,22 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     // attach to output so client can read it
     $output['statusStat'] = $statusStat;
 
+    $kelasMap = array();
+    $kelasRes = $gaSql['link']->query("SELECT kelas_id, nama_kelas FROM kelas");
+    if ($kelasRes) {
+        while ($kr = $kelasRes->fetch_assoc()) {
+            $kelasMap[(string)$kr['kelas_id']] = $kr['nama_kelas'];
+        }
+    }
+
     $no = 0;
     while ($aRow = mysqli_fetch_array($rResult)) {
         $no++;
         extract($aRow);
         $row = array();
 
-        $query_kelas = "SELECT nama_kelas FROM kelas WHERE kelas_id='$aRow[kelas]'";
-        $result_kelas = $gaSql['link']->query($query_kelas);
-        $data_kelas = null;
-        if ($result_kelas && $result_kelas->num_rows > 0) {
-            $data_kelas = $result_kelas->fetch_assoc();
-        }
-        $nama_kelas = ($data_kelas && isset($data_kelas['nama_kelas'])) ? $data_kelas['nama_kelas'] : '-';
+        $kelasId = isset($aRow['kelas']) ? (string)$aRow['kelas'] : '';
+        $nama_kelas = isset($kelasMap[$kelasId]) ? $kelasMap[$kelasId] : '-';
 
         // Determine avatar to display.
         // Prefer the stored `avatar` column (it may contain a cache-busting query string like '?t=...').
@@ -307,22 +321,12 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           </label>';
         }
 
-        /** Buat Qrcode Otomatis dan sertakan timestamp pada URL untuk cache-busting */
+        /** Gunakan file QR yang sudah ada; hindari generate saat render tabel agar request tetap ringan */
         $qrcode_file = '../../../content/qrcode/' . strip_tags($aRow['nisn']) . '.jpg';
-        if (!file_exists($qrcode_file)) {
-            $codeContents = '' . $site_url . '/' . strip_tags($aRow['nisn']) . '';
-            $tempdir    = '../../../content/qrcode/';
-            $namafile   = '' . strip_tags($aRow['nisn']) . '.jpg';
-            $quality    = 'QR_ECLEVEL_Q'; //ada 4 pilihan, L (Low), M(Medium), Q(Good), H(High)
-            $ukuran     = 10; //batasan 1 paling kecil, 10 paling besar
-            $padding    = 1;
-            QRCode::png($codeContents, $tempdir . $namafile, $quality, $ukuran, $padding);
-        }
         // Prepare a src/href with file modification time as query param so datatable shows latest QR image
         $qrcode_src = '../content/qrcode/' . strip_tags($aRow['nisn']) . '.jpg';
-        if (file_exists($qrcode_file)) {
-            $qrcode_src .= '?t=' . filemtime($qrcode_file);
-        }
+        $qrcode_exists = file_exists($qrcode_file);
+        if ($qrcode_exists) $qrcode_src .= '?t=' . filemtime($qrcode_file);
 
         // Build row data (remove the incorrect for loop)
         $onlick = "','";
@@ -345,11 +349,15 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         }
 
         $row[] = '<div class="text-center"><a class="open-popup-link" href="' . $avatar_zoom_href . '" title="' . strip_tags($aRow['nama_lengkap']) . '">' . $avatar . '</a></div>';
-        $row[] = '<div class="text-center">
+        if ($qrcode_exists) {
+            $row[] = '<div class="text-center">
                                         <a class="open-popup-link" href="' . $qrcode_src . '" title="' . strip_tags($aRow['nama_lengkap']) . '">
                                             <img src="' . $qrcode_src . '" class="imaged w100 rounded" height="50">
                                         </a>
                                 </div>';
+        } else {
+            $row[] = '<div class="text-center text-muted"><i class="fas fa-qrcode" style="font-size:24px;"></i></div>';
+        }
         $row[] = '' . strip_tags($aRow['nisn']) . '';
         $row[] = '<b>' . strip_tags($aRow['nama_lengkap']) . '</b>' . ((isset($aRow['koordinator']) && $aRow['koordinator'] == 1) ? ' <span class="badge badge-info">Koordinator</span>' : '');
         $row[] = strip_tags($aRow['jenis_kelamin']);
@@ -438,6 +446,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             </div>';
         }
         $output['aaData'][] = $row;
+        $output['data'][] = $row;
     }
     echo json_encode($output);
 }

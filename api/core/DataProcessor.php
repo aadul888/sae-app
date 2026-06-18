@@ -261,28 +261,12 @@ class DataProcessor
         $items = $this->normalizeDapodikData($data);
 
         $handler = $this->handlers['gtk'];
-        $processed = 0;
-        $errors = [];
-
-        foreach ($items as $item) {
-            try {
-                $handler->save($item);
-                $processed++;
-            } catch (Exception $e) {
-                $errors[] = $e->getMessage();
-                ApiLogger::logError('DataProcessor::processGtk', $e->getMessage(), [
-                    'item_data' => $item
-                ]);
-            }
-        }
+        $stats = $handler->smartSync($items);
 
         return [
             'success' => true,
-            'message' => "Processed $processed GTK records",
-            'stats' => [
-                'processed' => $processed,
-                'errors' => count($errors)
-            ]
+            'message' => "Smart sync GTK selesai: {$stats['total']} total, {$stats['inserted']} inserted, {$stats['updated']} updated, {$stats['deleted']} deleted, {$stats['deactivated_admin']} admin dinonaktifkan",
+            'stats' => $stats
         ];
     }
 
@@ -458,7 +442,7 @@ class DataProcessor
             throw new Exception('Query sync_pengguna gagal: ' . $db->error);
         }
 
-        $proc = $upd = $ins = $fail = 0;
+        $proc = $upd = $ins = $fail = $deactivated = 0;
         $errs = [];
         $now  = date('Y-m-d H:i:s');
 
@@ -472,6 +456,12 @@ class DataProcessor
             $phone          = $p['no_hp'] ?? '';
             $ptk_id         = $p['ptk_id'] ?? '';
             $email          = $username;
+            $is_ptk_role    = (strcasecmp(trim((string)$peran_id_str), 'PTK') === 0);
+            $has_sync_gtk   = (!empty($ptk_id) && isset($gtk_jenis[$ptk_id]));
+            $force_inactive = ($is_ptk_role && !$has_sync_gtk);
+            $active_flag    = $force_inactive ? 'N' : 'Y';
+            $status_flag    = 'Offline';
+            $sync_flag      = $force_inactive ? 'manual' : 'synced';
 
             $jenis_ptk_id_str = '';
             if ($peran_id_str === 'Operator Sekolah') {
@@ -505,21 +495,27 @@ class DataProcessor
                        username=?, email=?, password=?, fullname=?, phone=?,
                        avatar=?, gelar_depan=?, gelar_belakang=?, level_id=?,
                        peran_id_str=?, ptk_id=?, jenis_ptk_id_str=?, tugas_tambahan=?,
-                       active='Y', status='Offline',
-                       sync_status='synced', last_sync_at=NOW(), updated_at=NOW()
+                       active=?, status=?,
+                       sync_status=?, last_sync_at=NOW(), updated_at=NOW()
                      WHERE admin_id=?"
                 );
-                $s->bind_param('sssssssssssssi',
+                $s->bind_param('ssssssssssssssssi',
                     $username, $email, $password, $fullname, $phone,
                     $avatar, $gelar_d, $gelar_b, $level_id,
                     $peran_id_str, $ptk_id, $jenis_ptk_id_str, $tugas,
+                    $active_flag, $status_flag, $sync_flag,
                     $aid
                 );
-                if ($s->execute()) { $upd++; }
+                if ($s->execute()) {
+                    $upd++;
+                    if ($force_inactive) {
+                        $deactivated++;
+                    }
+                }
                 else { $fail++; $errs[] = "upd $username: " . $s->error; }
                 $s->close();
             } else {
-                $avatar  = 'avatar.jpg'; $active = 'Y'; $status = 'Offline';
+                $avatar  = 'avatar.jpg';
                 $tugas   = ''; $gelar_d = ''; $gelar_b = '';
                 $ip_val  = '127.0.0.1'; $br_val = 'System Sync';
                 $s = $db->prepare(
@@ -529,17 +525,46 @@ class DataProcessor
                         jenis_ptk_id_str, active, status, tugas_tambahan, time, ip, browser,
                         sync_status, last_sync_at, created_at, updated_at)
                      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,
-                             'synced', NOW(), NOW(), NOW())"
+                             ?, NOW(), NOW(), NOW())"
                 );
-                $s->bind_param('sssssssssssssssssss',
+                $s->bind_param('ssssssssssssssssssss',
                     $pengguna_id, $username, $email, $password, $fullname, $phone, $avatar,
                     $gelar_d, $gelar_b, $level_id, $peran_id_str, $ptk_id,
-                    $jenis_ptk_id_str, $active, $status, $tugas, $now, $ip_val, $br_val
+                    $jenis_ptk_id_str, $active_flag, $status_flag, $tugas, $now, $ip_val, $br_val,
+                    $sync_flag
                 );
-                if ($s->execute()) { $ins++; }
+                if ($s->execute()) {
+                    $ins++;
+                    if ($force_inactive) {
+                        $deactivated++;
+                    }
+                }
                 else { $fail++; $errs[] = "ins $username: " . $s->error; }
                 $s->close();
             }
+        }
+
+        // Hard safeguard untuk akun PTK: jika ptk_id tidak ada di sync_gtk maka wajib nonaktif
+        $deactivate_sql = "
+            UPDATE admin a
+            LEFT JOIN sync_gtk g ON TRIM(COALESCE(g.ptk_id, '')) = TRIM(COALESCE(a.ptk_id, ''))
+            SET
+                a.active = 'N',
+                a.status = 'Offline',
+                a.sync_status = 'manual',
+                a.updated_at = NOW()
+            WHERE
+                a.ptk_id IS NOT NULL
+                AND TRIM(a.ptk_id) <> ''
+                AND g.ptk_id IS NULL
+                AND (COALESCE(a.peran_id_str, '') = 'PTK' OR a.level_id IN (2,3))
+                AND UPPER(TRIM(COALESCE(a.active, 'N'))) = 'Y'
+        ";
+        if ($db->query($deactivate_sql)) {
+            $deactivated += (int)$db->affected_rows;
+        } else {
+            $fail++;
+            $errs[] = 'deactivate ptk missing sync_gtk: ' . $db->error;
         }
 
         // ---------- 3. Update jenis_ptk_id_str + level pada admin yang sudah ada via ptk_id ----------
@@ -558,7 +583,7 @@ class DataProcessor
         // ---------- 4. Sinkron tugas tambahan Wali Kelas (berdasarkan PTK di sync_rombongan_belajar) ----------
         $waliSync = $this->syncWaliKelasTugasTambahan($db);
 
-        $msg = "admin sync: processed=$proc, updated=$upd, inserted=$ins, failed=$fail";
+        $msg = "admin sync: processed=$proc, updated=$upd, inserted=$ins, deactivated=$deactivated, failed=$fail";
         $msg .= ", wali_synced=" . $waliSync['updated'] . ", wali_level_id=" . $waliSync['level_id'];
         if ($fail > 0) $msg .= ' | ' . implode('; ', $errs);
         return ['success' => $fail === 0, 'message' => $msg];

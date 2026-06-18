@@ -91,25 +91,16 @@ function testEmail() {
 
 /** Backup Files Function */
 function backupFiles() {
-  const selectedFolders = $(".backup-asset-folder:checked")
-    .map(function () {
-      return $(this).val();
-    })
-    .get();
+  const selectedFolder = $("#backupAssetFolder").val();
 
-  if (!selectedFolders.length) {
-    swal("Validasi", "Pilih minimal satu folder aset untuk di-backup.", "warning");
+  if (!selectedFolder) {
+    swal("Validasi", "Pilih satu folder aset untuk di-backup.", "warning");
     return;
   }
 
-  const mode = $('input[name="backup_mode"]:checked').val() || "per-folder";
-
   swal({
     title: "Mulai Backup Aset",
-    text:
-      "Sistem akan scan aset dan membuat file ZIP " +
-      (mode === "single" ? "gabungan." : "per folder.") +
-      " Proses akan otomatis mengunduh saat selesai.",
+    text: "Sistem akan scan folder " + selectedFolder + " dan membuat file ZIP. Proses akan otomatis mengunduh saat selesai.",
     icon: "info",
     buttons: ["Batal", "Mulai"],
     dangerMode: false,
@@ -118,7 +109,7 @@ function backupFiles() {
       return;
     }
 
-    runAssetBackupFlow(selectedFolders, mode);
+    runAssetBackupFlow(selectedFolder);
   });
 }
 
@@ -141,7 +132,7 @@ function triggerDownload(url) {
   document.body.removeChild(link);
 }
 
-function runAssetBackupFlow(selectedFolders, mode) {
+function runAssetBackupFlow(selectedFolder) {
   swal({
     title: "Menyiapkan Backup",
     text: "Memindai folder aset terpilih...",
@@ -155,7 +146,7 @@ function runAssetBackupFlow(selectedFolders, mode) {
     url: "mod/pengaturan/proses.php?action=backup-assets-scan",
     type: "POST",
     dataType: "json",
-    data: { folders: selectedFolders },
+    data: { folder: selectedFolder },
     success: function (scanRes) {
       if (!scanRes || scanRes.status !== "success") {
         swal("Gagal", (scanRes && scanRes.message) || "Gagal memindai aset backup.", "error");
@@ -166,117 +157,55 @@ function runAssetBackupFlow(selectedFolders, mode) {
       const byFolder = scanData.by_folder || {};
       const totalFiles = Number(scanData.total_files) || 0;
       const totalSize = Number(scanData.total_size) || 0;
+      const folderQueue = scanData.folders || [selectedFolder];
+      const folder = folderQueue[0] || selectedFolder;
+      const stat = byFolder[folder] || {};
 
       if (totalFiles === 0) {
         swal("Info", "Tidak ada file di folder aset terpilih.", "info");
         return;
       }
 
-      const folderQueue = scanData.folders || selectedFolders;
+      swal({
+        title: "Memulai Unduhan",
+        text:
+          "Folder " +
+          (stat.label || folder) +
+          " (" +
+          (Number(stat.file_count) || 0) +
+          " file, " +
+          formatBytes(Number(stat.total_size) || 0) +
+          ") siap diunduh.",
+        icon: "info",
+        buttons: false,
+        closeOnClickOutside: false,
+        closeOnEsc: false,
+      });
 
-      if (mode === "single") {
-        swal({
-          title: "Membuat ZIP Gabungan",
-          text:
-            "Memproses " +
-            totalFiles +
-            " file (" +
-            formatBytes(totalSize) +
-            ") menjadi satu file ZIP...",
-          icon: "info",
-          buttons: false,
-          closeOnClickOutside: false,
-          closeOnEsc: false,
-        });
+      $.ajax({
+        url: "mod/pengaturan/proses.php?action=backup-assets-create",
+        type: "POST",
+        dataType: "json",
+        data: {
+          folder: folder,
+        },
+        success: function (createRes) {
+          if (!createRes || createRes.status !== "success") {
+            swal("Gagal", (createRes && createRes.message) || "Gagal membuat ZIP backup.", "error");
+            return;
+          }
 
-        $.ajax({
-          url: "mod/pengaturan/proses.php?action=backup-assets-create",
-          type: "POST",
-          dataType: "json",
-          data: {
-            mode: "single",
-            folders: folderQueue,
-          },
-          success: function (createRes) {
-            if (!createRes || createRes.status !== "success") {
-              swal("Gagal", (createRes && createRes.message) || "Gagal membuat ZIP backup.", "error");
-              return;
-            }
+          const data = createRes.data || {};
+          if (data.download_url) {
+            triggerDownload(data.download_url);
+          }
 
-            const data = createRes.data || {};
-            if (data.download_url) {
-              triggerDownload(data.download_url);
-            }
-
-            swal("Berhasil", "ZIP backup selesai dibuat dan unduhan dimulai.", "success");
-          },
-          error: function (xhr) {
-            swal("Error", xhr.statusText || "Gagal membuat ZIP backup.", "error");
-          },
-        });
-        return;
-      }
-
-      let done = 0;
-      const total = folderQueue.length;
-
-      const processNext = function () {
-        if (done >= total) {
-          swal("Berhasil", "Semua ZIP aset berhasil dibuat dan unduhan dimulai.", "success");
-          return;
-        }
-
-        const folder = folderQueue[done];
-        const stat = byFolder[folder] || {};
-        swal({
-          title: "Membuat ZIP Aset",
-          text:
-            "Folder " +
-            (stat.label || folder) +
-            " (" +
-            (Number(stat.file_count) || 0) +
-            " file, " +
-            formatBytes(Number(stat.total_size) || 0) +
-            ")\nProgress: " +
-            (done + 1) +
-            "/" +
-            total,
-          icon: "info",
-          buttons: false,
-          closeOnClickOutside: false,
-          closeOnEsc: false,
-        });
-
-        $.ajax({
-          url: "mod/pengaturan/proses.php?action=backup-assets-create",
-          type: "POST",
-          dataType: "json",
-          data: {
-            mode: "per-folder",
-            folder: folder,
-            folders: folderQueue,
-          },
-          success: function (createRes) {
-            if (!createRes || createRes.status !== "success") {
-              swal("Gagal", (createRes && createRes.message) || "Gagal membuat ZIP aset.", "error");
-              return;
-            }
-
-            const data = createRes.data || {};
-            if (data.download_url) {
-              triggerDownload(data.download_url);
-            }
-
-            done += 1;
-            processNext();
-          },
-          error: function (xhr) {
-            swal("Error", xhr.statusText || "Gagal membuat ZIP aset.", "error");
-          },
-        });
-      };
-
-      processNext();
+          swal("Berhasil", "Unduhan backup folder " + (data.label || folder) + " dimulai tanpa menyimpan file temp di server.", "success");
+        },
+        error: function (xhr) {
+          swal("Error", xhr.statusText || "Gagal membuat ZIP backup.", "error");
+        },
+      });
     },
     error: function (xhr) {
       swal("Error", xhr.statusText || "Gagal memindai aset backup.", "error");
@@ -285,17 +214,14 @@ function runAssetBackupFlow(selectedFolders, mode) {
 }
 
 function updateBackupAssetSummary() {
-  const total = $(".backup-asset-folder").length;
-  const selected = $(".backup-asset-folder:checked").length;
-  const mode = $('input[name="backup_mode"]:checked').val() || "per-folder";
-  const modeText = mode === "single" ? "1 ZIP" : "ZIP per folder";
+  const selected = $("#backupAssetFolder").val() || "-";
   const $summary = $("#backupAssetSummary");
   if ($summary.length) {
-    $summary.text("Aset terpilih: " + selected + "/" + total + " folder | Mode: " + modeText);
+    $summary.text("Aset terpilih: " + selected);
   }
 }
 
-$(document).on("change", ".backup-asset-folder, input[name='backup_mode']", function () {
+$(document).on("change", "#backupAssetFolder", function () {
   updateBackupAssetSummary();
 });
 

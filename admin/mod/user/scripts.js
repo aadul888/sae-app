@@ -269,7 +269,7 @@ function loadData() {
       });
     },
     processing: true,
-    serverSide: false,
+    serverSide: true,
     bAutoWidth: false,
     bSort: false,
     bStateSave: false,
@@ -293,7 +293,7 @@ function loadData() {
     },
     ajax: {
       url: "./mod/user/datatable.php",
-      type: "POST",
+      type: "GET",
       data: function (d) {
         d.kelas = $(".filter-kelas").val();
       },
@@ -1300,6 +1300,8 @@ function openKartuModal(user_id, nisn = null) {
 
   // Get modal element
   const modalElement = document.getElementById("kartuPreviewModal");
+  modalElement.setAttribute("data-user-id", String(user_id || ""));
+  modalElement.setAttribute("data-nisn", String(nisn || ""));
   // debug logs removed
 
   // Load konten via AJAX
@@ -1367,199 +1369,47 @@ function setupModalDownloadHandlers(modalElement) {
   );
   const kartuDepan = modalElement.querySelector("#kartu-depan-modal");
   const kartuBelakang = modalElement.querySelector("#kartu-belakang-modal");
+  const userId = (modalElement.getAttribute("data-user-id") || "").trim();
 
   // debug logs removed
 
-  if (btnDepan && kartuDepan) {
-    // debug logs removed
+  if (btnDepan && userId !== "") {
     btnDepan.addEventListener("click", function () {
-      // debug logs removed
       const originalHtml = btnDepan.innerHTML;
-      btnDepan.innerHTML =
-        '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+      btnDepan.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyiapkan...';
       btnDepan.disabled = true;
 
-      // Pastikan kartu depan visible
-      kartuDepan.style.display = "block";
-      if (kartuBelakang) kartuBelakang.style.display = "none";
+      const url = "./mod/user/download_kartu.php?user_id=" + encodeURIComponent(userId) + "&side=depan";
+      const link = document.createElement("a");
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      // debug logs removed
-      // Load html2canvas if not loaded
-      if (typeof html2canvas === "undefined") {
-        // debug logs removed
-        const script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
-        script.onload = function () {
-          generateDepan();
-        };
-        script.onerror = function () {
-          console.error("[DOWNLOAD HANDLERS DEBUG] Failed to load html2canvas");
-          btnDepan.innerHTML = originalHtml;
-          btnDepan.disabled = false;
-        };
-        document.head.appendChild(script);
-      } else {
-        console.log("[DOWNLOAD HANDLERS DEBUG] html2canvas already available");
-        generateDepan();
-      }
-
-      function generateDepan() {
-        console.log(
-          "[DOWNLOAD HANDLERS DEBUG] Starting canvas generation for front card"
-        );
-        setTimeout(() => {
-          html2canvas(kartuDepan, {
-            backgroundColor: null,
-            useCORS: true,
-            scale: 2,
-            logging: false,
-          })
-            .then(function (canvas) {
-              console.log(
-                "[DOWNLOAD HANDLERS DEBUG] Canvas generated successfully"
-              );
-              // Create masked canvas untuk rounded corners
-              const w = canvas.width;
-              const h = canvas.height;
-              const out = document.createElement("canvas");
-              out.width = w;
-              out.height = h;
-              const ctx = out.getContext("2d");
-
-              // Draw rounded rect path
-              const r = Math.round(18 * (w / 340));
-              ctx.clearRect(0, 0, w, h);
-              ctx.beginPath();
-              ctx.moveTo(r, 0);
-              ctx.arcTo(w, 0, w, h, r);
-              ctx.arcTo(w, h, 0, h, r);
-              ctx.arcTo(0, h, 0, 0, r);
-              ctx.arcTo(0, 0, w, 0, r);
-              ctx.closePath();
-              ctx.clip();
-              ctx.drawImage(canvas, 0, 0);
-
-              // Get NISN from modal untuk nama file
-              const nisnElement = modalElement.querySelector(
-                ".kartu-nisn-row strong"
-              );
-              const nisn = nisnElement
-                ? nisnElement.textContent.trim()
-                : "unknown";
-
-              const link = document.createElement("a");
-              link.download = "kartu-pelajar-depan-" + nisn + ".png";
-              link.href = out.toDataURL("image/png");
-              link.click();
-
-              console.log("[DOWNLOAD HANDLERS DEBUG] Download triggered");
-              btnDepan.innerHTML = originalHtml;
-              btnDepan.disabled = false;
-            })
-            .catch(function (e) {
-              console.error(
-                "[DOWNLOAD HANDLERS DEBUG] Canvas generation failed:",
-                e
-              );
-              alert("Gagal generate gambar");
-              btnDepan.innerHTML = originalHtml;
-              btnDepan.disabled = false;
-            });
-        }, 100);
-      }
-    });
-  } else {
-    console.log("[DOWNLOAD HANDLERS DEBUG] Front card elements missing:", {
-      btnDepan: !!btnDepan,
-      kartuDepan: !!kartuDepan,
+      setTimeout(function () {
+        btnDepan.innerHTML = originalHtml;
+        btnDepan.disabled = false;
+      }, 600);
     });
   }
 
-  if (btnBelakang && kartuBelakang && kartuDepan) {
+  if (btnBelakang && userId !== "") {
     btnBelakang.addEventListener("click", function () {
       const originalHtml = btnBelakang.innerHTML;
-      btnBelakang.innerHTML =
-        '<i class="fas fa-spinner fa-spin mr-2"></i>Generating...';
+      btnBelakang.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyiapkan...';
       btnBelakang.disabled = true;
 
-      // Show kartu belakang for capture
-      kartuDepan.style.display = "none";
-      kartuBelakang.style.display = "block";
+      const url = "./mod/user/download_kartu.php?user_id=" + encodeURIComponent(userId) + "&side=belakang";
+      const link = document.createElement("a");
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
 
-      // Load html2canvas if not loaded
-      if (typeof html2canvas === "undefined") {
-        const script = document.createElement("script");
-        script.src =
-          "https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js";
-        script.onload = function () {
-          generateBelakang();
-        };
-        document.head.appendChild(script);
-      } else {
-        generateBelakang();
-      }
-
-      function generateBelakang() {
-        setTimeout(() => {
-          html2canvas(kartuBelakang, {
-            backgroundColor: null,
-            useCORS: true,
-            scale: 2,
-            logging: false,
-          })
-            .then(function (canvas) {
-              // Create masked canvas untuk rounded corners
-              const w = canvas.width;
-              const h = canvas.height;
-              const out = document.createElement("canvas");
-              out.width = w;
-              out.height = h;
-              const ctx = out.getContext("2d");
-
-              // Draw rounded rect path
-              const r = Math.round(18 * (w / 340));
-              ctx.clearRect(0, 0, w, h);
-              ctx.beginPath();
-              ctx.moveTo(r, 0);
-              ctx.arcTo(w, 0, w, h, r);
-              ctx.arcTo(w, h, 0, h, r);
-              ctx.arcTo(0, h, 0, 0, r);
-              ctx.arcTo(0, 0, w, 0, r);
-              ctx.closePath();
-              ctx.clip();
-              ctx.drawImage(canvas, 0, 0);
-
-              // Get NISN from modal untuk nama file
-              const nisnElement = modalElement.querySelector(
-                ".kartu-nisn-row strong"
-              );
-              const nisn = nisnElement
-                ? nisnElement.textContent.trim()
-                : "unknown";
-
-              const link = document.createElement("a");
-              link.download = "kartu-pelajar-belakang-" + nisn + ".png";
-              link.href = out.toDataURL("image/png");
-              link.click();
-
-              // Hide kartu belakang after capture
-              kartuDepan.style.display = "block";
-              kartuBelakang.style.display = "none";
-
-              btnBelakang.innerHTML = originalHtml;
-              btnBelakang.disabled = false;
-            })
-            .catch(function (e) {
-              console.error(e);
-              alert("Gagal generate gambar");
-              kartuDepan.style.display = "block";
-              kartuBelakang.style.display = "none";
-              btnBelakang.innerHTML = originalHtml;
-              btnBelakang.disabled = false;
-            });
-        }, 100);
-      }
+      setTimeout(function () {
+        btnBelakang.innerHTML = originalHtml;
+        btnBelakang.disabled = false;
+      }, 600);
     });
   }
 }

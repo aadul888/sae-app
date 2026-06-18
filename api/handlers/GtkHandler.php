@@ -144,6 +144,113 @@ class GtkHandler extends BaseHandler {
         
         return $stats;
     }
+
+    /**
+     * Smart sync GTK:
+     * - upsert data GTK terbaru dari Dapodik
+     * - hapus GTK yang sudah tidak ada di Dapodik dari tabel sync_gtk
+     * - nonaktifkan admin terkait ptk_id yang tidak lagi ada di sync_gtk
+     */
+    public function smartSync($data_array) {
+        $stats = [
+            'total' => count($data_array),
+            'inserted' => 0,
+            'updated' => 0,
+            'deleted' => 0,
+            'deactivated_admin' => 0,
+            'errors' => []
+        ];
+
+        try {
+            $this->beginTransaction();
+
+            $incoming_ids = [];
+            foreach ($data_array as $data) {
+                $ptk_id = trim((string)($data['ptk_id'] ?? ''));
+                if ($ptk_id !== '') {
+                    $incoming_ids[] = $ptk_id;
+                }
+            }
+            $incoming_ids = array_values(array_unique($incoming_ids));
+
+            if (empty($incoming_ids)) {
+                throw new Exception('Smart sync GTK dibatalkan: tidak ada ptk_id valid dari Dapodik.');
+            }
+
+            foreach ($data_array as $data) {
+                try {
+                    $before_exists = false;
+                    $check_stmt = $this->connection->prepare("SELECT 1 FROM sync_gtk WHERE ptk_id = ? LIMIT 1");
+                    if ($check_stmt) {
+                        $ptk_id = trim((string)($data['ptk_id'] ?? ''));
+                        $check_stmt->bind_param('s', $ptk_id);
+                        $check_stmt->execute();
+                        $check_res = $check_stmt->get_result();
+                        $before_exists = ($check_res && $check_res->num_rows > 0);
+                        $check_stmt->close();
+                    }
+
+                    $this->save($data);
+                    if ($before_exists) {
+                        $stats['updated']++;
+                    } else {
+                        $stats['inserted']++;
+                    }
+                } catch (Exception $e) {
+                    $stats['errors'][] = $e->getMessage();
+                    ApiLogger::logError('GtkHandler::smartSync.save', $e->getMessage(), ['gtk_data' => $data]);
+                }
+            }
+
+            // Hapus data sync_gtk yang tidak lagi ada di payload Dapodik terbaru
+            $placeholders = implode(',', array_fill(0, count($incoming_ids), '?'));
+            $delete_sql = "DELETE FROM sync_gtk WHERE ptk_id IS NOT NULL AND TRIM(ptk_id) <> '' AND TRIM(ptk_id) NOT IN ($placeholders)";
+            $delete_stmt = $this->connection->prepare($delete_sql);
+            if ($delete_stmt) {
+                $types = str_repeat('s', count($incoming_ids));
+                $delete_stmt->bind_param($types, ...$incoming_ids);
+                if ($delete_stmt->execute()) {
+                    $stats['deleted'] = (int)$delete_stmt->affected_rows;
+                }
+                $delete_stmt->close();
+            }
+
+            // Nonaktifkan admin yang ptk_id-nya sudah tidak ada lagi di sync_gtk
+            $deactivate_sql = "
+                UPDATE admin a
+                LEFT JOIN sync_gtk g ON TRIM(COALESCE(g.ptk_id, '')) = TRIM(COALESCE(a.ptk_id, ''))
+                SET
+                    a.active = 'N',
+                    a.status = 'Offline',
+                    a.sync_status = 'manual',
+                    a.updated_at = NOW()
+                WHERE
+                    a.ptk_id IS NOT NULL
+                    AND TRIM(a.ptk_id) <> ''
+                    AND g.ptk_id IS NULL
+                    AND UPPER(TRIM(COALESCE(a.active, 'N'))) = 'Y'
+            ";
+            if ($this->connection->query($deactivate_sql)) {
+                $stats['deactivated_admin'] = (int)$this->connection->affected_rows;
+            }
+
+            $this->commitTransaction();
+
+            ApiLogger::logSyncActivity(
+                'gtk',
+                'success',
+                $stats['total'],
+                "Smart sync GTK completed",
+                $stats
+            );
+        } catch (Exception $e) {
+            $this->rollbackTransaction();
+            ApiLogger::logError('GtkHandler::smartSync', $e->getMessage());
+            throw $e;
+        }
+
+        return $stats;
+    }
     
     /**
      * Get GTK by PTK ID

@@ -112,3 +112,38 @@ function loadGuruTable() {
     $('#guru-card-kepegawaian').text(json.stats.kepegawaian || 0);
   });
 }
+
+$(document).off('click.guruCopyId').on('click.guruCopyId', '.datatable-guru .copy-id-value', function (e) {
+  e.preventDefault();
+  var value = String($(this).data('copy') || '').trim();
+  if (!value) return;
+
+  var onSuccess = function () {
+    if (typeof swal === 'function') {
+      swal({
+        title: 'Berhasil',
+        text: 'ID berhasil dicopy ke clipboard',
+        icon: 'success',
+        timer: 1200,
+        buttons: false
+      });
+    }
+  };
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(value).then(onSuccess).catch(function () {
+      var $tmp = $('<input type="text" />').val(value).appendTo('body');
+      $tmp[0].select();
+      document.execCommand('copy');
+      $tmp.remove();
+      onSuccess();
+    });
+    return;
+  }
+
+  var $tmp = $('<input type="text" />').val(value).appendTo('body');
+  $tmp[0].select();
+  document.execCommand('copy');
+  $tmp.remove();
+  onSuccess();
+});

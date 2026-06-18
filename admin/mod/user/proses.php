@@ -36,6 +36,79 @@ function resizeImage($resourceType, $image_width, $image_height): GdImage
   return $imageLayer;
 }
 
+function avatarCreateImageResource($path, $extHint = '')
+{
+  $ext = strtolower(trim((string)$extHint));
+  if ($ext === '') {
+    $ext = strtolower((string)pathinfo($path, PATHINFO_EXTENSION));
+  }
+
+  if (in_array($ext, ['jpg', 'jpeg'], true)) {
+    return @imagecreatefromjpeg($path);
+  }
+  if ($ext === 'png') {
+    return @imagecreatefrompng($path);
+  }
+  if ($ext === 'gif') {
+    return @imagecreatefromgif($path);
+  }
+  return false;
+}
+
+function avatarSaveOptimized($image, $destPath, $ext)
+{
+  $ext = strtolower((string)$ext);
+  if ($ext === 'png') {
+    imagesavealpha($image, true);
+    return @imagepng($image, $destPath, 6);
+  }
+  return @imagejpeg($image, $destPath, 86);
+}
+
+function compressAvatarFile($sourcePath, $destPath, $extHint = '')
+{
+  $img = avatarCreateImageResource($sourcePath, $extHint);
+  if ($img === false) {
+    if ($sourcePath !== $destPath) {
+      return @copy($sourcePath, $destPath);
+    }
+    return false;
+  }
+
+  $srcW = imagesx($img);
+  $srcH = imagesy($img);
+  if ($srcW <= 0 || $srcH <= 0) {
+    imagedestroy($img);
+    return false;
+  }
+
+  $maxDim = 1800;
+  $ratio = min($maxDim / $srcW, $maxDim / $srcH, 1);
+  $dstW = (int)round($srcW * $ratio);
+  $dstH = (int)round($srcH * $ratio);
+
+  $canvas = imagecreatetruecolor($dstW, $dstH);
+  if ($canvas === false) {
+    imagedestroy($img);
+    return false;
+  }
+
+  $ext = strtolower((string)$extHint);
+  if ($ext === 'png') {
+    imagealphablending($canvas, false);
+    imagesavealpha($canvas, true);
+    $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
+    imagefill($canvas, 0, 0, $transparent);
+  }
+
+  imagecopyresampled($canvas, $img, 0, 0, 0, 0, $dstW, $dstH, $srcW, $srcH);
+  $ok = avatarSaveOptimized($canvas, $destPath, $ext);
+
+  imagedestroy($canvas);
+  imagedestroy($img);
+  return $ok;
+}
+
 // Hak akses berdasarkan role
 $modul_id = 3;
 include __DIR__ . '/../check_role.php';
@@ -557,6 +630,7 @@ switch (@$_GET['action']) {
                 }
                 fclose($out_file);
                 fclose($stream);
+                @compressAvatarFile($out_path, $out_path, $zip_ext);
                 // Update DB: keep file named as nisn.ext, but append timestamp in DB value to bust cache
                 $filename = $nisn . '.' . $zip_ext;
                 $avatar_db = $filename . '?t=' . time();
@@ -587,6 +661,7 @@ switch (@$_GET['action']) {
         }
         $new_name = $nisn . '.' . $file_ext;
         if (move_uploaded_file($file_tmp, $target_dir . $new_name)) {
+          @compressAvatarFile($target_dir . $new_name, $target_dir . $new_name, $file_ext);
           // Update DB with timestamp query parameter so record changes and browsers reload
           $avatar_db = $new_name . '?t=' . time();
           $update = $connection->query("UPDATE user SET avatar='" . $connection->real_escape_string($avatar_db) . "' WHERE nisn='" . $nisn . "'");
@@ -780,7 +855,7 @@ switch (@$_GET['action']) {
         exit;
       }
       $target_dir = '../../../content/avatar/';
-      $target_file = $target_dir . $nisn . '.png';
+      $target_file = $target_dir . $nisn . '.' . $ext;
       // Hapus foto lama jika ada (selain avatar.jpg)
       $query = $connection->query("SELECT avatar FROM user WHERE nisn='" . $nisn . "'");
       if ($query && $query->num_rows > 0) {
@@ -792,24 +867,15 @@ switch (@$_GET['action']) {
           @unlink($old_path);
         }
       }
-      // Konversi ke PNG jika bukan PNG
-      if ($ext !== 'png') {
-        $img = null;
-        if ($ext === 'jpg' || $ext === 'jpeg') {
-          $img = imagecreatefromjpeg($foto['tmp_name']);
-        }
-        if ($img) {
-          imagepng($img, $target_file);
-          imagedestroy($img);
-        } else {
-          echo 'Gagal konversi gambar.';
-          exit;
-        }
-      } else {
-        move_uploaded_file($foto['tmp_name'], $target_file);
+      if (!move_uploaded_file($foto['tmp_name'], $target_file)) {
+        echo 'Gagal upload file.';
+        exit;
       }
+
+      @compressAvatarFile($target_file, $target_file, $ext);
+
       // Update database with timestamp appended to value so browsers reload new image
-      $avatar_db = $nisn . '.png?t=' . time();
+      $avatar_db = $nisn . '.' . $ext . '?t=' . time();
       $update = $connection->query("UPDATE user SET avatar='" . $connection->real_escape_string($avatar_db) . "' WHERE nisn='" . $nisn . "'");
       if ($update) {
         echo 'success';
