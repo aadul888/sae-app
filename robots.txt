@@ -1,0 +1,13 @@
+# robots.txt - sae.smakpal.sch.id
+User-agent: *
+Allow: /
+
+# Block sensitive paths
+Disallow: /library/
+Disallow: /database/
+Disallow: /admin/
+Disallow: /api/
+Disallow: /sso/
+Disallow: /google/
+
+Sitemap: https://sae.smakpal.sch.id/sitemap.xml
