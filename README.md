@@ -1,50 +1,36 @@
-SAE (Smart Apps Education)
-SAE adalah aplikasi utama dalam ekosistem Smart Apps Education. Aplikasi ini dirancang sebagai platform operasional pendidikan yang efisien untuk mengelola absensi, administrasi sekolah, serta layanan siswa secara terpadu.
+# SAE – Smart Apps Education
 
-Integrasi Ekosistem: Aplikasi ini dirancang untuk bekerja secara seamless dengan SAE Induk sebagai pusat lisensi dan manajemen administrasi utama.
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![PHP](https://img.shields.io/badge/php-7.4+-blue.svg)](https://php.net)
+[![Status](https://img.shields.io/badge/status-active-brightgreen.svg)]()
 
-✨ Fitur Utama
-Manajemen Kehadiran: Sistem absensi siswa real-time yang akurat.
+**SAE** adalah aplikasi utama (*client-side*) dalam ekosistem **Smart Apps Education**. Aplikasi ini dirancang sebagai platform administrasi pendidikan yang interaktif dan efisien untuk mengelola data operasional sekolah secara terpadu.
 
-Integrasi Data: Sinkronisasi data sekolah yang mudah dengan Dapodik.
+> **Integrasi Ekosistem:** Aplikasi ini terhubung secara *seamless* dengan [SAE Induk](https://github.com/aadul888/sae-induk) sebagai server pusat untuk otorisasi lisensi dan sinkronisasi data.
 
-Layanan PIP: Pengelolaan usulan Program Indonesia Pintar yang terintegrasi.
+---
 
-Notifikasi Pintar: Pengiriman informasi otomatis via WhatsApp Gateway.
+## 🚀 Fitur Utama
+* **Manajemen Kehadiran:** Sistem absensi siswa *real-time* yang akurat.
+* **Integrasi Data:** Sinkronisasi data yang efisien dengan database Dapodik.
+* **Layanan PIP:** Pengelolaan data usulan Program Indonesia Pintar yang terpusat.
+* **Notifikasi Pintar:** Integrasi *WhatsApp Gateway* untuk komunikasi sekolah.
+* **Autentikasi Modern:** Mendukung *Google OAuth2* untuk keamanan akses pengguna.
 
-Autentikasi Modern: Mendukung Google OAuth2 untuk kemudahan akses pengguna.
+## 🛠 Teknologi
+* **Backend:** PHP 7.4+
+* **Frontend:** Bootstrap, JavaScript, HTML5
+* **Database:** MySQL / MariaDB
+* **Integrasi:** RESTful API, WhatsApp Webhook, Google OAuth2
 
-🚀 Teknologi yang Digunakan
-Backend: PHP 7.4+
+## 📦 Struktur Proyek
+Aplikasi ini diorganisir dengan standar modular untuk memudahkan pengembangan:
 
-Database: MySQL / MariaDB
-
-Frontend: Bootstrap, JavaScript, HTML5
-
-Integrasi: RESTful API, WhatsApp Webhook, Google OAuth2
-
-📦 Struktur Proyek
-Aplikasi ini diorganisir dengan standar yang memudahkan pengembangan dan pemeliharaan:
-
-Plaintext
+```text
 sae/
 ├── admin/       # Panel manajemen operasional sekolah
-├── dashboard/   # Antarmuka utama siswa
-├── api/         # Endpoint komunikasi server-ke-server
-├── module/      # Logika fungsionalitas utama
+├── api/         # Endpoint komunikasi ke SAE Induk
+├── dashboard/   # Antarmuka utama siswa & pengguna
+├── module/      # Fitur fungsionalitas utama (Absensi, PIP, dll)
 ├── library/     # Library dan utilitas pendukung
 └── ...          # Konfigurasi sistem
-🛠 Instalasi
-Pastikan server Anda memenuhi spesifikasi PHP 7.4+ dan MySQL.
-
-Clone repositori ini ke dalam direktori server Anda.
-
-Konfigurasikan koneksi API ke SAE Induk melalui file konfigurasi yang tersedia.
-
-Sesuaikan file .htaccess sesuai dengan kebutuhan web server Anda.
-
-🤝 Kontribusi
-Kami sangat menghargai kontribusi Anda. Jika Anda menemukan bug atau memiliki ide untuk pengembangan fitur baru, silakan buka Issue atau kirimkan Pull Request.
-
-📄 Lisensi
-Proyek ini dilindungi oleh lisensi MIT.
