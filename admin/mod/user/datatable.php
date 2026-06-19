@@ -292,11 +292,15 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         // Prefer the stored `avatar` column (it may contain a cache-busting query string like '?t=...').
         // For filesystem checks we strip the query string; for the image `src` we use the stored value so browsers will reload when the timestamp changes.
         $avatar = '<img src="../content/avatar/avatar.jpg" class="imaged w100 rounded" height="50">';
+        $avatar_file_only = '';
+        $has_custom_avatar = false;
         if (!empty($aRow['avatar']) && $aRow['avatar'] != 'avatar.jpg') {
             $stored_avatar = strip_tags($aRow['avatar']);
             $stored_file = preg_replace('/\?.*/', '', $stored_avatar);
+            $avatar_file_only = $stored_file;
             if (file_exists('../../../content/avatar/' . $stored_file)) {
                 $avatar = '<img src="../content/avatar/' . $stored_avatar . '" class="imaged w100 rounded" height="50">';
+                $has_custom_avatar = true;
             }
         }
         // If no stored avatar file found, fall back to nisn.png if present
@@ -346,6 +350,14 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             if (file_exists($nisn_zoom_file)) {
                 $avatar_zoom_href = '../content/avatar/' . strip_tags($aRow['nisn']) . '.png';
             }
+        }
+
+        $kartu_button = '';
+        if ($has_custom_avatar) {
+            $kartu_onclick = "openKartuModal('" . strip_tags($aRow['user_id']) . "', '" . strip_tags($aRow['nisn']) . "')";
+            $kartu_button = '<a href="javascript:void(0)" onclick="' . $kartu_onclick . '" class="table-action table-action-secondary btn-tooltip" data-toggle="tooltip" title="Preview Kartu"><i class="fas fa-id-card"></i></a>';
+        } else {
+            $kartu_button = '<a href="javascript:void(0)" class="table-action table-action-secondary btn-tooltip disabled" data-toggle="tooltip" title="Upload avatar dulu untuk membuka kartu" style="opacity:.45;pointer-events:none;"><i class="fas fa-id-card"></i></a>';
         }
 
         $row[] = '<div class="text-center"><a class="open-popup-link" href="' . $avatar_zoom_href . '" title="' . strip_tags($aRow['nama_lengkap']) . '">' . $avatar . '</a></div>';
@@ -405,14 +417,11 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
         if (isset($current_user) && isset($current_user['level_id']) && intval($current_user['level_id']) === 1) {
             // Level 1: tampilkan semua aksi
-            $kartu_onclick = "openKartuModal('" . strip_tags($aRow['user_id']) . "', '" . strip_tags($aRow['nisn']) . "')";
             $row[] = '<div class="text-center">
                 <a href="javascript:void(0)" onClick="location.href=' . $onlick[0] . '?mod=user&op=profile&id=' . epm_encode($aRow['user_id']) . '' . $onlick[1] . ';" class="table-action table-action-warning btn-tooltip" data-toggle="tooltip" title="Profil Lengkap">
                     <i class="fas fa-user-check"></i>
                 </a>
-                    <a href="javascript:void(0)" onclick="' . $kartu_onclick . '" class="table-action table-action-secondary btn-tooltip" data-toggle="tooltip" title="Preview Kartu">
-                        <i class="fas fa-id-card"></i>
-                    </a>
+                    ' . $kartu_button . '
                 <a href="javascript:void(0)" onClick="location.href=' . $onlick[0] . '?mod=user&op=update&id=' . epm_encode($aRow['user_id']) . '' . $onlick[1] . ';" class="table-action table-action-primary btn-tooltip" data-toggle="tooltip" title="Edit">
                     <i class="fas fa-edit"></i>
                 </a>
@@ -435,14 +444,11 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             </div>';
         } else {
             // Level lain: hanya tombol profil
-            $kartu_onclick = "openKartuModal('" . strip_tags($aRow['user_id']) . "', '" . strip_tags($aRow['nisn']) . "')";
             $row[] = '<div class="text-center">
                 <a href="javascript:void(0)" onClick="location.href=' . $onlick[0] . '?mod=user&op=profile&id=' . epm_encode($aRow['user_id']) . '' . $onlick[1] . ';" class="table-action table-action-warning btn-tooltip" data-toggle="tooltip" title="Profil Lengkap">
                     <i class="fas fa-user-check"></i>
                 </a>
-                <a href="javascript:void(0)" onclick="' . $kartu_onclick . '" class="table-action table-action-secondary btn-tooltip" data-toggle="tooltip" title="Preview Kartu">
-                    <i class="fas fa-id-card"></i>
-                </a>
+                ' . $kartu_button . '
             </div>';
         }
         $output['aaData'][] = $row;

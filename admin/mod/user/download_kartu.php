@@ -1,18 +1,26 @@
 <?php
 // Server-side generator: download kartu pelajar sebagai PNG
-// Usage: download_kartu.php?user_id=123&side=depan
-// Preview: download_kartu.php?user_id=123 (tanpa parameter lain untuk preview)
 
-require_once '../../../library/config.php';
-require_once '../../../library/function.php';
+$has_admin_auth = isset($_COOKIE['ADMIN_KEY']) || isset($_COOKIE['KEY']);
+$has_siswa_auth = isset($_COOKIE['siswa']);
 
-// Ensure connection charset
-if (method_exists($connection, 'set_charset')) $connection->set_charset('utf8');
-
-if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
+if (!$has_admin_auth && !$has_siswa_auth) {
     header('HTTP/1.1 401 Unauthorized');
     echo 'Unauthorized';
     exit;
+}
+
+require_once '../../../library/config.php';
+include '../../../library/function.php';
+
+$siswa_user_id = '';
+if ($has_siswa_auth && !$has_admin_auth) {
+    $siswa_user_id = trim((string)convert('decrypt', (string)$_COOKIE['siswa']));
+    if ($siswa_user_id === '') {
+        header('HTTP/1.1 401 Unauthorized');
+        echo 'Unauthorized';
+        exit;
+    }
 }
 
 $user_id = isset($_GET['user_id']) ? trim($_GET['user_id']) : '';
@@ -37,6 +45,13 @@ if ($user_id === '') {
         echo 'user_id or nisn required';
         exit;
     }
+}
+
+// Siswa hanya boleh mengakses kartu milik dirinya sendiri.
+if ($siswa_user_id !== '' && (string)$user_id !== (string)$siswa_user_id) {
+    header('HTTP/1.1 403 Forbidden');
+    echo 'Forbidden';
+    exit;
 }
 
 // Fetch user and jurusan
@@ -185,6 +200,22 @@ if ($paths_web['foto'] === $web_root . '/content/avatar/avatar.jpg') {
     }
 }
 
+$avatar_file_only = preg_replace('/\?.*/', '', trim((string)$avatar_db));
+$has_custom_avatar = ($avatar_file_only !== '' && strtolower($avatar_file_only) !== 'avatar.jpg' && file_exists($fs_root . 'content/avatar/' . $avatar_file_only));
+
+if (!$has_custom_avatar) {
+    if (isset($_GET['modal']) && $_GET['modal'] == '1') {
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<div class="modal-body"><div class="alert alert-warning mb-0"><strong>Avatar belum tersedia.</strong><br>Preview dan unduh kartu pelajar hanya tersedia jika siswa sudah upload avatar (bukan <code>avatar.jpg</code>).</div></div>';
+        echo '<div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fas fa-times mr-2"></i>Tutup</button></div>';
+        exit;
+    }
+    header('HTTP/1.1 403 Forbidden');
+    header('Content-Type: text/plain; charset=utf-8');
+    echo 'Kartu pelajar tidak tersedia: avatar belum diupload.';
+    exit;
+}
+
 // Logo jurusan: gunakan file sesuai jurusan jika ada, tambahkan filemtime untuk cache-busting
 $logo_jurusan_file = (!empty($jurusan_id) ? $jurusan_id : 'default') . '.png';
 $logo_jurusan_fs = $fs_root . 'content/assets/logo-jurusan/' . $logo_jurusan_file;
@@ -243,14 +274,6 @@ if (isset($_GET['modal']) && $_GET['modal'] == '1') {
     $back_url = './mod/user/download_kartu.php?user_id=' . rawurlencode($user_id) . '&side=belakang&inline=1&t=' . time();
 ?>
     <div class="modal-body">
-        <div class="text-center mb-3">
-            <h5 class="modal-title">
-                <i class="fas fa-id-card mr-2"></i>
-                Preview Kartu Pelajar
-            </h5>
-            <small class="text-muted"><?= htmlspecialchars($nama) ?> - <?= htmlspecialchars($nisn) ?></small>
-        </div>
-
         <div class="text-center" style="max-width:370px; margin: 0 auto;">
             <img id="kartu-depan-modal" src="<?= htmlspecialchars($front_url) ?>" alt="Kartu Pelajar Depan" style="width:100%; border-radius:18px; box-shadow:0 8px 24px rgba(15,23,42,0.16);" loading="lazy">
             <img id="kartu-belakang-modal" src="<?= htmlspecialchars($back_url) ?>" alt="Kartu Pelajar Belakang" style="display:none; width:100%; border-radius:18px; box-shadow:0 8px 24px rgba(15,23,42,0.16);" loading="lazy">
@@ -612,6 +635,170 @@ if (empty($bg_path)) $bg_path = $fs_root . 'content/assets/kartu-pelajar/' . ($s
 if (empty($logo_path)) $logo_path = $fs_root . 'content/assets/logo-jurusan/default.png';
 if (empty($qrcode_path)) $qrcode_path = $fs_root . "content/qrcode/{$nisn}.jpg";
 
+function file_signature_meta($path)
+{
+    if (empty($path) || !file_exists($path)) {
+        return array('path' => (string)$path, 'exists' => false, 'mtime' => 0, 'size' => 0);
+    }
+    return array(
+        'path' => (string)$path,
+        'exists' => true,
+        'mtime' => (int)@filemtime($path),
+        'size' => (int)@filesize($path),
+    );
+}
+
+function is_valid_png_cache_file($path)
+{
+    if (empty($path) || !file_exists($path)) return false;
+    $size = (int)@filesize($path);
+    if ($size < 128) return false;
+    $info = @getimagesize($path);
+    if (!$info || empty($info['mime']) || $info['mime'] !== 'image/png') return false;
+    return true;
+}
+
+function atomic_write_file($path, $data)
+{
+    $dir = dirname($path);
+    if (!is_dir($dir)) return false;
+
+    $tmp = $path . '.tmp.' . uniqid('', true);
+    $ok = @file_put_contents($tmp, $data, LOCK_EX);
+    if ($ok === false) {
+        @unlink($tmp);
+        return false;
+    }
+
+    if (!@rename($tmp, $path)) {
+        @unlink($tmp);
+        return false;
+    }
+    return true;
+}
+
+function cleanup_kartu_cache($cache_dir, $ttl_seconds = 604800, $max_files = 5000)
+{
+    if (!is_dir($cache_dir)) return;
+
+    $now = time();
+    $files = @glob($cache_dir . '*.png');
+    if (!is_array($files)) return;
+
+    foreach ($files as $file) {
+        $mtime = (int)@filemtime($file);
+        if ($mtime > 0 && ($now - $mtime) > $ttl_seconds) {
+            @unlink($file);
+        }
+    }
+
+    $files = @glob($cache_dir . '*.png');
+    if (!is_array($files) || count($files) <= $max_files) return;
+
+    usort($files, function ($a, $b) {
+        return (int)@filemtime($a) <=> (int)@filemtime($b);
+    });
+
+    $to_delete = count($files) - $max_files;
+    for ($i = 0; $i < $to_delete; $i++) {
+        @unlink($files[$i]);
+    }
+
+    // Bersihkan lock file lama agar folder cache tetap rapi.
+    $lock_files = @glob($cache_dir . '*.lock');
+    if (is_array($lock_files)) {
+        foreach ($lock_files as $lf) {
+            $mtime = (int)@filemtime($lf);
+            if ($mtime > 0 && ($now - $mtime) > $ttl_seconds) {
+                @unlink($lf);
+            }
+        }
+    }
+}
+
+$is_inline = isset($_GET['inline']) && $_GET['inline'] == '1';
+$cache_bypass = isset($_GET['no_cache']) && $_GET['no_cache'] == '1';
+$render_version = 'kartu-render-v2';
+$cache_enabled = !$cache_bypass;
+$cache_file = '';
+$cache_lock_file = '';
+$cache_lock_handle = null;
+
+if ($cache_enabled) {
+    $cache_dir = $fs_root . 'content' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR . 'kartu-pelajar' . DIRECTORY_SEPARATOR;
+    if (!is_dir($cache_dir)) {
+        @mkdir($cache_dir, 0755, true);
+    }
+
+    if (is_dir($cache_dir)) {
+        $cache_payload = array(
+            'v' => $render_version,
+            'side' => (string)$side,
+            'user_id' => (string)$user_id,
+            'nisn' => (string)$nisn,
+            'nama' => (string)$nama,
+            'avatar_db' => (string)$avatar_db,
+            'bg' => file_signature_meta($bg_path),
+            'logo' => file_signature_meta($logo_path),
+            'avatar' => file_signature_meta($avatar_path),
+            'qrcode' => file_signature_meta($qrcode_path),
+        );
+        $cache_key = sha1(json_encode($cache_payload));
+        $cache_user = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$user_id);
+        $cache_nisn = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$nisn);
+        $cache_file = $cache_dir . 'u' . $cache_user . '-n' . $cache_nisn . '-' . $side . '-' . $cache_key . '.png';
+        $cache_lock_file = $cache_file . '.lock';
+
+        // Cleanup berkala (2% request) agar cache tidak terus membesar.
+        if (mt_rand(1, 100) <= 2) {
+            cleanup_kartu_cache($cache_dir, 7 * 24 * 60 * 60, 5000);
+        }
+
+        if (file_exists($cache_file)) {
+            if (!is_valid_png_cache_file($cache_file)) {
+                @unlink($cache_file);
+            }
+        }
+
+        if (is_valid_png_cache_file($cache_file)) {
+            $filename = 'kartu-pelajar-' . ($nisn ?: $user_id) . '-' . $side . '.png';
+            header('Content-Type: image/png');
+            if ($is_inline) {
+                header('Content-Disposition: inline; filename="' . basename($filename) . '"');
+            } else {
+                header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
+            }
+            clearstatcache(true, $cache_file);
+            header('Content-Length: ' . (int)filesize($cache_file));
+            readfile($cache_file);
+            exit;
+        }
+
+        // Lock per cache-key untuk mencegah render ganda saat request paralel.
+        $cache_lock_handle = @fopen($cache_lock_file, 'c');
+        if ($cache_lock_handle) {
+            @flock($cache_lock_handle, LOCK_EX);
+
+            // Setelah lock didapat, cek ulang karena request lain mungkin sudah selesai generate.
+            if (is_valid_png_cache_file($cache_file)) {
+                $filename = 'kartu-pelajar-' . ($nisn ?: $user_id) . '-' . $side . '.png';
+                header('Content-Type: image/png');
+                if ($is_inline) {
+                    header('Content-Disposition: inline; filename="' . basename($filename) . '"');
+                } else {
+                    header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
+                }
+                clearstatcache(true, $cache_file);
+                header('Content-Length: ' . (int)filesize($cache_file));
+                readfile($cache_file);
+                @flock($cache_lock_handle, LOCK_UN);
+                @fclose($cache_lock_handle);
+                exit;
+            }
+        }
+    }
+}
+
 // Load background or create blank canvas
 function load_image_any($path)
 {
@@ -665,62 +852,317 @@ function overlay_image(&$dst, $src_path, $dst_x, $dst_y, $dst_w, $dst_h, $keep_a
     return true;
 }
 
-// Place logo di pojok kiri atas (visible, bukan watermark)
-if (file_exists($logo_path)) {
-    // Logo kiri atas, ukuran sekitar 80x60px di 340px width
-    $logo_w = intval($width * 0.18); // ~122px di 680px width
-    $logo_h = intval($logo_w * 0.75); // Proporsi logo yang umum
-    $logo_x = intval($width * 0.04); // 4% dari kiri
-    $logo_y = intval($height * 0.02); // 2% dari atas
+function overlay_image_with_opacity(&$dst, $src_path, $dst_x, $dst_y, $dst_w, $dst_h, $opacityPercent = 25)
+{
+    $img = load_image_any($src_path);
+    if (!$img) return false;
 
-    overlay_image($canvas, $logo_path, $logo_x, $logo_y, $logo_w, $logo_h, true);
+    $opacityPercent = max(0, min(100, (int)$opacityPercent));
+    $src_w = imagesx($img);
+    $src_h = imagesy($img);
+
+    $tmp = imagecreatetruecolor($dst_w, $dst_h);
+    imagealphablending($tmp, false);
+    $transparent = imagecolorallocatealpha($tmp, 0, 0, 0, 127);
+    imagefill($tmp, 0, 0, $transparent);
+    imagecopyresampled($tmp, $img, 0, 0, 0, 0, $dst_w, $dst_h, $src_w, $src_h);
+
+    imagealphablending($dst, true);
+    imagecopymerge($dst, $tmp, $dst_x, $dst_y, 0, 0, $dst_w, $dst_h, $opacityPercent);
+
+    imagedestroy($tmp);
+    imagedestroy($img);
+    return true;
 }
 
-if ($side === 'depan') {
-    // Place avatar covering the full area from top 70px (match ekpd.php exactly)
-    if (!empty($avatar_path) && file_exists(preg_replace('/\?.*/', '', $avatar_path))) {
-        $src_avatar = preg_replace('/\?.*/', '', $avatar_path);
+function overlay_image_with_opacity_contain(&$dst, $src_path, $box_x, $box_y, $box_w, $box_h, $opacityPercent = 25)
+{
+    $img = load_image_any($src_path);
+    if (!$img) return false;
 
-        // Avatar positioning to match ekpd.php: foto di tengah, tidak full width
-        $av_w = intval($width * 0.7); // 70% dari lebar kartu  
-        $av_h = intval($height * 0.5); // 50% dari tinggi kartu
-        $av_x = intval(($width - $av_w) / 2); // Center horizontal
-        $av_y = intval($height * 0.12); // Mulai 12% dari atas
+    $opacityPercent = max(0, min(100, (int)$opacityPercent));
+    $src_w = imagesx($img);
+    $src_h = imagesy($img);
+    if ($src_w <= 0 || $src_h <= 0 || $box_w <= 0 || $box_h <= 0) {
+        imagedestroy($img);
+        return false;
+    }
 
-        $img_av = load_image_any($src_avatar);
-        if ($img_av) {
-            // Create avatar with object-fit: cover behavior
-            $src_w = imagesx($img_av);
-            $src_h = imagesy($img_av);
+    $src_ratio = $src_w / $src_h;
+    $box_ratio = $box_w / $box_h;
 
-            // Calculate crop for cover behavior
-            $src_ratio = $src_w / $src_h;
-            $dst_ratio = $av_w / $av_h;
+    if ($src_ratio > $box_ratio) {
+        $draw_w = $box_w;
+        $draw_h = (int)round($box_w / $src_ratio);
+    } else {
+        $draw_h = $box_h;
+        $draw_w = (int)round($box_h * $src_ratio);
+    }
 
-            if ($src_ratio > $dst_ratio) {
-                // Source is wider, crop horizontally
-                $new_src_w = intval($src_h * $dst_ratio);
-                $new_src_h = $src_h;
-                $crop_x = intval(($src_w - $new_src_w) / 2);
-                $crop_y = 0;
+    $draw_x = $box_x + (int)floor(($box_w - $draw_w) / 2);
+    $draw_y = $box_y + (int)floor(($box_h - $draw_h) / 2);
+
+    $tmp = imagecreatetruecolor($draw_w, $draw_h);
+    imagealphablending($tmp, false);
+    $transparent = imagecolorallocatealpha($tmp, 0, 0, 0, 127);
+    imagefill($tmp, 0, 0, $transparent);
+    imagecopyresampled($tmp, $img, 0, 0, 0, 0, $draw_w, $draw_h, $src_w, $src_h);
+
+    imagealphablending($dst, true);
+    imagecopymerge($dst, $tmp, $draw_x, $draw_y, 0, 0, $draw_w, $draw_h, $opacityPercent);
+
+    imagedestroy($tmp);
+    imagedestroy($img);
+    return true;
+}
+
+function overlay_png_with_opacity_contain(&$dst, $src_path, $box_x, $box_y, $box_w, $box_h, $opacityPercent = 25)
+{
+    if (!file_exists($src_path)) return false;
+    $img = @imagecreatefrompng($src_path);
+    if (!$img) return false;
+
+    $opacityPercent = max(0, min(100, (int)$opacityPercent));
+    $src_w = imagesx($img);
+    $src_h = imagesy($img);
+    if ($src_w <= 0 || $src_h <= 0 || $box_w <= 0 || $box_h <= 0) {
+        imagedestroy($img);
+        return false;
+    }
+
+    $src_ratio = $src_w / $src_h;
+    $box_ratio = $box_w / $box_h;
+    if ($src_ratio > $box_ratio) {
+        $draw_w = $box_w;
+        $draw_h = (int)round($box_w / $src_ratio);
+    } else {
+        $draw_h = $box_h;
+        $draw_w = (int)round($box_h * $src_ratio);
+    }
+
+    $draw_x = $box_x + (int)floor(($box_w - $draw_w) / 2);
+    $draw_y = $box_y + (int)floor(($box_h - $draw_h) / 2);
+
+    $tmp = imagecreatetruecolor($draw_w, $draw_h);
+    imagealphablending($tmp, false);
+    imagesavealpha($tmp, true);
+    $transparent = imagecolorallocatealpha($tmp, 0, 0, 0, 127);
+    imagefill($tmp, 0, 0, $transparent);
+    imagecopyresampled($tmp, $img, 0, 0, 0, 0, $draw_w, $draw_h, $src_w, $src_h);
+
+    // Preserve alpha PNG and clean near-white solid background if present.
+    $extraAlpha = (int)round((100 - $opacityPercent) * 1.27); // 0..127
+    for ($yy = 0; $yy < $draw_h; $yy++) {
+        for ($xx = 0; $xx < $draw_w; $xx++) {
+            $rgba = imagecolorat($tmp, $xx, $yy);
+            $a = ($rgba >> 24) & 0x7F;
+            $r = ($rgba >> 16) & 0xFF;
+            $g = ($rgba >> 8) & 0xFF;
+            $b = $rgba & 0xFF;
+
+            // Remove flat white-ish background from non-transparent logo assets.
+            if ($r > 242 && $g > 242 && $b > 242 && $a < 120) {
+                $newA = 127;
             } else {
-                // Source is taller, crop vertically
-                $new_src_w = $src_w;
-                $new_src_h = intval($src_w / $dst_ratio);
-                $crop_x = 0;
-                $crop_y = intval(($src_h - $new_src_h) / 2);
+                $newA = min(127, $a + $extraAlpha);
             }
 
-            imagecopyresampled($canvas, $img_av, $av_x, $av_y, $crop_x, $crop_y, $av_w, $av_h, $new_src_w, $new_src_h);
-            imagedestroy($img_av);
+            $col = imagecolorallocatealpha($tmp, $r, $g, $b, $newA);
+            imagesetpixel($tmp, $xx, $yy, $col);
         }
     }
 
-    // QR code di kanan bawah (sesuai ekpd.php)
+    imagealphablending($dst, true);
+    imagesavealpha($dst, true);
+    imagecopy($dst, $tmp, $draw_x, $draw_y, 0, 0, $draw_w, $draw_h);
+
+    imagedestroy($tmp);
+    imagedestroy($img);
+    return true;
+}
+
+function apply_vertical_white_gradient(&$dst, $x, $y, $w, $h, $startAlpha = 127, $endAlpha = 0)
+{
+    $h = (int)$h;
+    if ($h <= 0 || $w <= 0) return;
+    imagealphablending($dst, true);
+
+    for ($i = 0; $i < $h; $i++) {
+        $t = $h > 1 ? ($i / ($h - 1)) : 1;
+        $a = (int)round($startAlpha + ($endAlpha - $startAlpha) * $t);
+        $a = max(0, min(127, $a));
+        $col = imagecolorallocatealpha($dst, 255, 255, 255, $a);
+        imageline($dst, $x, $y + $i, $x + $w, $y + $i, $col);
+    }
+}
+
+function draw_ttf_with_white_shadow(&$dst, $size, $x, $y, $font, $text, $mainColor)
+{
+    $shadow1 = imagecolorallocatealpha($dst, 255, 255, 255, 70);
+    $shadow2 = imagecolorallocatealpha($dst, 255, 255, 255, 95);
+
+    imagettftext($dst, $size, 0, $x - 2, $y, $shadow1, $font, $text);
+    imagettftext($dst, $size, 0, $x + 2, $y, $shadow1, $font, $text);
+    imagettftext($dst, $size, 0, $x, $y - 2, $shadow1, $font, $text);
+    imagettftext($dst, $size, 0, $x, $y + 2, $shadow1, $font, $text);
+    imagettftext($dst, $size, 0, $x - 1, $y - 1, $shadow2, $font, $text);
+    imagettftext($dst, $size, 0, $x + 1, $y + 1, $shadow2, $font, $text);
+    imagettftext($dst, $size, 0, $x, $y, $mainColor, $font, $text);
+}
+
+function wrap_text_by_width($text, $font, $size, $maxWidth)
+{
+    $text = trim((string)$text);
+    if ($text === '') return [''];
+
+    $words = preg_split('/\s+/', $text);
+    $lines = [];
+    $current = '';
+
+    foreach ($words as $w) {
+        $candidate = ($current === '') ? $w : ($current . ' ' . $w);
+        $bbox = imagettfbbox($size, 0, $font, $candidate);
+        $wpx = $bbox[2] - $bbox[0];
+
+        if ($wpx <= $maxWidth || $current === '') {
+            $current = $candidate;
+            if ($wpx > $maxWidth) {
+                // Satu kata sangat panjang: pecah per karakter.
+                $current = '';
+                $chars = preg_split('//u', $candidate, -1, PREG_SPLIT_NO_EMPTY);
+                foreach ($chars as $ch) {
+                    $candChar = $current . $ch;
+                    $bboxChar = imagettfbbox($size, 0, $font, $candChar);
+                    $charW = $bboxChar[2] - $bboxChar[0];
+                    if ($charW > $maxWidth && $current !== '') {
+                        $lines[] = $current;
+                        $current = $ch;
+                    } else {
+                        $current = $candChar;
+                    }
+                }
+            }
+        } else {
+            $lines[] = $current;
+            $current = $w;
+        }
+    }
+
+    if ($current !== '') $lines[] = $current;
+    return $lines;
+}
+
+function fit_text_into_box($text, $font, $maxWidth, $maxHeight, $minSize = 18, $maxSize = 52)
+{
+    $text = trim((string)$text);
+    if ($text === '') {
+        return [
+            'size' => $minSize,
+            'lines' => [''],
+            'lineHeight' => $minSize,
+            'totalHeight' => $minSize,
+            'maxLineWidth' => 0
+        ];
+    }
+
+    for ($size = $maxSize; $size >= $minSize; $size--) {
+        $lines = wrap_text_by_width($text, $font, $size, $maxWidth);
+        $lineHeight = (int)round($size * 1.18);
+        $totalHeight = $lineHeight * count($lines);
+
+        $maxLineWidth = 0;
+        foreach ($lines as $line) {
+            $bbox = imagettfbbox($size, 0, $font, $line);
+            $lineW = $bbox[2] - $bbox[0];
+            if ($lineW > $maxLineWidth) $maxLineWidth = $lineW;
+        }
+
+        if ($totalHeight <= $maxHeight && $maxLineWidth <= $maxWidth) {
+            return [
+                'size' => $size,
+                'lines' => $lines,
+                'lineHeight' => $lineHeight,
+                'totalHeight' => $totalHeight,
+                'maxLineWidth' => $maxLineWidth
+            ];
+        }
+    }
+
+    // Fallback minimum size jika teks sangat panjang.
+    $lines = wrap_text_by_width($text, $font, $minSize, $maxWidth);
+    $lineHeight = (int)round($minSize * 1.18);
+    return [
+        'size' => $minSize,
+        'lines' => $lines,
+        'lineHeight' => $lineHeight,
+        'totalHeight' => $lineHeight * count($lines),
+        'maxLineWidth' => $maxWidth
+    ];
+}
+
+if ($side === 'depan') {
+    // Watermark jurusan transparan di belakang avatar (sesuai preview awal).
+    if (file_exists($logo_path)) {
+        $logo_ext = strtolower((string)pathinfo($logo_path, PATHINFO_EXTENSION));
+        // Kembalikan ukuran watermark seperti komposisi awal, tetap rasio asli PNG.
+        if ($logo_ext === 'png') {
+            $wm_x = -50;
+            $wm_y = 320;
+            $wm_w = 360;
+            $wm_h = 360;
+            overlay_png_with_opacity_contain($canvas, $logo_path, $wm_x, $wm_y, $wm_w, $wm_h, 20);
+        }
+    }
+
+    // Place avatar to match CSS template .kartu-foto-row (top:70, w:340, h:470) at 2x scale.
+    if (!empty($avatar_path) && file_exists(preg_replace('/\?.*/', '', $avatar_path))) {
+        $src_avatar = preg_replace('/\?.*/', '', $avatar_path);
+
+        // Foto full kiri-kanan dan mentok ke batas bawah kartu.
+        $av_x = 0;
+        $av_y = 180;
+        $av_w = $width;
+        $av_h = $height - $av_y;
+
+        $img_av = load_image_any($src_avatar);
+        if ($img_av) {
+            // Avatar cover agar benar-benar penuh kiri-kanan.
+            $src_w = imagesx($img_av);
+            $src_h = imagesy($img_av);
+
+            $src_ratio = $src_w / $src_h;
+            $dst_ratio = $av_w / $av_h;
+            if ($src_ratio > $dst_ratio) {
+                // Source lebih lebar: samakan tinggi area lalu crop kiri-kanan.
+                $draw_h = $av_h;
+                $draw_w = (int)round($av_h * $src_ratio);
+            } else {
+                // Source lebih sempit/tinggi: samakan lebar area lalu crop bawah.
+                $draw_w = $av_w;
+                $draw_h = (int)round($av_w / $src_ratio);
+            }
+            $draw_x = $av_x + (int)floor(($av_w - $draw_w) / 2);
+            $draw_y = $av_y;
+
+            imagecopyresampled($canvas, $img_av, $draw_x, $draw_y, 0, 0, $draw_w, $draw_h, $src_w, $src_h);
+            imagedestroy($img_av);
+
+            // Tutup setengah badan dengan gradasi putih: atas 0% -> bawah 100%.
+            $grad_x = $draw_x;
+            $grad_y = $draw_y + (int)floor($draw_h * 0.50);
+            $grad_w = $draw_w;
+            $grad_h = $draw_h - (int)floor($draw_h * 0.50);
+            apply_vertical_white_gradient($canvas, $grad_x, $grad_y, $grad_w, $grad_h, 127, 0);
+        }
+    }
+
+    // QR placement baseline (dipakai juga untuk batas lebar teks nama).
+    $qr_s = 240;
+    $qr_x = 392;
+    $qr_y = 804;
+
+    // QR code di kanan bawah sesuai CSS (.kartu-bottom-row + .kartu-qrcode) di 2x scale.
     if (file_exists($qrcode_path)) {
-        $qr_s = intval($width * 0.18); // 18% dari lebar
-        $qr_x = intval($width * 0.77); // Kanan bawah
-        $qr_y = intval($height * 0.77); // Bawah
 
         // QR with white background and border
         $qr_img = load_image_any($qrcode_path);
@@ -741,101 +1183,120 @@ if ($side === 'depan') {
         }
     }
 
-    // Draw nama and nisn with exact positioning from ekpd.php
+    // Draw nama and nisn to match CSS positions.
     $black = imagecolorallocate($canvas, 20, 20, 20);
     $white = imagecolorallocate($canvas, 255, 255, 255);
 
-    // Font setup
+    // Font setup: gunakan font sistem yang umum dan rapi, tanpa dependensi font custom.
+    $font_bold_candidates = array(
+        'C:/Windows/Fonts/segoeuib.ttf', // Segoe UI Bold
+        'C:/Windows/Fonts/arialbd.ttf',
+        'C:/Windows/Fonts/tahomabd.ttf',
+        $base . 'assets/fonts/arialbd.ttf',
+        $base . 'admin/assets/fonts/arialbd.ttf',
+    );
+    $font_regular_candidates = array(
+        'C:/Windows/Fonts/segoeui.ttf', // Segoe UI Regular
+        'C:/Windows/Fonts/arial.ttf',
+        'C:/Windows/Fonts/tahoma.ttf',
+        $base . 'assets/fonts/arial.ttf',
+        $base . 'admin/assets/fonts/arial.ttf',
+    );
+
     $font_bold = '';
     $font_regular = '';
-    if (PHP_OS_FAMILY === 'Windows') {
-        if (file_exists('C:/Windows/Fonts/arialbd.ttf')) $font_bold = 'C:/Windows/Fonts/arialbd.ttf';
-        if (file_exists('C:/Windows/Fonts/arial.ttf')) $font_regular = 'C:/Windows/Fonts/arial.ttf';
+
+    foreach ($font_bold_candidates as $f) {
+        if ($font_bold === '' && file_exists($f)) $font_bold = $f;
     }
-    if ($font_bold === '' && file_exists($base . 'assets/fonts/arialbd.ttf')) $font_bold = $base . 'assets/fonts/arialbd.ttf';
-    if ($font_regular === '' && file_exists($base . 'assets/fonts/arial.ttf')) $font_regular = $base . 'assets/fonts/arial.ttf';
+    foreach ($font_regular_candidates as $f) {
+        if ($font_regular === '' && file_exists($f)) $font_regular = $f;
+    }
 
     $name_text = mb_strtoupper(trim($nama ?: '-'));
     $nisn_text = trim($nisn ?: '-');
 
     if ($font_bold || $font_regular) {
         $font_for_name = $font_bold ? $font_bold : $font_regular;
-        $font_for_nisn = $font_regular ? $font_regular : $font_for_name;
+        $font_for_nisn = $font_bold ? $font_bold : $font_for_name;
 
 
-        // Nama di kiri bawah (sesuai gambar ekpd.php)
-        $nama_length = strlen($name_text);
-        if ($nama_length <= 8) {
-            $size_name = intval($width * 0.055);
-        } elseif ($nama_length <= 15) {
-            $size_name = intval($width * 0.045);
-        } else {
-            $size_name = intval($width * 0.035);
+        // Nama full tanpa disembunyikan, fit otomatis dalam box kiri QR.
+        // Batas atas disamakan dengan QR (top = $qr_y) dan dibatasi kiri/kanan/bawah.
+        $name_box_left = 50;
+        $name_box_top = $qr_y;
+        $name_box_right = $qr_x - 20;
+        $name_box_bottom = $qr_y + $qr_s;
+        $name_box_width = max(120, $name_box_right - $name_box_left);
+        $name_box_height = max(80, $name_box_bottom - $name_box_top);
+
+        $fit = fit_text_into_box($name_text, $font_for_name, $name_box_width, $name_box_height, 18, 52);
+        $name_size = $fit['size'];
+        $name_lines = $fit['lines'];
+        $name_line_h = $fit['lineHeight'];
+        $name_total_h = $fit['totalHeight'];
+
+        // Vertikal center di dalam box agar rapi dan tetap dalam batas.
+        $line_y = $name_box_top + (int)floor(($name_box_height - $name_total_h) / 2) + $name_line_h;
+        foreach ($name_lines as $line) {
+            draw_ttf_with_white_shadow($canvas, $name_size, $name_box_left, $line_y, $font_for_name, $line, $black);
+            $line_y += $name_line_h;
         }
 
-        $name_x = intval($width * 0.06); // Kiri 
-        $name_y = intval($height * 0.87); // Bawah
+        // NISN: right 25, bottom 140 at 2x scale.
+        $size_nisn = 44;
+        $nisn_y = 770;
 
-        // Background putih untuk nama
-        $name_bbox = imagettfbbox($size_name, 0, $font_for_name, $name_text);
-        $name_w = $name_bbox[2] - $name_bbox[0];
-        $name_h = $name_bbox[1] - $name_bbox[7];
-
-        $bg_padding = 8;
-        imagefilledrectangle(
-            $canvas,
-            $name_x - $bg_padding,
-            $name_y - $name_h - $bg_padding,
-            $name_x + $name_w + $bg_padding,
-            $name_y + $bg_padding,
-            $white
-        );
-        imagettftext($canvas, $size_name, 0, $name_x, $name_y, $black, $font_for_name, $name_text);
-
-        // NISN di kanan atas area foto (sesuai gambar ekpd.php)
-        $size_nisn = intval($width * 0.035); // Size yang cukup visible
-        $nisn_x = intval($width * 0.75); // Kanan dari foto
-        $nisn_y = intval($height * 0.43); // Sejajar dengan area tengah foto
-
-        // Background putih untuk NISN
+        // Batasi panjang visual NISN agar tidak melebihi lebar QR (240 px).
+        $max_nisn_width = 240;
         $nisn_bbox = imagettfbbox($size_nisn, 0, $font_for_nisn, $nisn_text);
-        $nisn_w = $nisn_bbox[2] - $nisn_bbox[0];
-        $nisn_h = $nisn_bbox[1] - $nisn_bbox[7];
+        while ($size_nisn > 24 && ($nisn_bbox[2] - $nisn_bbox[0]) > $max_nisn_width) {
+            $size_nisn -= 2;
+            $nisn_bbox = imagettfbbox($size_nisn, 0, $font_for_nisn, $nisn_text);
+        }
 
-        $bg_padding = 8;
-        imagefilledrectangle(
-            $canvas,
-            $nisn_x - $bg_padding,
-            $nisn_y - $nisn_h - $bg_padding,
-            $nisn_x + $nisn_w + $bg_padding,
-            $nisn_y + $bg_padding,
-            $white
-        );
-        imagettftext($canvas, $size_nisn, 0, $nisn_x, $nisn_y, $black, $font_for_nisn, $nisn_text);
+        // Hitung lebar untuk align kanan, lalu render dengan white-shadow.
+        $nisn_w = $nisn_bbox[2] - $nisn_bbox[0];
+        $nisn_x = $width - 50 - $nisn_w;
+        draw_ttf_with_white_shadow($canvas, $size_nisn, $nisn_x, $nisn_y, $font_for_nisn, $nisn_text, $black);
     } else {
         // Fallback: imagestring
         imagestring($canvas, 5, intval($width * 0.06), intval($height * 0.85), $name_text, $black);
         imagestring($canvas, 4, intval($width * 0.75), intval($height * 0.4), $nisn_text, $black);
     }
 } else {
-    // belakang: just overlay background and maybe QR centered
-    if (file_exists($qrcode_path)) {
-        $qr_s = intval($width * 0.28);
-        $qr_x = intval(($width - $qr_s) / 2);
-        $qr_y = intval($height * 0.45);
-        overlay_image($canvas, $qrcode_path, $qr_x, $qr_y, $qr_s, $qr_s, true);
-    }
+    // belakang: gunakan template background saja agar hasil konsisten.
 }
 
 // Output PNG for download
 $filename = 'kartu-pelajar-' . ($nisn ?: $user_id) . '-' . $side . '.png';
-$is_inline = isset($_GET['inline']) && $_GET['inline'] == '1';
+$png_data = '';
+ob_start();
+imagepng($canvas);
+$png_data = ob_get_clean();
+
+if ($cache_enabled && $cache_file !== '' && is_string($png_data) && $png_data !== '') {
+    if (!is_valid_png_cache_file($cache_file)) {
+        atomic_write_file($cache_file, $png_data);
+    }
+}
+
+if (is_resource($cache_lock_handle)) {
+    @flock($cache_lock_handle, LOCK_UN);
+    @fclose($cache_lock_handle);
+    $cache_lock_handle = null;
+}
+
+imagedestroy($canvas);
+
 header('Content-Type: image/png');
 if ($is_inline) {
     header('Content-Disposition: inline; filename="' . basename($filename) . '"');
 } else {
     header('Content-Disposition: attachment; filename="' . basename($filename) . '"');
 }
-imagepng($canvas);
-imagedestroy($canvas);
+if (is_string($png_data) && $png_data !== '') {
+    header('Content-Length: ' . strlen($png_data));
+    echo $png_data;
+}
 exit;

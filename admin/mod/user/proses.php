@@ -109,6 +109,40 @@ function compressAvatarFile($sourcePath, $destPath, $extHint = '')
   return $ok;
 }
 
+function purgeKartuPelajarCacheByIdentity($userId = '', $nisn = '')
+{
+  $uid = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$userId);
+  $n = preg_replace('/[^a-zA-Z0-9_-]/', '', (string)$nisn);
+  if ($uid === '' && $n === '') {
+    return;
+  }
+
+  $cacheDir = realpath(__DIR__ . '/../../../content/cache/kartu-pelajar');
+  if ($cacheDir === false || !is_dir($cacheDir)) {
+    return;
+  }
+
+  $patterns = [];
+  if ($uid !== '') {
+    $patterns[] = $cacheDir . DIRECTORY_SEPARATOR . 'u' . $uid . '-*.png';
+    $patterns[] = $cacheDir . DIRECTORY_SEPARATOR . 'u' . $uid . '-*.png.lock';
+  }
+  if ($n !== '') {
+    $patterns[] = $cacheDir . DIRECTORY_SEPARATOR . 'u*-n' . $n . '-*.png';
+    $patterns[] = $cacheDir . DIRECTORY_SEPARATOR . 'u*-n' . $n . '-*.png.lock';
+  }
+
+  foreach ($patterns as $pattern) {
+    $files = glob($pattern);
+    if (!$files) continue;
+    foreach ($files as $f) {
+      if (is_file($f)) {
+        @unlink($f);
+      }
+    }
+  }
+}
+
 // Hak akses berdasarkan role
 $modul_id = 3;
 include __DIR__ . '/../check_role.php';
@@ -343,6 +377,7 @@ switch (@$_GET['action']) {
     $update = "UPDATE user SET
     no_kk='$no_kk', nik='$nik', nipd='$nipd', nisn='$nisn', nama_lengkap='$nama_lengkap', sekolah_asal='$sekolah_asal', tempat_lahir='$tempat_lahir', tanggal_lahir='$tanggal_lahir', agama='$agama', jenis_kelamin='$jenis_kelamin', status_keluarga='$status_keluarga', kelas='$kelas', diterima_dikelas='$diterima_dikelas', diterima_tanggal='$diterima_tanggal', rt='$rt', rw='$rw', desa='$desa', kecamatan='$kecamatan', kodepos='$kodepos', email='$email', telp='$telp', anak_ke='$anak_ke', alamat='$alamat', status='$status', nik_ayah='$nik_ayah', nama_ayah='$nama_ayah', pekerjaan_ayah='$pekerjaan_ayah', nik_ibu='$nik_ibu', nama_ibu='$nama_ibu', pekerjaan_ibu='$pekerjaan_ibu', nama_wali='$nama_wali', alamat_wali='$alamat_wali', telp_wali='$telp_wali', pekerjaan_wali='$pekerjaan_wali', konfirmasi='Belum Konfirmasi'" . $set_password . " WHERE user_id='$id'";
     if ($connection->query($update)) {
+      purgeKartuPelajarCacheByIdentity($id, $nisn);
       echo 'success';
     } else {
       echo 'Gagal update: ' . $connection->error;
@@ -420,6 +455,7 @@ switch (@$_GET['action']) {
     // Hapus data user
     $deleted = "DELETE FROM user WHERE user_id='$id'";
     if ($connection->query($deleted) === true) {
+      purgeKartuPelajarCacheByIdentity($id, $nisn);
       echo 'success';
     } else {
       echo 'Data tidak berhasil dihapus.';
@@ -610,9 +646,11 @@ switch (@$_GET['action']) {
             $nisn = pathinfo($zip_file, PATHINFO_FILENAME);
             if (in_array($zip_ext, ['jpg', 'jpeg', 'png'])) {
               // Hapus foto lama jika ada (selain avatar.jpg)
-              $query = $connection->query("SELECT avatar FROM user WHERE nisn='" . $nisn . "'");
+              $query = $connection->query("SELECT user_id, avatar FROM user WHERE nisn='" . $nisn . "'");
+              $user_id_for_cache = '';
               if ($query && $query->num_rows > 0) {
                 $row = $query->fetch_assoc();
+                $user_id_for_cache = isset($row['user_id']) ? $row['user_id'] : '';
                 $old_avatar = $row['avatar'];
                 // strip any query string (e.g. ?t=123) before checking/removing file on disk
                 $old_avatar_file = preg_replace('/\?.*/', '', $old_avatar);
@@ -635,7 +673,10 @@ switch (@$_GET['action']) {
                 $filename = $nisn . '.' . $zip_ext;
                 $avatar_db = $filename . '?t=' . time();
                 $update = $connection->query("UPDATE user SET avatar='" . $connection->real_escape_string($avatar_db) . "' WHERE nisn='" . $nisn . "'");
-                if ($update) $success[] = $nisn;
+                if ($update) {
+                  purgeKartuPelajarCacheByIdentity($user_id_for_cache, $nisn);
+                  $success[] = $nisn;
+                }
                 else $failed[] = $nisn;
               }
             }
@@ -649,9 +690,11 @@ switch (@$_GET['action']) {
         // Single file
         $nisn = pathinfo($file_name, PATHINFO_FILENAME);
         // Hapus foto lama jika ada (selain avatar.jpg)
-        $query = $connection->query("SELECT avatar FROM user WHERE nisn='" . $nisn . "'");
+        $query = $connection->query("SELECT user_id, avatar FROM user WHERE nisn='" . $nisn . "'");
+        $user_id_for_cache = '';
         if ($query && $query->num_rows > 0) {
           $row = $query->fetch_assoc();
+          $user_id_for_cache = isset($row['user_id']) ? $row['user_id'] : '';
           $old_avatar = $row['avatar'];
           $old_avatar_file = preg_replace('/\?.*/', '', $old_avatar);
           $old_path = $target_dir . $old_avatar_file;
@@ -665,7 +708,10 @@ switch (@$_GET['action']) {
           // Update DB with timestamp query parameter so record changes and browsers reload
           $avatar_db = $new_name . '?t=' . time();
           $update = $connection->query("UPDATE user SET avatar='" . $connection->real_escape_string($avatar_db) . "' WHERE nisn='" . $nisn . "'");
-          if ($update) echo 'Berhasil upload foto untuk NISN: ' . $nisn;
+          if ($update) {
+            purgeKartuPelajarCacheByIdentity($user_id_for_cache, $nisn);
+            echo 'Berhasil upload foto untuk NISN: ' . $nisn;
+          }
           else echo 'Upload berhasil, update DB gagal.';
         } else {
           echo 'Upload file gagal.';
@@ -834,6 +880,7 @@ switch (@$_GET['action']) {
         }
         // Hapus data user
         $connection->query("DELETE FROM user WHERE user_id='$id'");
+        purgeKartuPelajarCacheByIdentity($id, $nisn);
         $deleted_count++;
       }
       echo 'success';
@@ -857,9 +904,11 @@ switch (@$_GET['action']) {
       $target_dir = '../../../content/avatar/';
       $target_file = $target_dir . $nisn . '.' . $ext;
       // Hapus foto lama jika ada (selain avatar.jpg)
-      $query = $connection->query("SELECT avatar FROM user WHERE nisn='" . $nisn . "'");
+      $query = $connection->query("SELECT user_id, avatar FROM user WHERE nisn='" . $nisn . "'");
+      $user_id_for_cache = '';
       if ($query && $query->num_rows > 0) {
         $row = $query->fetch_assoc();
+        $user_id_for_cache = isset($row['user_id']) ? $row['user_id'] : '';
         $old_avatar = $row['avatar'];
         $old_avatar_file = preg_replace('/\?.*/', '', $old_avatar);
         $old_path = $target_dir . $old_avatar_file;
@@ -878,6 +927,7 @@ switch (@$_GET['action']) {
       $avatar_db = $nisn . '.' . $ext . '?t=' . time();
       $update = $connection->query("UPDATE user SET avatar='" . $connection->real_escape_string($avatar_db) . "' WHERE nisn='" . $nisn . "'");
       if ($update) {
+        purgeKartuPelajarCacheByIdentity($user_id_for_cache, $nisn);
         echo 'success';
       } else {
         echo 'Gagal update database.';

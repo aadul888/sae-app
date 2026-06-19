@@ -1379,7 +1379,11 @@ function setupModalDownloadHandlers(modalElement) {
       btnDepan.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyiapkan...';
       btnDepan.disabled = true;
 
-      const url = "./mod/user/download_kartu.php?user_id=" + encodeURIComponent(userId) + "&side=depan";
+      const url =
+        "./mod/user/download_kartu.php?user_id=" +
+        encodeURIComponent(userId) +
+        "&side=depan&t=" +
+        Date.now();
       const link = document.createElement("a");
       link.href = url;
       document.body.appendChild(link);
@@ -1399,7 +1403,11 @@ function setupModalDownloadHandlers(modalElement) {
       btnBelakang.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Menyiapkan...';
       btnBelakang.disabled = true;
 
-      const url = "./mod/user/download_kartu.php?user_id=" + encodeURIComponent(userId) + "&side=belakang";
+      const url =
+        "./mod/user/download_kartu.php?user_id=" +
+        encodeURIComponent(userId) +
+        "&side=belakang&t=" +
+        Date.now();
       const link = document.createElement("a");
       link.href = url;
       document.body.appendChild(link);

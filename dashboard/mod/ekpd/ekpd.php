@@ -98,17 +98,11 @@ if (file_exists($qrcode_file)) {
     $paths['qrcode'] = $qrcode_file . '?t=' . filemtime($qrcode_file);
 }
 
-// Tentukan kelas nama berdasarkan panjang
+$kartu_front_inline = "../admin/mod/user/download_kartu.php?user_id=" . rawurlencode($user_id) . "&side=depan&inline=1&t=" . time();
+$kartu_back_inline = "../admin/mod/user/download_kartu.php?user_id=" . rawurlencode($user_id) . "&side=belakang&inline=1&t=" . time();
+$kartu_front_download = "../admin/mod/user/download_kartu.php?user_id=" . rawurlencode($user_id) . "&side=depan&t=" . time();
+$kartu_back_download = "../admin/mod/user/download_kartu.php?user_id=" . rawurlencode($user_id) . "&side=belakang&t=" . time();
 
-$nama_length = strlen($nama);
-$nama_class = 'kartu-nama-row ';
-if ($nama_length <= 8) {
-    $nama_class .= 'short';
-} elseif ($nama_length <= 15) {
-    $nama_class .= 'medium';
-} else {
-    $nama_class .= 'long';
-}
 ?>
 
 <div class="container-fluid py-3 px-1 px-sm-2 px-md-4 ekpd-page-container">
@@ -118,46 +112,13 @@ if ($nama_length <= 8) {
 
                 <!-- Kartu Depan -->
                 <div class="kartu-pelajar-portrait position-relative mx-auto">
-                    <?php if ($paths['kartu_depan']): ?>
-                        <img src="<?= $paths['kartu_depan'] ?>" alt="Kartu Pelajar Depan" class="kartu-bg" loading="lazy">
-                    <?php endif; ?>
-
-                    <div class="kartu-content">
-                        <!-- Logo Jurusan Background -->
-                        <?php if ($paths['logo_jurusan']): ?>
-                            <div class="kartu-jurusan-row">
-                                <img src="<?= $paths['logo_jurusan'] ?>" alt="Logo Jurusan" class="kartu-logo-jurusan" loading="lazy">
-                            </div>
-                        <?php endif; ?>
-
-                        <!-- Foto Siswa -->
-                        <?php if ($paths['foto']): ?>
-                            <div class="kartu-foto-row">
-                                <img src="<?= $paths['foto'] ?>" alt="Foto Siswa" class="kartu-foto-siswa" loading="lazy">
-                            </div>
-                        <?php endif; ?>
-
-                        <!-- Nama Siswa -->
-                        <div class="<?= $nama_class ?>"><?= $nama ?></div>
-
-                        <!-- NISN -->
-                        <div class="kartu-nisn-row"><strong><?= $nisn ?></strong></div>
-
-                        <!-- QR Code -->
-                        <div class="kartu-bottom-row">
-                            <?php if ($paths['qrcode']): ?>
-                                <img src="<?= $paths['qrcode'] ?>" alt="QR Code" class="kartu-qrcode" loading="lazy">
-                            <?php endif; ?>
-                        </div>
-                    </div>
+                    <img src="<?= $kartu_front_inline ?>" alt="Kartu Pelajar Depan" class="kartu-bg" loading="lazy">
                 </div>
 
                 <!-- Kartu Belakang -->
-                <?php if ($paths['kartu_belakang']): ?>
-                    <div class="kartu-pelajar-portrait position-relative mx-auto">
-                        <img src="<?= $paths['kartu_belakang'] ?>" alt="Kartu Pelajar Belakang" class="kartu-bg" loading="lazy">
-                    </div>
-                <?php endif; ?>
+                <div class="kartu-pelajar-portrait position-relative mx-auto">
+                    <img src="<?= $kartu_back_inline ?>" alt="Kartu Pelajar Belakang" class="kartu-bg" loading="lazy">
+                </div>
 
                 <!-- Tombol Unduh Kartu Depan & Belakang -->
                 <div class="mt-3 text-center ekpd-download-actions">
@@ -168,41 +129,18 @@ if ($nama_length <= 8) {
                         <i class="fas fa-download me-1" aria-hidden="true"></i>Belakang
                     </button>
                 </div>
-                <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
                         var btnDepan = document.getElementById('btn-download-kartu');
                         var btnBelakang = document.getElementById('btn-download-kartu-belakang');
                         if (btnDepan) {
                             btnDepan.addEventListener('click', function() {
-                                var kartu = document.querySelectorAll('.kartu-pelajar-portrait.position-relative.mx-auto')[0];
-                                if (!kartu) return;
-                                html2canvas(kartu, {
-                                    backgroundColor: null,
-                                    useCORS: true,
-                                    scale: 2
-                                }).then(function(canvas) {
-                                    var link = document.createElement('a');
-                                    link.download = 'kartu-pelajar-depan-<?= $nisn ?>.png';
-                                    link.href = canvas.toDataURL('image/png');
-                                    link.click();
-                                });
+                                window.location.href = "<?= $kartu_front_download ?>";
                             });
                         }
                         if (btnBelakang) {
                             btnBelakang.addEventListener('click', function() {
-                                var kartuBelakang = document.querySelectorAll('.kartu-pelajar-portrait.position-relative.mx-auto')[1];
-                                if (!kartuBelakang) return;
-                                html2canvas(kartuBelakang, {
-                                    backgroundColor: null,
-                                    useCORS: true,
-                                    scale: 2
-                                }).then(function(canvas) {
-                                    var link = document.createElement('a');
-                                    link.download = 'kartu-pelajar-belakang-<?= $nisn ?>.png';
-                                    link.href = canvas.toDataURL('image/png');
-                                    link.click();
-                                });
+                                window.location.href = "<?= $kartu_back_download ?>";
                             });
                         }
                     });
