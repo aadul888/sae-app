@@ -101,7 +101,7 @@
             ' . (
       // Show the keterangan block only when status is 'tidak_valid' or 'revisi'
       (!empty($berkas['validasi_berkas']) && in_array($berkas['validasi_berkas'], ['tidak_valid', 'revisi']))
-      ? ('<div class="w-100 mt-2"><div class="alert ' . ($berkas['validasi_berkas'] === 'tidak_valid' ? 'alert-danger' : 'alert-warning') . ' mb-0 p-2"><strong>Keterangan:</strong> ' . (!empty($keterangan_note) ? nl2br(htmlspecialchars($keterangan_note)) : '<span class="text-muted">Tidak ada keterangan.</span>') . '</div></div>')
+      ? ('<div class="w-100 mt-2"><div class="alert ' . ($berkas['validasi_berkas'] === 'tidak_valid' ? 'alert-danger' : 'alert-warning') . ' mb-0 p-2"><strong>Alasan Validasi:</strong> ' . (!empty($keterangan_note) ? nl2br(htmlspecialchars($keterangan_note)) : '<span class="text-muted">Tidak ada alasan.</span>') . '</div></div>')
       : ''
     ) . '
           </div>
