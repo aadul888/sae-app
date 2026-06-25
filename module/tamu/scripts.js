@@ -1,493 +1,245 @@
 /**
- * Buku Tamu Digital - JavaScript Handler
- * Menangani QR Scanner, Form Input, dan Camera Selfie
+ * Buku Tamu — scripts.js
+ * Handles: dashboard (detail), form (QR/camera/register), checkout, survey.
+ * Uses window.TAMU_PAGE and window.MODULE_BASE set by tamu.php
  */
+(function () {
+  var page = window.TAMU_PAGE || 'dashboard';
+  var MB = window.MODULE_BASE || 'tamu/';
 
-class GuestBookApp {
-  constructor() {
-    this.currentStep = 1;
-    this.qrScanner = null;
-    this.stream = null;
-    this.capturedPhoto = null;
-    this.guestData = {};
-
-    this.init();
-  }
-
-  init() {
-    this.setupEventListeners();
-    this.updateProgress();
-  }
-
-  setupEventListeners() {
-    // QR Scanner Events
-    document
-      .getElementById("startScanBtn")
-      .addEventListener("click", () => this.startQRScanner());
-    document
-      .getElementById("skipScanBtn")
-      .addEventListener("click", () => this.goToStep(2));
-
-    // Form Navigation Events
-    document
-      .getElementById("backToScanBtn")
-      .addEventListener("click", () => this.goToStep(1));
-    document
-      .getElementById("nextToPhotoBtn")
-      .addEventListener("click", () => this.validateFormAndNext());
-
-    // Photo Events
-    document
-      .getElementById("backToFormBtn")
-      .addEventListener("click", () => this.goToStep(2));
-    document
-      .getElementById("startCameraBtn")
-      .addEventListener("click", () => this.startCamera());
-    document
-      .getElementById("captureBtn")
-      .addEventListener("click", () => this.capturePhoto());
-    document
-      .getElementById("retakeBtn")
-      .addEventListener("click", () => this.retakePhoto());
-    document
-      .getElementById("submitBtn")
-      .addEventListener("click", () => this.submitForm());
-
-    // Form validation real-time
-    const requiredFields = ["nama", "instansi", "keperluan"];
-    requiredFields.forEach((field) => {
-      document
-        .getElementById(field)
-        .addEventListener("input", () => this.validateForm());
+  /* ───────── FAB ───────── */
+  var fc = document.getElementById('fabContainer');
+  var fm = document.getElementById('fabMain');
+  if (fc && fm) {
+    fm.addEventListener('click', function (e) {
+      e.stopPropagation();
+      fc.classList.toggle('open');
+      fm.setAttribute('aria-expanded', fc.classList.contains('open'));
+    });
+    document.addEventListener('click', function (e) {
+      if (!fc.contains(e.target)) { fc.classList.remove('open'); fm.setAttribute('aria-expanded', 'false'); }
     });
   }
 
-  showAlert(message, type = "info") {
-    const alertContainer = document.getElementById("alertContainer");
-    const alertId = "alert-" + Date.now();
+  /* ============================================================== */
+  /*  DASHBOARD — detail tamu                                       */
+  /* ============================================================== */
+  if (page === 'dashboard') {
+    var btnDetail = document.querySelectorAll('.btn-detail');
+    btnDetail.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var id = this.getAttribute('data-id');
+        var body = document.getElementById('detailBody');
+        body.innerHTML = '<div class="text-center py-4"><i class="fas fa-spinner fa-spin"></i> Memuat...</div>';
+        $('#modalDetail').modal('show');
+        fetch(MB + '?page=proses&action=get_guest&id=' + id)
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.status || d.status !== 'success') { body.innerHTML = '<div class="text-danger text-center py-4">Gagal</div>'; return; }
+            var g = d.data;
+            var fot = g.foto
+              ? '<img src="content/tamu/' + encodeURIComponent(g.foto) + '" class="rounded-circle mb-2" style="width:80px;height:80px;object-fit:cover;cursor:pointer" onclick="document.getElementById(\'fotoImg\').src=this.src;$(\'#modalFoto\').modal(\'show\')" onerror="this.style.display=\'none\'">'
+              : '<div class="bg-secondary rounded-circle d-inline-flex align-items-center justify-content-center mb-2" style="width:80px;height:80px"><i class="fas fa-user text-white"></i></div>';
+            var sb = g.status === 'Aktif' ? 'success' : (g.status === 'Selesai' ? 'secondary' : 'danger');
+            body.innerHTML = '<div class="text-center mb-3">' + fot + '<h5 class="mb-1">' + esc(g.nama) + '</h5><p class="text-muted mb-0">' + esc(g.instansi) + '</p></div><table class="table table-sm"><tr><th width="120">Guest ID</th><td><code>' + esc(g.guest_id) + '</code></td></tr><tr><th>Telepon</th><td>' + esc(g.telepon || '-') + '</td></tr><tr><th>Keperluan</th><td><span class="badge badge-primary">' + esc(g.keperluan) + '</span></td></tr><tr><th>Keterangan</th><td>' + esc(g.keterangan || '-') + '</td></tr><tr><th>Tanggal</th><td>' + esc(g.tanggal_kunjungan) + '</td></tr><tr><th>Masuk</th><td>' + esc(g.waktu_masuk || '-') + '</td></tr><tr><th>Keluar</th><td>' + esc(g.waktu_keluar || '-') + '</td></tr><tr><th>Status</th><td><span class="badge badge-' + sb + '">' + esc(g.status) + '</span></td></tr></table>';
+          })
+          .catch(function () { body.innerHTML = '<div class="text-danger text-center py-4">Kesalahan jaringan</div>'; });
+      });
+    });
+  }
 
-    const alertHTML = `
-            <div class="alert alert-${type} alert-dismissible fade show" id="${alertId}" role="alert">
-                <i class="fas fa-${this.getAlertIcon(type)} me-2"></i>
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            </div>
-        `;
+  /* ============================================================== */
+  /*  FORM — QR, form, camera, submit                               */
+  /* ============================================================== */
+  if (page === 'form') {
+    var step = 1;
 
-    alertContainer.innerHTML = alertHTML;
-
-    // Auto hide after 5 seconds
-    setTimeout(() => {
-      const alert = document.getElementById(alertId);
-      if (alert) {
-        alert.remove();
+    function goStep(n) {
+      document.querySelectorAll('.step-box').forEach(function (el) { el.classList.remove('active'); });
+      document.getElementById('s' + n).classList.add('active');
+      for (var i = 1; i <= 3; i++) {
+        var d = document.getElementById('dot' + i);
+        d.classList.remove('active', 'done', 'pending');
+        d.classList.add(i < n ? 'done' : (i === n ? 'active' : 'pending'));
       }
-    }, 5000);
-  }
+      step = n;
+      document.getElementById('progFill').style.width = ((n - 1) / 2 * 100) + '%';
+      if (n !== 1 && qr) { try { qr.stop(); } catch (e) { } }
+      if (n !== 3 && camStream) { stopCam(); }
+    }
 
-  getAlertIcon(type) {
-    const icons = {
-      success: "check-circle",
-      danger: "exclamation-triangle",
-      warning: "exclamation-circle",
-      info: "info-circle",
-    };
-    return icons[type] || "info-circle";
-  }
+    function alertBox(id, type, msg) {
+      document.getElementById(id).innerHTML = '<div class="alert-box alert-' + type + '">' + msg + '</div>';
+    }
 
-  goToStep(step) {
-    // Hide current step
-    document.querySelectorAll(".step-content").forEach((content) => {
-      content.classList.remove("active");
+    var qr = null, camStream = null, captured = null, guestData = {};
+
+    // --- Step 1: QR ---
+    document.getElementById('startScan').addEventListener('click', function () {
+      var c = document.getElementById('qrContainer');
+      c.innerHTML = '<div id="qrReader" style="width:100%;height:100%"></div>';
+      qr = new Html5Qrcode('qrReader');
+      qr.start({ facingMode: 'environment' }, { fps: 10, qrbox: { width: 200, height: 200 } },
+        function (txt) {
+          try { var o = JSON.parse(txt); if (o.nama) document.getElementById('fNama').value = o.nama; if (o.instansi) document.getElementById('fInstansi').value = o.instansi; } catch (e) { document.getElementById('fNama').value = txt; }
+          alertBox('mfAlert', 'success', 'QR dipindai!');
+          setTimeout(function () { goStep(2); }, 1200);
+        },
+        function () { }
+      );
+      this.style.display = 'none';
+    });
+    document.getElementById('skipScan').addEventListener('click', function () { goStep(2); });
+
+    // --- Step 2: Form ---
+    document.getElementById('backScan').addEventListener('click', function () { goStep(1); });
+    document.getElementById('toPhoto').addEventListener('click', function () {
+      var valid = document.getElementById('fNama').value.trim() && document.getElementById('fInstansi').value.trim() && document.getElementById('fKeperluan').value;
+      if (!valid) { alertBox('mfAlert', 'warning', 'Lengkapi field wajib (*)'); return; }
+      guestData = { nama: document.getElementById('fNama').value.trim(), instansi: document.getElementById('fInstansi').value.trim(), telepon: document.getElementById('fTelp').value.trim(), keperluan: document.getElementById('fKeperluan').value, keterangan: document.getElementById('fKet').value.trim() };
+      goStep(3);
     });
 
-    // Show target step
-    document.getElementById(`step${step}`).classList.add("active");
+    // --- Step 3: Camera ---
+    document.getElementById('backForm').addEventListener('click', function () { goStep(2); });
+    document.getElementById('startCam').addEventListener('click', function () {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } }).then(function (s) {
+        camStream = s;
+        var v = document.getElementById('video');
+        v.srcObject = s;
+        v.style.display = 'block';
+        document.getElementById('camPlace').style.display = 'none';
+        document.getElementById('startCam').style.display = 'none';
+        document.getElementById('captureBtn').style.display = 'inline-block';
+      }).catch(function () { alertBox('mfAlert', 'danger', 'Akses kamera ditolak'); });
+    });
+    document.getElementById('captureBtn').addEventListener('click', function () {
+      var v = document.getElementById('video'), c = document.getElementById('canvas');
+      c.width = v.videoWidth; c.height = v.videoHeight;
+      c.getContext('2d').drawImage(v, 0, 0);
+      captured = c.toDataURL('image/jpeg', 0.8);
+      v.style.display = 'none'; c.style.display = 'block';
+      document.getElementById('captureBtn').style.display = 'none';
+      document.getElementById('retakeBtn').style.display = 'inline-block';
+      document.getElementById('submitBtn').disabled = false;
+    });
+    document.getElementById('retakeBtn').addEventListener('click', function () {
+      document.getElementById('video').style.display = 'block';
+      document.getElementById('canvas').style.display = 'none';
+      document.getElementById('captureBtn').style.display = 'inline-block';
+      document.getElementById('retakeBtn').style.display = 'none';
+      document.getElementById('submitBtn').disabled = true;
+      captured = null;
+    });
+    document.getElementById('submitBtn').addEventListener('click', function () {
+      if (!captured) { alertBox('mfAlert', 'warning', 'Ambil foto terlebih dahulu'); return; }
+      document.querySelectorAll('.step-box').forEach(function (e) { e.style.display = 'none'; });
+      document.getElementById('mfLoad').style.display = 'block';
+      var fd = new FormData();
+      fd.append('action', 'simpan_tamu');
+      Object.keys(guestData).forEach(function (k) { fd.append(k, guestData[k]); });
+      var blob = (function (d) { var a = d.split(','), m = a[0].match(/:(.*?);/)[1], b = atob(a[1]), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new Blob([u], { type: m }); })(captured);
+      fd.append('foto', blob, 'selfie_' + Date.now() + '.jpg');
+      fetch(MB + '?page=proses', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
+        document.getElementById('mfLoad').style.display = 'none';
+        if (res.status !== 'success') { alertBox('mfAlert', 'danger', res.message || 'Gagal'); document.getElementById('s3').style.display = 'block'; return; }
+        var qrB = res.qr_url ? '<div class="my-3"><img src="' + res.qr_url + '" style="width:180px;height:180px;border:1px solid #e5e7eb;border-radius:12px;padding:6px"><div class="small text-muted mt-2"><i class="fas fa-qrcode me-1"></i>Simpan QR ini. Scan saat <strong>keluar</strong> untuk check-out & survey.</div></div>' : '';
+        document.querySelector('.mf-body').innerHTML = '<div class="text-center py-4"><div class="mb-3"><i class="fas fa-check-circle text-success" style="font-size:60px"></i></div><h4 class="text-success mb-2">Pendaftaran Berhasil!</h4><p class="text-muted mb-2">Terima kasih <strong>' + esc(guestData.nama) + '</strong><br>ID Tamu: <strong>' + res.guest_id + '</strong></p>' + qrB + '<button class="btn btn-primary w-100" onclick="location.reload()"><i class="fas fa-plus me-2"></i>Daftar Baru</button></div>';
+        document.getElementById('progFill').style.width = '100%';
+        for (var i = 1; i <= 3; i++) { var d = document.getElementById('dot' + i); d.classList.remove('active', 'pending'); d.classList.add('done'); }
+      }).catch(function () { document.getElementById('mfLoad').style.display = 'none'; alertBox('mfAlert', 'danger', 'Kesalahan jaringan'); document.getElementById('s3').style.display = 'block'; });
+    });
 
-    // Update step circles
-    for (let i = 1; i <= 3; i++) {
-      const circle = document.getElementById(`step${i}Circle`);
-      circle.classList.remove("active", "completed", "pending");
+    function stopCam() {
+      if (camStream) { camStream.getTracks().forEach(function (t) { t.stop(); }); camStream = null; }
+      var v = document.getElementById('video'); if (v) v.style.display = 'none';
+      var p = document.getElementById('camPlace'); if (p) p.style.display = 'block';
+      document.getElementById('startCam').style.display = 'inline-block';
+      document.getElementById('captureBtn').style.display = 'none';
+    }
+  }
 
-      if (i < step) {
-        circle.classList.add("completed");
-      } else if (i === step) {
-        circle.classList.add("active");
+  /* ============================================================== */
+  /*  CHECKOUT                                                      */
+  /* ============================================================== */
+  if (page === 'checkout') {
+    var scanner = null;
+    function coAlert(t, m) { document.getElementById('coAlert').innerHTML = '<div class="alert-box alert-' + t + '">' + m + '</div>'; }
+    function doCheckout(gid) {
+      if (!gid) { coAlert('warning', 'Masukkan ID Tamu'); return; }
+      var btn = document.getElementById('coBtn');
+      btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memproses...';
+      var fd = new FormData(); fd.append('action', 'checkout'); fd.append('guest_id', gid);
+      fetch(MB + '?page=proses', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>Check-out';
+        if (res.status === 'success' || res.status === 'done') {
+          document.getElementById('coForm').style.display = 'none';
+          document.getElementById('coDone').style.display = 'block';
+          document.getElementById('coDoneTitle').textContent = res.status === 'success' ? 'Check-out Berhasil' : 'Sudah Check-out';
+          document.getElementById('coDoneMsg').textContent = res.message + (res.nama ? ' (' + res.nama + ')' : '');
+          document.getElementById('coToSurvey').href = MB + '?page=survey&id=' + encodeURIComponent(res.guest_id);
+        } else { coAlert('danger', res.message || 'Gagal'); }
+      }).catch(function () { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-out-alt me-2"></i>Check-out'; coAlert('danger', 'Kesalahan jaringan'); });
+    }
+    document.getElementById('coBtn').addEventListener('click', function () { doCheckout(document.getElementById('coGuestId').value.trim()); });
+    document.getElementById('coScanBtn').addEventListener('click', function () {
+      var w = document.getElementById('coReader');
+      if (w.style.display === 'none') {
+        w.style.display = 'block';
+        scanner = new Html5Qrcode('reader');
+        scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 220 }, function (txt) {
+          var gid = txt; var m = txt.match(/[?&]id=([^&]+)/);
+          if (m) gid = decodeURIComponent(m[1]);
+          document.getElementById('coGuestId').value = gid;
+          scanner.stop().then(function () { w.style.display = 'none'; });
+          doCheckout(gid);
+        }).catch(function () { coAlert('danger', 'Akses kamera gagal'); });
       } else {
-        circle.classList.add("pending");
+        if (scanner) { try { scanner.stop(); } catch (e) { } }
+        w.style.display = 'none';
       }
-    }
-
-    this.currentStep = step;
-    this.updateProgress();
-
-    // Clean up previous step resources
-    if (step !== 1 && this.qrScanner) {
-      this.qrScanner.stop();
-    }
-    if (step !== 3 && this.stream) {
-      this.stopCamera();
-    }
+    });
+    if (window.coPrefill) { setTimeout(function () { doCheckout(window.coPrefill); }, 300); }
   }
 
-  updateProgress() {
-    const progressFill = document.getElementById("progressFill");
-    const progress = ((this.currentStep - 1) / 2) * 100;
-    progressFill.style.width = progress + "%";
-  }
-
-  // QR Scanner Methods
-  async startQRScanner() {
-    try {
-      const qrReaderContainer = document.getElementById("qrReaderContainer");
-      qrReaderContainer.innerHTML =
-        '<div id="qrReader" style="width: 100%; height: 100%;"></div>';
-
-      this.qrScanner = new Html5Qrcode("qrReader");
-
-      const config = {
-        fps: 10,
-        qrbox: { width: 200, height: 200 },
-        aspectRatio: 1.0,
-      };
-
-      await this.qrScanner.start(
-        { facingMode: "environment" },
-        config,
-        (decodedText, decodedResult) => {
-          this.handleQRSuccess(decodedText);
-        },
-        (errorMessage) => {
-          // Handle scan errors silently
-        }
-      );
-
-      document.getElementById("startScanBtn").style.display = "none";
-      this.showAlert("Scanner aktif! Arahkan ke QR code", "info");
-    } catch (err) {
-      console.error("Error starting QR scanner:", err);
-      this.showAlert(
-        "Tidak dapat mengakses kamera. Silakan coba lagi atau lewati langkah ini.",
-        "warning"
-      );
-    }
-  }
-
-  handleQRSuccess(decodedText) {
-    this.qrScanner.stop();
-
-    try {
-      // Try to parse as JSON (jika QR berisi data user)
-      const qrData = JSON.parse(decodedText);
-
-      // Populate form with QR data
-      if (qrData.nama) document.getElementById("nama").value = qrData.nama;
-      if (qrData.instansi)
-        document.getElementById("instansi").value = qrData.instansi;
-      if (qrData.telepon)
-        document.getElementById("telepon").value = qrData.telepon;
-
-      this.showAlert(
-        "QR Code berhasil dipindai! Data telah diisi otomatis.",
-        "success"
-      );
-    } catch (e) {
-      // Jika bukan JSON, gunakan sebagai nama atau ID
-      document.getElementById("nama").value = decodedText;
-      this.showAlert("QR Code berhasil dipindai!", "success");
-    }
-
-    // Auto move to next step after 1.5 seconds
-    setTimeout(() => {
-      this.goToStep(2);
-    }, 1500);
-  }
-
-  // Form Validation Methods
-  validateForm() {
-    const nama = document.getElementById("nama").value.trim();
-    const instansi = document.getElementById("instansi").value.trim();
-    const keperluan = document.getElementById("keperluan").value;
-
-    const nextBtn = document.getElementById("nextToPhotoBtn");
-
-    if (nama && instansi && keperluan) {
-      nextBtn.disabled = false;
-      return true;
-    } else {
-      nextBtn.disabled = true;
-      return false;
-    }
-  }
-
-  validateFormAndNext() {
-    if (this.validateForm()) {
-      this.collectFormData();
-      this.goToStep(3);
-    } else {
-      this.showAlert(
-        "Mohon lengkapi semua field yang wajib diisi (bertanda *)",
-        "warning"
-      );
-    }
-  }
-
-  collectFormData() {
-    this.guestData = {
-      nama: document.getElementById("nama").value.trim(),
-      instansi: document.getElementById("instansi").value.trim(),
-      telepon: document.getElementById("telepon").value.trim(),
-      keperluan: document.getElementById("keperluan").value,
-      keterangan: document.getElementById("keterangan").value.trim(),
-      tanggal: new Date().toISOString().split("T")[0],
-      waktu: new Date().toLocaleTimeString("id-ID"),
-    };
-  }
-
-  // Camera Methods
-  async startCamera() {
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "user",
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-        },
+  /* ============================================================== */
+  /*  SURVEY                                                        */
+  /* ============================================================== */
+  if (page === 'survey') {
+    function svAlert(t, m) { document.getElementById('svAlert').innerHTML = '<div class="alert-box alert-' + t + '">' + m + '</div>'; }
+    document.querySelectorAll('.sv-stars').forEach(function (g) {
+      var tgt = g.getAttribute('data-target');
+      g.querySelectorAll('i').forEach(function (s) {
+        s.addEventListener('click', function () {
+          var v = parseInt(this.getAttribute('data-v'), 10);
+          document.getElementById(tgt).value = v;
+          g.querySelectorAll('i').forEach(function (s2) {
+            var sv = parseInt(s2.getAttribute('data-v'), 10);
+            s2.className = sv <= v ? 'fas fa-star on' : 'far fa-star';
+          });
+        });
       });
-
-      const video = document.getElementById("video");
-      const placeholder = document.querySelector(".camera-placeholder");
-
-      video.srcObject = this.stream;
-      video.style.display = "block";
-      placeholder.style.display = "none";
-
-      document.getElementById("startCameraBtn").style.display = "none";
-      document.getElementById("captureBtn").style.display = "inline-block";
-
-      this.showAlert(
-        "Kamera aktif! Posisikan wajah Anda dan klik Ambil Foto",
-        "info"
-      );
-    } catch (err) {
-      console.error("Error accessing camera:", err);
-      this.showAlert(
-        "Tidak dapat mengakses kamera. Pastikan izin kamera telah diberikan.",
-        "danger"
-      );
-    }
+    });
+    document.getElementById('svBtn').addEventListener('click', function () {
+      var gid = document.getElementById('svGuestId').value.trim();
+      if (!gid) { svAlert('warning', 'ID Tamu tidak ditemukan'); return; }
+      if (parseInt(document.getElementById('rating').value, 10) < 1) { svAlert('warning', 'Beri rating minimal 1 bintang'); return; }
+      var btn = this; btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Mengirim...';
+      var fd = new FormData();
+      fd.append('action', 'submit_survey');
+      fd.append('guest_id', gid);
+      ['rating', 'pelayanan', 'kecepatan', 'kenyamanan'].forEach(function (k) { fd.append(k, document.getElementById(k).value); });
+      fd.append('komentar', document.getElementById('komentar').value);
+      fetch(MB + '?page=proses', { method: 'POST', body: fd }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res.status === 'success') {
+          document.getElementById('svForm').style.display = 'none';
+          document.getElementById('svDone').style.display = 'block';
+          document.getElementById('svDoneMsg').textContent = res.message;
+        } else { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Kirim Survey'; svAlert('danger', res.message || 'Gagal'); }
+      }).catch(function () { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane me-2"></i>Kirim Survey'; svAlert('danger', 'Kesalahan jaringan'); });
+    });
   }
 
-  capturePhoto() {
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const context = canvas.getContext("2d");
-
-    // Set canvas size
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    // Draw video frame to canvas
-    context.drawImage(video, 0, 0);
-
-    // Get image data
-    this.capturedPhoto = canvas.toDataURL("image/jpeg", 0.8);
-
-    // Show captured photo
-    video.style.display = "none";
-    canvas.style.display = "block";
-
-    // Update buttons
-    document.getElementById("captureBtn").style.display = "none";
-    document.getElementById("retakeBtn").style.display = "inline-block";
-    document.getElementById("submitBtn").disabled = false;
-
-    this.showAlert(
-      "Foto berhasil diambil! Klik Selesai untuk menyimpan data.",
-      "success"
-    );
-  }
-
-  retakePhoto() {
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-
-    // Show video again
-    video.style.display = "block";
-    canvas.style.display = "none";
-
-    // Reset buttons
-    document.getElementById("captureBtn").style.display = "inline-block";
-    document.getElementById("retakeBtn").style.display = "none";
-    document.getElementById("submitBtn").disabled = true;
-
-    this.capturedPhoto = null;
-  }
-
-  stopCamera() {
-    if (this.stream) {
-      this.stream.getTracks().forEach((track) => track.stop());
-      this.stream = null;
-
-      const video = document.getElementById("video");
-      video.style.display = "none";
-
-      const placeholder = document.querySelector(".camera-placeholder");
-      placeholder.style.display = "block";
-
-      document.getElementById("startCameraBtn").style.display = "inline-block";
-      document.getElementById("captureBtn").style.display = "none";
-    }
-  }
-
-  // Submit Methods
-  async submitForm() {
-    if (!this.capturedPhoto) {
-      this.showAlert("Mohon ambil foto selfie terlebih dahulu.", "warning");
-      return;
-    }
-
-    // Show loading
-    this.showLoading(true);
-
-    try {
-      // Prepare form data
-      const formData = new FormData();
-
-      // Add guest data
-      Object.keys(this.guestData).forEach((key) => {
-        formData.append(key, this.guestData[key]);
-      });
-
-      // Add photo
-      const photoBlob = this.dataURLtoBlob(this.capturedPhoto);
-      formData.append("foto", photoBlob, "selfie_" + Date.now() + ".jpg");
-
-      // Add timestamp
-      formData.append("created_at", new Date().toISOString());
-
-      // Submit to server
-      const response = await fetch("proses.php", {
-        method: "POST",
-        body: formData,
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        this.showSuccessMessage(result);
-      } else {
-        throw new Error(
-          result.message || "Terjadi kesalahan saat menyimpan data"
-        );
-      }
-    } catch (error) {
-      console.error("Submit error:", error);
-      this.showAlert("Terjadi kesalahan: " + error.message, "danger");
-    } finally {
-      this.showLoading(false);
-    }
-  }
-
-  showLoading(show) {
-    const steps = document.querySelectorAll(".step-content");
-    const loading = document.getElementById("loadingSpinner");
-
-    if (show) {
-      steps.forEach((step) => (step.style.display = "none"));
-      loading.style.display = "block";
-    } else {
-      loading.style.display = "none";
-      document.getElementById("step3").style.display = "block";
-    }
-  }
-
-  showSuccessMessage(result) {
-    const cardBody = document.querySelector(".card-body");
-
-    const qrBlock = result.qr_url
-      ? `
-                <div class="my-3">
-                    <img src="${result.qr_url}" alt="QR Check-out" style="width:190px;height:190px;border:1px solid #e5e7eb;border-radius:12px;padding:6px;background:#fff;">
-                    <div class="small text-muted mt-2"><i class="fas fa-qrcode me-1"></i>Simpan / screenshot QR ini. Pindai kembali saat <strong>keluar</strong> untuk check-out &amp; mengisi survey.</div>
-                </div>`
-      : "";
-    const checkoutLink = result.checkout_url
-      ? `<a href="${result.checkout_url}" class="btn btn-outline-success w-100 mb-2"><i class="fas fa-sign-out-alt me-2"></i>Halaman Check-out</a>`
-      : "";
-
-    cardBody.innerHTML = `
-            <div class="text-center py-4">
-                <div class="mb-3">
-                    <i class="fas fa-check-circle text-success" style="font-size: 70px;"></i>
-                </div>
-                <h4 class="text-success mb-2">Pendaftaran Berhasil!</h4>
-                <p class="text-muted mb-2">
-                    Terima kasih <strong>${this.guestData.nama}</strong><br>
-                    ID Tamu Anda: <strong>${
-                      result.guest_id || "GUEST-" + Date.now()
-                    }</strong>
-                </p>
-                ${qrBlock}
-                ${checkoutLink}
-                <button type="button" class="btn btn-primary w-100" onclick="location.reload()">
-                    <i class="fas fa-plus me-2"></i>Daftar Tamu Baru
-                </button>
-            </div>
-        `;
-
-    // Update progress to 100%
-    document.getElementById("progressFill").style.width = "100%";
-
-    // Update all step circles to completed
-    for (let i = 1; i <= 3; i++) {
-      const circle = document.getElementById(`step${i}Circle`);
-      circle.classList.remove("active", "pending");
-      circle.classList.add("completed");
-    }
-  }
-
-  dataURLtoBlob(dataURL) {
-    const arr = dataURL.split(",");
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-
-    return new Blob([u8arr], { type: mime });
-  }
-
-  // Cleanup method
-  cleanup() {
-    if (this.qrScanner) {
-      this.qrScanner.stop();
-    }
-    this.stopCamera();
-  }
-}
-
-// Initialize app when DOM is loaded
-document.addEventListener("DOMContentLoaded", () => {
-  window.guestBookApp = new GuestBookApp();
-});
-
-// Cleanup on page unload
-window.addEventListener("beforeunload", () => {
-  if (window.guestBookApp) {
-    window.guestBookApp.cleanup();
-  }
-});
-
-// Handle visibility change (when tab is hidden/shown)
-document.addEventListener("visibilitychange", () => {
-  if (document.hidden && window.guestBookApp) {
-    // Pause cameras when tab is hidden
-    if (window.guestBookApp.stream) {
-      window.guestBookApp.stopCamera();
-    }
-  }
-});
+  /* ───────── Helpers ───────── */
+  function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+})();

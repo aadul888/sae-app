@@ -1,520 +1,356 @@
 <?php
-
 /**
- * Dashboard Buku Tamu - Halaman Admin
- * Menampilkan daftar tamu dan statistik
+ * MODULE: BUKU TAMU — integrated mode only / single entry point.
+ *   ?mod=tamu              → dashboard (SAE layout)
+ *   ?mod=tamu&page=form    → registrasi tamu
+ *   ?mod=tamu&page=checkout→ check-out
+ *   ?mod=tamu&page=survey  → survey kepuasan
+ *   ?mod=tamu&page=qr      → QR code generator (image)
+ *   ?mod=tamu&page=proses  → AJAX handler → proses.php
  */
+if (empty($connection)) { header('location:./'); exit; }
+date_default_timezone_set('Asia/Jakarta');
 
-// Include config dan functions
-if (!isset($connection)) {
-    include_once '../../library/config.php';
-    include_once '../../library/function.php';
+$page = $_GET['page'] ?? 'dashboard';
+$base = $base_url ?? './';
+
+/* ================================================
+ * AJAX HANDLER (proses.php)
+ * ================================================ */
+if ($page === 'proses') {
+    require_once __DIR__ . '/proses.php';
+    exit;
 }
 
-// Check if standalone
-$is_standalone = !isset($site_name);
+/* ================================================
+ * QR GENERATOR (image/png)
+ * ================================================ */
+if ($page === 'qr') {
+    $data = trim((string)($_GET['data'] ?? ''));
+    if ($data === '' || strlen($data) > 600) { http_response_code(400); exit; }
+    require_once __DIR__ . '/../../library/phpqrcode/phpqrcode.php';
+    header('Content-Type: image/png');
+    QRcode::png($data, null, QR_ECLEVEL_M, 5, 2);
+    exit;
+}
 
-// Get statistics
-$stats = getGuestStats($connection);
-$recent_guests = getRecentGuests($connection, 10);
-
-if ($is_standalone) {
-?>
-    <!DOCTYPE html>
-    <html lang="id">
-
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Dashboard Buku Tamu | <?php echo $site_name ?? 'SMK Negeri 1 Pagelaran'; ?></title>
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-        <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-        <link href="../assets/css/dashboard.css" rel="stylesheet">
-    </head>
-
-    <body>
-    <?php } ?>
-
-    <div class="container-fluid py-4">
-        <!-- Header -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
-                        <h2 class="mb-1">
-                            <i class="fas fa-users text-primary me-2"></i>
-                            Dashboard Buku Tamu
-                        </h2>
-                        <p class="text-muted mb-0">Kelola dan pantau data kunjungan tamu</p>
-                    </div>
-                    <div>
-                        <a href="<?php echo $is_standalone ? 'form.php' : ($base_url . 'tamu/form'); ?>" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>Tamu Baru
-                        </a>
-                        <button class="btn btn-outline-secondary" onclick="location.reload()">
-                            <i class="fas fa-sync me-2"></i>Refresh
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Statistics Cards -->
-        <div class="row mb-4">
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-shrink-0">
-                                <div class="bg-primary bg-opacity-10 rounded p-3">
-                                    <i class="fas fa-users text-primary fs-4"></i>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h6 class="text-muted mb-1 small">Hari Ini</h6>
-                                <h3 class="mb-0"><?php echo $stats['today']; ?></h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-shrink-0">
-                                <div class="bg-success bg-opacity-10 rounded p-3">
-                                    <i class="fas fa-calendar-week text-success fs-4"></i>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h6 class="text-muted mb-1 small">Minggu Ini</h6>
-                                <h3 class="mb-0"><?php echo $stats['week']; ?></h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-shrink-0">
-                                <div class="bg-warning bg-opacity-10 rounded p-3">
-                                    <i class="fas fa-calendar-alt text-warning fs-4"></i>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h6 class="text-muted mb-1 small">Bulan Ini</h6>
-                                <h3 class="mb-0"><?php echo $stats['month']; ?></h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-lg-3 col-md-6 mb-3">
-                <div class="card border-0 shadow-sm h-100">
-                    <div class="card-body">
-                        <div class="d-flex align-items-center">
-                            <div class="flex-shrink-0">
-                                <div class="bg-info bg-opacity-10 rounded p-3">
-                                    <i class="fas fa-user-clock text-info fs-4"></i>
-                                </div>
-                            </div>
-                            <div class="flex-grow-1 ms-3">
-                                <h6 class="text-muted mb-1 small">Sedang Berkunjung</h6>
-                                <h3 class="mb-0"><?php echo $stats['active']; ?></h3>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Guests Table -->
-        <div class="row">
-            <div class="col-12">
-                <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white border-bottom">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="fas fa-history text-primary me-2"></i>
-                                Tamu Terbaru
-                            </h5>
-                            <div class="d-flex gap-2">
-                                <input type="text" class="form-control form-control-sm" id="searchInput"
-                                    placeholder="Cari nama/instansi..." style="width: 200px;">
-                                <select class="form-select form-select-sm" id="statusFilter" style="width: 150px;">
-                                    <option value="">Semua Status</option>
-                                    <option value="Aktif">Aktif</option>
-                                    <option value="Selesai">Selesai</option>
-                                    <option value="Batal">Batal</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover mb-0" id="guestsTable">
-                                <thead class="bg-light">
-                                    <tr>
-                                        <th class="border-0 ps-3">Guest ID</th>
-                                        <th class="border-0">Foto</th>
-                                        <th class="border-0">Nama</th>
-                                        <th class="border-0">Instansi</th>
-                                        <th class="border-0">Keperluan</th>
-                                        <th class="border-0">Waktu Masuk</th>
-                                        <th class="border-0">Status</th>
-                                        <th class="border-0 text-center">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if (empty($recent_guests)): ?>
-                                        <tr>
-                                            <td colspan="8" class="text-center py-4 text-muted">
-                                                <i class="fas fa-users fs-1 mb-3 d-block opacity-25"></i>
-                                                Belum ada data tamu
-                                            </td>
-                                        </tr>
-                                    <?php else: ?>
-                                        <?php foreach ($recent_guests as $guest): ?>
-                                            <tr>
-                                                <td class="ps-3">
-                                                    <code><?php echo htmlspecialchars($guest['guest_id']); ?></code>
-                                                </td>
-                                                <td>
-                                                    <?php if ($guest['foto']): ?>
-                                                        <img src="../../content/tamu/<?php echo htmlspecialchars($guest['foto']); ?>"
-                                                            alt="Foto" class="rounded-circle" width="40" height="40"
-                                                            style="object-fit: cover;" onclick="showPhotoModal(this.src)">
-                                                    <?php else: ?>
-                                                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center"
-                                                            style="width: 40px; height: 40px;">
-                                                            <i class="fas fa-user text-white"></i>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td>
-                                                    <div>
-                                                        <strong><?php echo htmlspecialchars($guest['nama']); ?></strong>
-                                                        <?php if ($guest['telepon']): ?>
-                                                            <br><small class="text-muted"><?php echo htmlspecialchars($guest['telepon']); ?></small>
-                                                        <?php endif; ?>
-                                                    </div>
-                                                </td>
-                                                <td><?php echo htmlspecialchars($guest['instansi']); ?></td>
-                                                <td>
-                                                    <span class="badge bg-primary bg-opacity-10 text-primary">
-                                                        <?php echo htmlspecialchars($guest['keperluan']); ?>
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <div>
-                                                        <?php echo date('d/m/Y', strtotime($guest['tanggal_kunjungan'])); ?>
-                                                        <br><small class="text-muted"><?php echo date('H:i', strtotime($guest['waktu_masuk'])); ?></small>
-                                                    </div>
-                                                </td>
-                                                <td>
-                                                    <?php
-                                                    $status_class = [
-                                                        'Aktif' => 'success',
-                                                        'Selesai' => 'secondary',
-                                                        'Batal' => 'danger'
-                                                    ];
-                                                    $class = $status_class[$guest['status']] ?? 'secondary';
-                                                    ?>
-                                                    <span class="badge bg-<?php echo $class; ?>">
-                                                        <?php echo $guest['status']; ?>
-                                                    </span>
-                                                </td>
-                                                <td class="text-center">
-                                                    <div class="btn-group btn-group-sm">
-                                                        <button class="btn btn-outline-primary btn-sm"
-                                                            onclick="viewGuest(<?php echo $guest['id']; ?>)"
-                                                            title="Lihat Detail">
-                                                            <i class="fas fa-eye"></i>
-                                                        </button>
-                                                        <?php if ($guest['status'] === 'Aktif'): ?>
-                                                            <button class="btn btn-outline-success btn-sm"
-                                                                onclick="checkoutGuest(<?php echo $guest['id']; ?>)"
-                                                                title="Check Out">
-                                                                <i class="fas fa-sign-out-alt"></i>
-                                                            </button>
-                                                        <?php endif; ?>
-                                                        <button class="btn btn-outline-secondary btn-sm"
-                                                            onclick="editGuest(<?php echo $guest['id']; ?>)"
-                                                            title="Edit">
-                                                            <i class="fas fa-edit"></i>
-                                                        </button>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        <?php endforeach; ?>
-                                    <?php endif; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-white border-top-0">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <small class="text-muted">
-                                Menampilkan <?php echo count($recent_guests); ?> data terbaru
-                            </small>
-                            <a href="?view=all" class="btn btn-sm btn-outline-primary">
-                                <i class="fas fa-list me-1"></i>Lihat Semua
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+/* ================================================
+ * FORM REGISTRASI
+ * ================================================ */
+if ($page === 'form'): ?>
+<style>
+:root{--primary:#2563eb;--primary-dark:#1d4ed8;--success:#059669;--warning:#d97706;--danger:#dc2626}
+.mf-wrap{max-width:540px;margin:0 auto;padding:20px 0}
+.mf-card{background:#fff;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.08);overflow:hidden}
+.mf-head{background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:24px 20px;text-align:center}
+.mf-head img{width:72px;height:72px;border-radius:50%;background:#fff;padding:8px;border:3px solid rgba(255,255,255,.3)}
+/* progress */
+.mf-progress{background:#fff;padding:16px 20px 0;border-bottom:1px solid #e5e7eb}
+.mf-steps{display:flex;justify-content:space-between;position:relative;margin-bottom:16px}
+.mf-steps::before{content:'';position:absolute;top:20px;left:20px;right:20px;height:2px;background:#e5e7eb;z-index:1}
+.mf-fill{height:100%;background:var(--success);transition:width .5s}
+.mf-step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative;z-index:2}
+.mf-dot{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff;margin-bottom:6px;transition:.3s}
+.mf-dot.active{background:var(--primary);transform:scale(1.1)}
+.mf-dot.done{background:var(--success)}
+.mf-dot.pending{background:#e5e7eb;color:#666}
+.mf-stplabel{font-size:11px;color:#333;font-weight:500}
+/* body */
+.mf-body{padding:20px 22px}
+.step-box{display:none}.step-box.active{display:block;animation:fadeUp .4s}
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.scan-frame{width:220px;height:220px;border:3px dashed var(--primary);border-radius:12px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;background:#f3f4f6}
+.scan-frame i{font-size:64px;color:var(--primary);opacity:.5}
+#reader{width:100%;height:100%}
+.form-group{margin-bottom:16px}
+.form-group label{font-weight:600;color:#333;margin-bottom:6px;display:block;font-size:14px}
+.form-group .form-control{border:2px solid #e5e7eb;border-radius:10px;padding:10px 14px;font-size:15px;width:100%}
+.form-group .form-control:focus{border-color:var(--primary);outline:none;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.cam-box{width:260px;height:320px;border:3px solid var(--primary);border-radius:12px;margin:0 auto 16px;background:#f3f4f6;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.cam-box video,.cam-box canvas{width:100%;height:100%;object-fit:cover}
+.cam-placeholder i{font-size:48px;color:var(--primary)}
+.mf-loading{display:none;text-align:center;padding:30px}
+.alert-box{padding:12px 16px;border-radius:10px;margin-bottom:16px;font-size:14px}
+.alert-success{background:#d1fae5;color:#065f46}
+.alert-danger{background:#fee2e2;color:#991b1b}
+.alert-warning{background:#fef3c7;color:#92400e}
+.alert-info{background:#dbeafe;color:#1e40af}
+@media(max-width:576px){.mf-wrap{padding:10px 0}.mf-body{padding:16px}.scan-frame{width:100%}.cam-box{width:100%}}
+</style>
+<div class="module-home-container"><div class="module-home-content">
+<div class="mf-wrap">
+<div class="mf-card">
+  <div class="mf-head">
+    <img src="<?php echo $base; ?>content/<?php echo $site_logo??'logoweb1.png'; ?>" alt="Logo" onerror="this.style.display='none'">
+    <h4 class="mt-2 mb-1">Buku Tamu Digital</h4>
+    <div class="opacity-75 small"><?php echo htmlspecialchars($site_name??'Smart Apps Education'); ?></div>
+  </div>
+  <div class="mf-progress">
+    <div class="mf-steps">
+      <div class="mf-steps-line"><div class="mf-fill" id="progFill" style="width:0%"></div></div>
+      <div class="mf-step"><div class="mf-dot active" id="dot1"><i class="fas fa-qrcode"></i></div><span class="mf-stplabel">Scan QR</span></div>
+      <div class="mf-step"><div class="mf-dot pending" id="dot2"><i class="fas fa-edit"></i></div><span class="mf-stplabel">Isi Data</span></div>
+      <div class="mf-step"><div class="mf-dot pending" id="dot3"><i class="fas fa-camera"></i></div><span class="mf-stplabel">Foto</span></div>
     </div>
-
-    <!-- Photo Modal -->
-    <div class="modal fade" id="photoModal" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Foto Tamu</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body text-center">
-                    <img src="" alt="Foto Tamu" class="img-fluid rounded" id="modalPhoto">
-                </div>
-            </div>
-        </div>
+  </div>
+  <div class="mf-body">
+    <div id="mfAlert"></div>
+    <!-- Step 1: QR -->
+    <div class="step-box active" id="s1">
+      <div class="text-center">
+        <div class="scan-frame" id="qrContainer"><i class="fas fa-qrcode"></i></div>
+        <p class="text-muted mb-3"><strong>Pindai QR Code</strong><br>Arahkan kamera ke QR</p>
+        <button class="btn btn-primary w-100 mb-2" id="startScan"><i class="fas fa-camera me-2"></i>Mulai Scan</button>
+        <button class="btn btn-outline-secondary w-100" id="skipScan"><i class="fas fa-forward me-2"></i>Lewati</button>
+      </div>
     </div>
-
-    <!-- Detail Modal -->
-    <div class="modal fade" id="detailModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Detail Tamu</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body" id="detailContent">
-                    <!-- Content will be loaded here -->
-                </div>
-            </div>
+    <!-- Step 2: Form -->
+    <div class="step-box" id="s2">
+      <form id="guestForm" autocomplete="off">
+        <div class="form-group"><label>Nama Lengkap <span class="text-danger">*</span></label><input type="text" class="form-control" id="fNama" required></div>
+        <div class="form-group"><label>Asal Instansi <span class="text-danger">*</span></label>
+          <input type="text" class="form-control" id="fInstansi" list="instansiList" placeholder="Ketik / pilih" required>
+          <datalist id="instansiList"><?php
+            $ri = $connection->query("SELECT nama FROM tamu_instansi WHERE active='Y' ORDER BY nama ASC LIMIT 300");
+            if ($ri) while ($i = $ri->fetch_assoc()) echo '<option value="'.htmlspecialchars($i['nama'],ENT_QUOTES).'">';
+          ?></datalist>
         </div>
+        <div class="form-group"><label>No. Telepon</label><input type="tel" class="form-control" id="fTelp"></div>
+        <div class="form-group"><label>Keperluan <span class="text-danger">*</span></label>
+          <select class="form-control" id="fKeperluan" required>
+            <option value="">Pilih...</option>
+            <?php
+            $rt = $connection->query("SELECT nama FROM tamu_tujuan WHERE active='Y' ORDER BY nama ASC");
+            $has = false;
+            if ($rt && $rt->num_rows) { while ($t = $rt->fetch_assoc()) { echo '<option value="'.htmlspecialchars($t['nama'],ENT_QUOTES).'">'.htmlspecialchars($t['nama']).'</option>'; $has=true; } }
+            if (!$has) foreach (['Rapat/Meeting','Konsultasi','Kunjungan Kerja','Penelitian','Magang/PKL','Wawancara','Lainnya'] as $o) echo '<option value="'.htmlspecialchars($o,ENT_QUOTES).'">'.htmlspecialchars($o).'</option>';
+            ?>
+          </select>
+        </div>
+        <div class="form-group"><label>Keterangan</label><textarea class="form-control" id="fKet" rows="2" placeholder="Detail keperluan..."></textarea></div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary flex-fill" id="backScan"><i class="fas fa-arrow-left me-2"></i>Kembali</button>
+          <button type="button" class="btn btn-primary flex-fill" id="toPhoto">Lanjut <i class="fas fa-arrow-right ms-2"></i></button>
+        </div>
+      </form>
     </div>
-
-    <?php if ($is_standalone): ?>
-        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <?php endif; ?>
-
-    <script>
-        // Search and filter functionality
-        document.getElementById('searchInput').addEventListener('input', filterTable);
-        document.getElementById('statusFilter').addEventListener('change', filterTable);
-
-        function filterTable() {
-            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
-            const statusFilter = document.getElementById('statusFilter').value;
-            const rows = document.querySelectorAll('#guestsTable tbody tr');
-
-            rows.forEach(row => {
-                if (row.cells.length === 1) return; // Skip empty state row
-
-                const nama = row.cells[2].textContent.toLowerCase();
-                const instansi = row.cells[3].textContent.toLowerCase();
-                const status = row.cells[6].textContent.trim();
-
-                const matchesSearch = nama.includes(searchTerm) || instansi.includes(searchTerm);
-                const matchesStatus = !statusFilter || status === statusFilter;
-
-                row.style.display = matchesSearch && matchesStatus ? '' : 'none';
-            });
-        }
-
-        function showPhotoModal(src) {
-            document.getElementById('modalPhoto').src = src;
-            new bootstrap.Modal(document.getElementById('photoModal')).show();
-        }
-
-        function viewGuest(id) {
-            // Load guest details
-            fetch(`api.php?action=get_guest&id=${id}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        document.getElementById('detailContent').innerHTML = generateDetailHTML(data.guest);
-                        new bootstrap.Modal(document.getElementById('detailModal')).show();
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-        }
-
-        function checkoutGuest(id) {
-            if (confirm('Yakin ingin checkout tamu ini?')) {
-                fetch(`api.php?action=checkout&id=${id}`, {
-                        method: 'POST'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            location.reload();
-                        } else {
-                            alert('Error: ' + data.message);
-                        }
-                    })
-                    .catch(error => console.error('Error:', error));
-            }
-        }
-
-        function editGuest(id) {
-            // Redirect to edit page or open edit modal
-            window.location.href = `edit.php?id=${id}`;
-        }
-
-        function generateDetailHTML(guest) {
-            return `
-        <div class="row">
-            <div class="col-md-4 text-center">
-                ${guest.foto ? 
-                    `<img src="../../content/tamu/${guest.foto}" alt="Foto" class="img-fluid rounded mb-3" style="max-height: 200px;">` :
-                    `<div class="bg-light rounded p-4 mb-3"><i class="fas fa-user fs-1 text-muted"></i></div>`
-                }
-                <h5>${guest.nama}</h5>
-                <p class="text-muted">${guest.instansi}</p>
-            </div>
-            <div class="col-md-8">
-                <table class="table">
-                    <tr><th>Guest ID:</th><td><code>${guest.guest_id}</code></td></tr>
-                    <tr><th>Telepon:</th><td>${guest.telepon || '-'}</td></tr>
-                    <tr><th>Keperluan:</th><td><span class="badge bg-primary">${guest.keperluan}</span></td></tr>
-                    <tr><th>Keterangan:</th><td>${guest.keterangan || '-'}</td></tr>
-                    <tr><th>Tanggal:</th><td>${new Date(guest.tanggal_kunjungan).toLocaleDateString('id-ID')}</td></tr>
-                    <tr><th>Waktu Masuk:</th><td>${guest.waktu_masuk}</td></tr>
-                    <tr><th>Waktu Keluar:</th><td>${guest.waktu_keluar || '-'}</td></tr>
-                    <tr><th>Status:</th><td><span class="badge bg-${guest.status === 'Aktif' ? 'success' : 'secondary'}">${guest.status}</span></td></tr>
-                </table>
-            </div>
+    <!-- Step 3: Foto -->
+    <div class="step-box" id="s3">
+      <div class="text-center">
+        <div class="cam-box" id="camBox">
+          <div class="cam-placeholder" id="camPlace"><i class="fas fa-camera"></i></div>
+          <video id="video" style="display:none" autoplay playsinline></video>
+          <canvas id="canvas" style="display:none"></canvas>
         </div>
-    `;
-        }
-    </script>
-
-    <?php if ($is_standalone): ?>
-    </body>
-
-    </html>
-<?php endif; ?>
-
+        <div id="photoActions">
+          <button class="btn btn-primary w-100 mb-2" id="startCam"><i class="fas fa-video me-2"></i>Aktifkan Kamera</button>
+          <button class="btn btn-success w-100 mb-2" id="captureBtn" style="display:none"><i class="fas fa-camera me-2"></i>Ambil Foto</button>
+          <button class="btn btn-outline-secondary w-100 mb-2" id="retakeBtn" style="display:none"><i class="fas fa-redo me-2"></i>Ulangi</button>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-outline-secondary flex-fill" id="backForm"><i class="fas fa-arrow-left me-2"></i>Kembali</button>
+          <button type="button" class="btn btn-success flex-fill" id="submitBtn" disabled><i class="fas fa-check me-2"></i>Selesai</button>
+        </div>
+      </div>
+    </div>
+    <!-- Loading -->
+    <div class="mf-loading" id="mfLoad"><div class="spinner-border text-primary mb-2"></div><p>Menyimpan data...</p></div>
+  </div>
+</div></div>
+</div></div>
+<script>window.TAMU_PAGE='form';window.MODULE_BASE=<?php echo json_encode(rtrim($base,'/').'/tamu/'); ?>;</script>
 <?php
-/**
- * Helper Functions
- */
 
-function getGuestStats($connection)
-{
-    // Create table if not exists
-    createGuestBookTableIfNotExists($connection);
-
-    $stats = [
-        'today' => 0,
-        'week' => 0,
-        'month' => 0,
-        'active' => 0
-    ];
-
-    try {
-        // Today
-        $today_query = "SELECT COUNT(*) as count FROM buku_tamu WHERE DATE(tanggal_kunjungan) = CURDATE()";
-        $result = $connection->query($today_query);
-        if ($result) {
-            $stats['today'] = $result->fetch_assoc()['count'];
-        }
-
-        // This week
-        $week_query = "SELECT COUNT(*) as count FROM buku_tamu WHERE YEARWEEK(tanggal_kunjungan) = YEARWEEK(NOW())";
-        $result = $connection->query($week_query);
-        if ($result) {
-            $stats['week'] = $result->fetch_assoc()['count'];
-        }
-
-        // This month
-        $month_query = "SELECT COUNT(*) as count FROM buku_tamu WHERE YEAR(tanggal_kunjungan) = YEAR(NOW()) AND MONTH(tanggal_kunjungan) = MONTH(NOW())";
-        $result = $connection->query($month_query);
-        if ($result) {
-            $stats['month'] = $result->fetch_assoc()['count'];
-        }
-
-        // Active guests
-        $active_query = "SELECT COUNT(*) as count FROM buku_tamu WHERE status = 'Aktif'";
-        $result = $connection->query($active_query);
-        if ($result) {
-            $stats['active'] = $result->fetch_assoc()['count'];
-        }
-    } catch (Exception $e) {
-        error_log('Error getting stats: ' . $e->getMessage());
-    }
-
-    return $stats;
-}
-
-function getRecentGuests($connection, $limit = 10)
-{
-    createGuestBookTableIfNotExists($connection);
-
-    $guests = [];
-
-    try {
-        $query = "SELECT * FROM buku_tamu ORDER BY created_at DESC LIMIT ?";
-        $stmt = $connection->prepare($query);
-
-        if ($stmt) {
-            $stmt->bind_param('i', $limit);
-            $stmt->execute();
-            $result = $stmt->get_result();
-
-            while ($row = $result->fetch_assoc()) {
-                $guests[] = $row;
-            }
-
-            $stmt->close();
-        }
-    } catch (Exception $e) {
-        error_log('Error getting recent guests: ' . $e->getMessage());
-    }
-
-    return $guests;
-}
-
-function createGuestBookTableIfNotExists($connection)
-{
-    $check_table = "SHOW TABLES LIKE 'buku_tamu'";
-    $result = $connection->query($check_table);
-
-    if ($result && $result->num_rows == 0) {
-        $create_table = "
-            CREATE TABLE `buku_tamu` (
-                `id` int(11) NOT NULL AUTO_INCREMENT,
-                `guest_id` varchar(50) NOT NULL UNIQUE,
-                `nama` varchar(100) NOT NULL,
-                `instansi` varchar(100) NOT NULL,
-                `telepon` varchar(20) DEFAULT NULL,
-                `keperluan` varchar(50) NOT NULL,
-                `keterangan` text DEFAULT NULL,
-                `foto` varchar(255) DEFAULT NULL,
-                `tanggal_kunjungan` date NOT NULL,
-                `waktu_masuk` time NOT NULL,
-                `waktu_keluar` time DEFAULT NULL,
-                `status` enum('Aktif','Selesai','Batal') DEFAULT 'Aktif',
-                `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                PRIMARY KEY (`id`),
-                KEY `idx_guest_id` (`guest_id`),
-                KEY `idx_tanggal` (`tanggal_kunjungan`),
-                KEY `idx_status` (`status`)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ";
-
-        $connection->query($create_table);
-    }
-}
+/* ================================================
+ * CHECKOUT
+ * ================================================ */
+elseif ($page === 'checkout'):
+$prefill = trim((string)($_GET['id'] ?? ''));
+$site = htmlspecialchars($site_name??'Smart Apps Education');
+$logo = $base.'content/'.($site_logo??'logoweb1.png');
 ?>
+<style>
+.co-wrap{min-height:60vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.co-card{background:#fff;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.08);max-width:480px;width:100%;overflow:hidden}
+.co-head{background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#fff;padding:24px 20px;text-align:center}
+.co-head img{width:64px;height:64px;border-radius:50%;background:#fff;padding:6px;border:3px solid rgba(255,255,255,.3)}
+.co-body{padding:24px 22px}
+</style>
+<div class="module-home-container"><div class="module-home-content">
+<div class="co-wrap">
+  <div class="co-card">
+    <div class="co-head">
+      <img src="<?php echo $logo; ?>" alt="Logo" onerror="this.style.display='none'">
+      <h4 class="mt-2 mb-1">Check-out Tamu</h4>
+      <div class="opacity-75 small"><?php echo $site; ?></div>
+    </div>
+    <div class="co-body">
+      <div id="coAlert"></div>
+      <div id="coForm">
+        <p class="text-muted">Pindai QR atau masukkan ID Tamu untuk check-out.</p>
+        <div class="mb-3"><label class="fw-semibold small">ID Tamu</label>
+          <input type="text" id="coGuestId" class="form-control" placeholder="GUEST-YYYYMMDD-XXXX" value="<?php echo htmlspecialchars($prefill,ENT_QUOTES); ?>">
+        </div>
+        <button class="btn btn-primary w-100 mb-2" id="coBtn"><i class="fas fa-sign-out-alt me-2"></i>Check-out</button>
+        <button class="btn btn-outline-secondary w-100" id="coScanBtn"><i class="fas fa-qrcode me-2"></i>Scan QR</button>
+        <div id="coReader" class="mt-3" style="display:none"><div id="reader"></div></div>
+      </div>
+      <div id="coDone" style="display:none" class="text-center py-3">
+        <div><i class="fas fa-check-circle text-success" style="font-size:48px"></i></div>
+        <h5 class="mt-2" id="coDoneTitle">Berhasil</h5>
+        <p class="text-muted" id="coDoneMsg"></p>
+        <a href="#" id="coToSurvey" class="btn btn-warning w-100 mb-2"><i class="fas fa-star me-2"></i>Isi Survey</a>
+        <a href="<?php echo $base; ?>tamu/form" class="btn btn-light w-100">Selesai</a>
+      </div>
+    </div>
+  </div>
+</div>
+</div></div>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>window.TAMU_PAGE='checkout';window.MODULE_BASE=<?php echo json_encode(rtrim($base,'/').'/tamu/'); ?>;window.coPrefill=<?php echo json_encode($prefill); ?>;</script>
+<?php
+
+/* ================================================
+ * SURVEY
+ * ================================================ */
+elseif ($page === 'survey'):
+$prefill = trim((string)($_GET['id'] ?? ''));
+$site = htmlspecialchars($site_name??'Smart Apps Education');
+$logo = $base.'content/'.($site_logo??'logoweb1.png');
+?>
+<style>
+.sv-wrap{min-height:60vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.sv-card{background:#fff;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.08);max-width:480px;width:100%;overflow:hidden}
+.sv-head{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;padding:20px;text-align:center}
+.sv-head img{width:56px;height:56px;border-radius:50%;background:#fff;padding:6px;border:3px solid rgba(255,255,255,.3)}
+.sv-body{padding:22px}
+.sv-stars{font-size:28px;color:#e5e7eb;cursor:pointer;display:inline-flex;gap:2px}
+.sv-stars i.on{color:#f59e0b}
+</style>
+<div class="module-home-container"><div class="module-home-content">
+<div class="sv-wrap">
+  <div class="sv-card">
+    <div class="sv-head">
+      <img src="<?php echo $logo; ?>" alt="Logo" onerror="this.style.display='none'">
+      <h4 class="mt-2 mb-1">Survey Kepuasan</h4>
+      <div class="opacity-75 small">Bantu kami meningkatkan pelayanan</div>
+    </div>
+    <div class="sv-body">
+      <div id="svAlert"></div>
+      <div id="svForm">
+        <input type="hidden" id="svGuestId" value="<?php echo htmlspecialchars($prefill,ENT_QUOTES); ?>">
+        <div class="text-center mb-3">
+          <div class="fw-semibold mb-1">Penilaian Keseluruhan</div>
+          <div class="sv-stars" data-target="rating"><?php for($i=1;$i<=5;$i++) echo '<i class="far fa-star" data-v="'.$i.'"></i>'; ?></div>
+        </div>
+        <hr>
+        <?php foreach (['pelayanan'=>'Pelayanan','kecepatan'=>'Kecepatan','kenyamanan'=>'Kenyamanan'] as $k => $l): ?>
+        <div class="d-flex justify-content-between align-items-center mb-2"><span><?php echo $l; ?></span><div class="sv-stars" data-target="<?php echo $k; ?>"><?php for($i=1;$i<=5;$i++) echo '<i class="far fa-star" data-v="'.$i.'"></i>'; ?></div></div>
+        <?php endforeach; ?>
+        <?php foreach(['rating','pelayanan','kecepatan','kenyamanan'] as $k): ?><input type="hidden" id="<?php echo $k; ?>" value="0"><?php endforeach; ?>
+        <div class="mb-3 mt-3"><label class="fw-semibold small">Komentar / Saran</label><textarea id="komentar" class="form-control" rows="3" placeholder="Opsional"></textarea></div>
+        <button class="btn btn-warning w-100" id="svBtn"><i class="fas fa-paper-plane me-2"></i>Kirim Survey</button>
+      </div>
+      <div id="svDone" style="display:none" class="text-center py-3">
+        <div><i class="fas fa-heart text-danger" style="font-size:48px"></i></div>
+        <h5 class="mt-2">Terima Kasih!</h5>
+        <p class="text-muted" id="svDoneMsg"></p>
+      </div>
+    </div>
+  </div>
+</div>
+</div></div>
+<script>window.TAMU_PAGE='survey';window.MODULE_BASE=<?php echo json_encode(rtrim($base,'/').'/tamu/'); ?>;</script>
+<?php
+
+/* ================================================
+ * DASHBOARD (default)
+ * ================================================ */
+else:
+$wa_number = '62'.ltrim(preg_replace('/[^0-9]/','',$site_phone??'08151800116'),'0');
+$stats = [];
+foreach (['hari'=>"COUNT(*) FROM buku_tamu WHERE tanggal_kunjungan = CURDATE()",
+           'minggu'=>"COUNT(*) FROM buku_tamu WHERE YEARWEEK(tanggal_kunjungan,1)=YEARWEEK(CURDATE(),1)",
+           'bulan'=>"COUNT(*) FROM buku_tamu WHERE YEAR(tanggal_kunjungan)=YEAR(CURDATE()) AND MONTH(tanggal_kunjungan)=MONTH(CURDATE())",
+           'aktif'=>"COUNT(*) FROM buku_tamu WHERE status='Aktif'"] as $k=>$q) {
+    $r = $connection->query("SELECT $q"); $stats[$k] = $r ? intval($r->fetch_row()[0]) : 0;
+}
+$recent = [];
+$rg = $connection->query("SELECT * FROM buku_tamu ORDER BY created_at DESC LIMIT 10");
+if ($rg) { while ($rw = $rg->fetch_assoc()) $recent[] = $rw; }
+?>
+<div class="sae-landing">
+<section class="sae-hero" aria-label="Hero Buku Tamu">
+  <div class="sae-hero-bg"></div>
+  <div class="sae-hero-inner">
+    <div class="sae-hero-copy">
+      <span class="sae-hero-kicker"><i class="fas fa-circle"></i> Layanan Buku Tamu</span>
+      <h1 class="sae-hero-title">Buku Tamu <span class="sae-hero-accent">Digital</span></h1>
+      <p class="sae-hero-subtitle">Pencatatan kunjungan tamu secara digital — QR check-in, selfie, check-out, dan survey.</p>
+      <div class="sae-tech-strip">
+        <span class="sae-tech-badge"><i class="fas fa-qrcode"></i> QR Code</span>
+        <span class="sae-tech-badge"><i class="fas fa-sign-in-alt"></i> Check-in</span>
+        <span class="sae-tech-badge"><i class="fas fa-sign-out-alt"></i> Check-out</span>
+        <span class="sae-tech-badge"><i class="fas fa-camera"></i> Selfie</span>
+        <span class="sae-tech-badge"><i class="fas fa-star"></i> Survey</span>
+      </div>
+    </div>
+    <div class="sae-hero-right">
+      <div class="sae-nisn-panel">
+        <div class="sae-nisn-panel-head"><h6><i class="fas fa-door-open me-2"></i>Sedang Berkunjung</h6></div>
+        <div class="sae-nisn-panel-body text-center">
+          <div class="display-3 fw-bold text-primary"><?php echo $stats['aktif']; ?></div>
+          <p class="text-muted mb-3">tamu aktif saat ini</p>
+          <a href="<?php echo $base; ?>tamu/form" class="btn btn-primary w-100"><i class="fas fa-user-plus me-2"></i>Registrasi Tamu Baru</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+<section class="sae-kpi-strip">
+  <?php foreach ([['blue','fa-calendar-day','hari','Hari Ini'],['teal','fa-calendar-week','minggu','Minggu Ini'],['green','fa-calendar-alt','bulan','Bulan Ini'],['orange','fa-user-clock','aktif','Sedang Aktif']] as $k): ?>
+  <div class="sae-kpi-card">
+    <span class="sae-kpi-icon <?php echo $k[0]; ?>"><i class="fas <?php echo $k[1]; ?>"></i></span>
+    <div><div class="sae-kpi-value"><?php echo number_format($stats[$k[2]]); ?></div><p class="sae-kpi-label"><?php echo $k[3]; ?></p></div>
+  </div>
+  <?php endforeach; ?>
+</section>
+<section class="glass-card card">
+  <div class="card-body">
+    <div class="home-insight-head"><h5><i class="fas fa-history me-2"></i>Tamu Terbaru</h5><p>10 kunjungan terbaru.</p></div>
+    <div class="table-responsive">
+      <table class="module-home-table table table-sm" id="tamuTable">
+        <thead><tr><th>#</th><th>Guest ID</th><th>Nama / Instansi</th><th>Keperluan</th><th>Tanggal</th><th>Jam</th><th>Status</th><th class="text-center">Aksi</th></tr></thead>
+        <tbody><?php if (!$recent): ?><tr><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-inbox me-1"></i>Belum ada tamu</td></tr>
+          <?php else: $no=1; foreach ($recent as $g): $sc=['Aktif'=>'success','Selesai'=>'secondary','Batal'=>'danger']; ?>
+            <tr>
+              <td><?php echo $no++; ?></td>
+              <td><code><?php echo htmlspecialchars($g['guest_id']); ?></code></td>
+              <td><strong><?php echo htmlspecialchars($g['nama']); ?></strong><br><small class="text-muted"><?php echo htmlspecialchars($g['instansi']); ?></small></td>
+              <td><span class="badge badge-primary"><?php echo htmlspecialchars($g['keperluan']); ?></span></td>
+              <td><small><?php echo date('d/m/Y',strtotime($g['tanggal_kunjungan'])); ?></small></td>
+              <td><small><?php echo substr($g['waktu_masuk'],0,5); ?></small></td>
+              <td><span class="badge badge-<?php echo $sc[$g['status']]??'secondary'; ?>"><?php echo $g['status']; ?></span></td>
+              <td class="text-center"><a href="javascript:void(0)" class="btn-detail" data-id="<?php echo $g['id']; ?>"><i class="fas fa-eye"></i></a></td>
+            </tr>
+          <?php endforeach; endif; ?></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+</div>
+<!-- Modals -->
+<div class="modal fade" id="modalDetail" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content"><div class="modal-header bg-primary"><h5 class="modal-title text-white"><i class="fas fa-id-card me-2"></i>Detail Tamu</h5><button class="close text-white" data-dismiss="modal">&times;</button></div><div class="modal-body" id="detailBody"><div class="text-center py-4 text-muted">Memuat...</div></div></div></div></div>
+<div class="modal fade" id="modalFoto" tabindex="-1"><div class="modal-dialog modal-dialog-centered"><div class="modal-content"><div class="modal-header"><h5 class="modal-title">Foto Tamu</h5><button class="close" data-dismiss="modal">&times;</button></div><div class="modal-body text-center"><img src="" alt="Foto" class="img-fluid rounded" id="fotoImg" style="max-height:400px"></div></div></div></div>
+<!-- FAB -->
+<div class="fab-container" id="fabContainer" role="navigation">
+  <button class="fab-main pulse" id="fabMain" type="button" title="Menu" aria-expanded="false"><i class="fas fa-plus"></i></button>
+  <div class="fab-items" role="menu">
+    <a href="<?php echo $base; ?>home" class="fab-item"><i class="fas fa-home"></i><span>Home</span></a>
+    <a href="<?php echo $base; ?>tamu/form" class="fab-item"><i class="fas fa-user-plus"></i><span>Registrasi</span></a>
+    <a href="https://wa.me/<?php echo $wa_number; ?>" target="_blank" class="fab-item"><i class="fab fa-whatsapp"></i><span>WhatsApp</span></a>
+    <a href="<?php echo $base; ?>login" class="fab-item"><i class="fas fa-sign-in-alt"></i><span>Login</span></a>
+  </div>
+</div>
+<script>window.TAMU_PAGE='dashboard';window.MODULE_BASE=<?php echo json_encode(rtrim($base,'/').'/tamu/'); ?>;</script>
+<?php endif; ?>

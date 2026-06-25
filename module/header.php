@@ -14,7 +14,7 @@ if ($module_root_name === 'home') {
   $body_class .= ' spmb-page';
 }
 
-$public_fullpage_modules = ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'privasi-kebijakan', 'kelulusan', 'login', 'nisn', 'registrasi'];
+$public_fullpage_modules = ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'privasi-kebijakan', 'kelulusan', 'login', 'nisn', 'registrasi', 'tamu'];
 
 $appSiteName = trim((string)($site_name ?? ''));
 if ($appSiteName === '') {

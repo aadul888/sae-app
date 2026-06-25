@@ -29,6 +29,10 @@ RewriteRule ^logout$ dashboard/oauth/logout.php [L]
 # Numeric NISN direct access
 RewriteRule ^([0-9]{8,})$ index.php?mod=nisn&nisn=$1 [L,QSA]
 
+# Tamu subpages: form, checkout, survey, qr, proses (also handles ?page=... within module)
+RewriteRule ^tamu/(form|checkout|survey|qr|proses)/?$ index.php?mod=tamu&page=$1 [L,QSA]
+RewriteRule ^tamu/?$ index.php?mod=tamu [L,QSA]
+
 # Module routing - skip existing files and directories
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

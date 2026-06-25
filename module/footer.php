@@ -25,7 +25,7 @@
 
   // Check if current module is a full-page module (home, absensi, realtime)
   $module_root_footer = explode('/', (string)$mod)[0];
-  $is_fullpage_module = in_array($module_root_footer, ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'privasi-kebijakan', 'login', 'nisn', 'registrasi']);
+  $is_fullpage_module = in_array($module_root_footer, ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'privasi-kebijakan', 'login', 'nisn', 'registrasi', 'tamu']);
 
   $appSiteName = trim((string)($site_name ?? ''));
   if ($appSiteName === '') {
