@@ -73,9 +73,19 @@ $(document).on('click', '.btn-add', function(){
   if ($(this).prop('disabled')) {
     return;
   }
-  $('.modal-add').modal('show');
+  var modal = $('.modal-add');
+  if (!modal.parent().is('body')) {
+    modal.appendTo('body');
+  }
+  modal.modal('show');
   $('.modal-title').html('Tambah hak akses');
   loadModuleOptions($('.level').val());
+});
+
+$(document).on('hidden.bs.modal', '.modal-add', function(){
+  // Cleanup guard supaya backdrop tidak tertinggal dan mengunci halaman.
+  $('.modal-backdrop').remove();
+  $('body').removeClass('modal-open').css('padding-right', '');
 });
 
 
@@ -171,6 +181,40 @@ $.ajax({
     }
     }
 });
+});
+
+/* ------------- Sinkron Modul --------------*/
+$(document).on('click', '#btnSyncModul', function(){
+  var btn = $(this);
+  var icon = btn.find('i');
+  icon.removeClass('fa-sync').addClass('fa-spinner fa-spin');
+  btn.prop('disabled', true);
+  $.ajax({
+    url: "./mod/hak-akses/proses.php?action=sync_modules",
+    type: "POST",
+    dataType: "json",
+    success: function(res){
+      if (res.status === "success") {
+        swal({ title: 'Berhasil!', text: res.message, icon: 'success', timer: 2000 });
+        var active = $('.btn-tab.active');
+        if (active.length) loadData(active.data('id'));
+      } else {
+        swal({ title: 'Gagal!', text: res.message || 'Sinkronisasi gagal.', icon: 'error' });
+      }
+    },
+    error: function(xhr){
+      var msg = 'Terjadi kesalahan koneksi.';
+      if (xhr && xhr.responseText) {
+        msg = xhr.responseText.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (msg.length > 220) msg = msg.substring(0, 220) + '...';
+      }
+      swal({ title: 'Error!', text: msg, icon: 'error' });
+    },
+    complete: function(){
+      icon.removeClass('fa-spinner fa-spin').addClass('fa-sync');
+      btn.prop('disabled', false);
+    }
+  });
 });
 
 /* ------------- Delete Role Entry --------------*/

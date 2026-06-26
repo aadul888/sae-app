@@ -10,6 +10,34 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     if (file_exists(__DIR__ . '/../../login/user.php')) {
         require_once __DIR__ . '/../../login/user.php';
     }
+
+    // Hak akses modul Murid Aktif (modul_id=3)
+    $modul_id = 3;
+    include __DIR__ . '/../check_role.php';
+    if (!$has_access || !isset($data_role['lihat']) || $data_role['lihat'] !== 'Y') {
+        header('Content-Type: application/json');
+        echo json_encode(array(
+            "draw" => isset($_REQUEST['draw']) ? intval($_REQUEST['draw']) : 0,
+            "recordsTotal" => 0,
+            "recordsFiltered" => 0,
+            "data" => array(),
+            "iTotalRecords" => 0,
+            "iTotalDisplayRecords" => 0,
+            "aaData" => array(),
+            "statusStat" => array(
+                'total' => 0,
+                'identitas_sesuai' => 0,
+                'belum_konfirmasi' => 0,
+                'identitas_belum_sesuai' => 0,
+                'berkas_valid' => 0,
+                'berkas_belum' => 0
+            )
+        ));
+        exit;
+    }
+    $can_modify_user = (isset($data_role['modifikasi']) && $data_role['modifikasi'] === 'Y');
+    $can_delete_user = (isset($data_role['hapus']) && $data_role['hapus'] === 'Y');
+
     $aColumns = ['user_id', 'nisn', 'nama_lengkap', 'tanggal_lahir', 'jenis_kelamin', 'kelas', 'avatar', 'status', 'konfirmasi', 'telp', 'koordinator'];
     $sIndexColumn = "user_id";
     $sTable = "user";
@@ -375,11 +403,17 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         $row[] = strip_tags($aRow['jenis_kelamin']);
         $row[] = strip_tags($nama_kelas);
 
-        // Kolom status dengan aksi toggle
-        $active = '<label class="custom-toggle" style="display:inline-block">'
-            . '<input type="checkbox" class="btn-active active' . $aRow['user_id'] . '" data-id="' . $aRow['user_id'] . '" data-active="' . (strtolower($aRow['status']) == 'aktif' ? 'Y' : 'N') . '"' . (strtolower($aRow['status']) == 'aktif' ? ' checked' : '') . '>'
-            . '<span class="custom-toggle-slider rounded-circle" data-label-off="No" data-label-on="Yes"></span>'
-            . '</label>';
+        // Kolom status: toggle hanya muncul jika memiliki hak modifikasi
+        if ($can_modify_user) {
+            $active = '<label class="custom-toggle" style="display:inline-block">'
+                . '<input type="checkbox" class="btn-active active' . $aRow['user_id'] . '" data-id="' . $aRow['user_id'] . '" data-active="' . (strtolower($aRow['status']) == 'aktif' ? 'Y' : 'N') . '"' . (strtolower($aRow['status']) == 'aktif' ? ' checked' : '') . '>'
+                . '<span class="custom-toggle-slider rounded-circle" data-label-off="No" data-label-on="Yes"></span>'
+                . '</label>';
+        } else {
+            $active = strtolower($aRow['status']) == 'aktif'
+                ? '<span class="badge badge-success">Aktif</span>'
+                : '<span class="badge badge-secondary">Tidak Aktif</span>';
+        }
         $row[] = '<div class="text-center">' . $active . '</div>';
 
         // Ganti tanggal lahir dengan kontak WA
@@ -415,42 +449,38 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         }
         $row[] = '<div class="text-center">' . $konfirmasi_html . '</div>';
 
-        if (isset($current_user) && isset($current_user['level_id']) && intval($current_user['level_id']) === 1) {
-            // Level 1: tampilkan semua aksi
-            $row[] = '<div class="text-center">
-                <a href="javascript:void(0)" onClick="location.href=' . $onlick[0] . '?mod=user&op=profile&id=' . epm_encode($aRow['user_id']) . '' . $onlick[1] . ';" class="table-action table-action-warning btn-tooltip" data-toggle="tooltip" title="Profil Lengkap">
+        $encoded_user_id = strip_tags(epm_encode($aRow['user_id']));
+        $action_html = '<a href="javascript:void(0)" onClick="location.href=' . $onlick[0] . '?mod=user&op=profile&id=' . $encoded_user_id . '' . $onlick[1] . ';" class="table-action table-action-warning btn-tooltip" data-toggle="tooltip" title="Profil Lengkap">
                     <i class="fas fa-user-check"></i>
-                </a>
-                    ' . $kartu_button . '
-                <a href="javascript:void(0)" onClick="location.href=' . $onlick[0] . '?mod=user&op=update&id=' . epm_encode($aRow['user_id']) . '' . $onlick[1] . ';" class="table-action table-action-primary btn-tooltip" data-toggle="tooltip" title="Edit">
+                </a>' . $kartu_button;
+
+        if ($can_modify_user) {
+            $action_html .= '
+                <a href="javascript:void(0)" onClick="location.href=' . $onlick[0] . '?mod=user&op=update&id=' . $encoded_user_id . '' . $onlick[1] . ';" class="table-action table-action-primary btn-tooltip" data-toggle="tooltip" title="Edit">
                     <i class="fas fa-edit"></i>
                 </a>
-                <a href="javascript:void(0)" class="table-action table-action-info btn-tooltip btn-reset-password-simple" data-toggle="tooltip" data-id="' . strip_tags(epm_encode($aRow['user_id'])) . '" data-name="' . strip_tags($aRow['nama_lengkap']) . '" title="Reset Password (Langsung)">
+                <a href="javascript:void(0)" class="table-action table-action-info btn-tooltip btn-reset-password-simple" data-toggle="tooltip" data-id="' . $encoded_user_id . '" data-name="' . strip_tags($aRow['nama_lengkap']) . '" title="Reset Password (Langsung)">
                     <i class="fas fa-key"></i>
                 </a>
-                <a href="javascript:void(0)" class="table-action table-action-warning btn-tooltip btn-reset-password-wa" data-toggle="tooltip" data-id="' . strip_tags(epm_encode($aRow['user_id'])) . '" data-name="' . strip_tags($aRow['nama_lengkap']) . '" title="Reset Password + WhatsApp">
+                <a href="javascript:void(0)" class="table-action table-action-warning btn-tooltip btn-reset-password-wa" data-toggle="tooltip" data-id="' . $encoded_user_id . '" data-name="' . strip_tags($aRow['nama_lengkap']) . '" title="Reset Password + WhatsApp">
                     <i class="fas fa-mobile-alt"></i>
                 </a>
-                <a href="javascript:void(0)" class="table-action table-action-delete btn-tooltip btn-delete" data-toggle="tooltip" data-name="' . strip_tags($aRow['nama_lengkap']) . '" data-id="' . strip_tags(epm_encode($aRow['user_id'])) . '" title="Hapus">
-                    <i class="fas fa-trash"></i>
-                </a>
-                <a href="javascript:void(0)" class="table-action table-action-success btn-tooltip btn-koordinator" data-toggle="tooltip" data-id="' . strip_tags(epm_encode($aRow['user_id'])) . '" data-name="' . strip_tags($aRow['nama_lengkap']) . '" title="Jadikan Koordinator">
+                <a href="javascript:void(0)" class="table-action table-action-success btn-tooltip btn-koordinator" data-toggle="tooltip" data-id="' . $encoded_user_id . '" data-name="' . strip_tags($aRow['nama_lengkap']) . '" title="Jadikan Koordinator">
                     <i class="fas fa-user-tie"></i>
                 </a>
-                <!-- Tombol baru: Reset Konfirmasi -->
-                <a href="javascript:void(0)" class="table-action table-action-dark btn-tooltip btn-reset-konfirmasi" data-toggle="tooltip" data-id="' . strip_tags(epm_encode($aRow['user_id'])) . '" data-name="' . strip_tags($aRow['nama_lengkap']) . '" title="Reset Konfirmasi">
+                <a href="javascript:void(0)" class="table-action table-action-dark btn-tooltip btn-reset-konfirmasi" data-toggle="tooltip" data-id="' . $encoded_user_id . '" data-name="' . strip_tags($aRow['nama_lengkap']) . '" title="Reset Konfirmasi">
                     <i class="fas fa-undo-alt"></i>
-                </a>
-            </div>';
-        } else {
-            // Level lain: hanya tombol profil
-            $row[] = '<div class="text-center">
-                <a href="javascript:void(0)" onClick="location.href=' . $onlick[0] . '?mod=user&op=profile&id=' . epm_encode($aRow['user_id']) . '' . $onlick[1] . ';" class="table-action table-action-warning btn-tooltip" data-toggle="tooltip" title="Profil Lengkap">
-                    <i class="fas fa-user-check"></i>
-                </a>
-                ' . $kartu_button . '
-            </div>';
+                </a>';
         }
+
+        if ($can_delete_user) {
+            $action_html .= '
+                <a href="javascript:void(0)" class="table-action table-action-delete btn-tooltip btn-delete" data-toggle="tooltip" data-name="' . strip_tags($aRow['nama_lengkap']) . '" data-id="' . $encoded_user_id . '" title="Hapus">
+                    <i class="fas fa-trash"></i>
+                </a>';
+        }
+
+        $row[] = '<div class="text-center">' . $action_html . '</div>';
         $output['aaData'][] = $row;
         $output['data'][] = $row;
     }

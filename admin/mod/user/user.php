@@ -707,9 +707,11 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                   <div class="col-sm-8">
                     <h3 class="mb-0"><i class="fa fa-user text-primary mr-2"></i>Detail Profil Siswa</h3>
                   </div>
-                  <div class="col-sm-4 text-right mt-2 mt-sm-0">
-                    <a href="user?op=update&id=' . epm_encode($data_user['user_id']) . '" class="btn btn-sm btn-primary"><i class="fa fa-edit mr-1"></i>Edit Profil</a>
-                  </div>
+                  <div class="col-sm-4 text-right mt-2 mt-sm-0">';
+            if (isset($data_role['modifikasi']) && $data_role['modifikasi'] == 'Y') {
+              echo '<a href="user?op=update&id=' . epm_encode($data_user['user_id']) . '" class="btn btn-sm btn-primary"><i class="fa fa-edit mr-1"></i>Edit Profil</a>';
+            }
+            echo '</div>
                 </div>
               </div>
               <div class="card-body pt-0">

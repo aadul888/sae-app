@@ -30,7 +30,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
               </div>
             </div>
             <!-- Card header -->
-              
+
 
             <div class="pt-2 pl-2 mb-0" style="overflow:visible;">
               <div style="position:relative; z-index:300; overflow:visible;">
@@ -62,14 +62,15 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                 </ul>
               </div>
             </div>
-              
+
             <div class="card-header module-table-header">
               <div class="module-header-row" style="gap:10px;">
                 <div><h4 class="mb-1 title-header">Admin</h4><small class="text-muted">Pilih level di atas untuk melihat dan kelola hak akses.</small></div>
                 <div class="module-header-actions">';
         if ($data_role['modifikasi'] == 'Y') {
           echo '
-                <button class="btn-mod btn-mod-add btn-add" title="Tambah"><i class="fas fa-plus"></i></button>';
+                <button class="btn-mod btn-mod-add btn-add" title="Tambah"><i class="fas fa-plus"></i></button>
+                <button class="btn-mod btn-mod-add btn-sync-modul" id="btnSyncModul" title="Sinkronisasi modul baru dari sidebar"><i class="fas fa-sync"></i></button>';
         } else {
           echo '
                 <button class="btn-mod btn-mod-add" disabled title="Tambah"><i class="fas fa-plus"></i></button>';
@@ -80,7 +81,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         if ($data_role['modifikasi'] == 'Y') {
           echo '
                 <div class="card-body load-data">
-                
+
                 </div>';
         } else {
           hak_akses();
@@ -114,7 +115,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                                 </div>
                             </div>
                         </div>
-            
+
           </div>
         </div>
       </div>';
@@ -124,3 +125,4 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     theme_404();
   }
 }
+?>

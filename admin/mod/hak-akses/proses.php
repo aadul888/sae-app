@@ -387,7 +387,9 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         }
     }
 
-    switch (@$_GET['action']) {
+    $hak_action = isset($_GET['action']) ? $_GET['action'] : (isset($_POST['action']) ? $_POST['action'] : '');
+
+    switch ($hak_action) {
         case 'data':
             $id = (int) $_GET['id'];
             if ($id <= 0 || !hak_akses_is_configured_level($connection, $id)) {
@@ -608,6 +610,83 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             } else {
                 echo 'success';
             }
+            break;
+
+        case 'sync_modules':
+            header('Content-Type: application/json');
+
+            // 1. Tambah modul baru yang belum ada role sama sekali → Operator Sekolah (level 1) — superadmin penuh
+            $q = $connection->query("
+                SELECT m.modul_id
+                FROM modul m
+                WHERE m.modul_id NOT IN (
+                    SELECT r.modul_id FROM role r WHERE r.level_id = 1
+                )
+                ORDER BY m.modul_id ASC
+            ");
+
+            $total = 0;
+            $per_level = [];
+
+            if ($q && $q->num_rows > 0) {
+                $st = $connection->prepare("INSERT IGNORE INTO role (level_id, modul_id, lihat, modifikasi, hapus) VALUES (?, ?, 'Y', 'Y', 'Y')");
+                if ($st) {
+                    $lvl = 1;
+                    while ($rw = $q->fetch_assoc()) {
+                        $st->bind_param('ii', $lvl, $rw['modul_id']);
+                        if ($st->execute()) $total++;
+                    }
+                    $st->close();
+                }
+            }
+            $per_level[1] = $total;
+
+            // 2. Modul baru (>51) untuk level 5 (Kepala Sekolah) — akses penuh
+            $total5 = 0;
+            $q5 = $connection->query("
+                SELECT m.modul_id FROM modul m
+                WHERE m.modul_id NOT IN (SELECT r.modul_id FROM role r WHERE r.level_id = 5)
+                AND m.modul_id > 51 ORDER BY m.modul_id ASC
+            ");
+            if ($q5 && $q5->num_rows > 0) {
+                $st5 = $connection->prepare("INSERT IGNORE INTO role (level_id, modul_id, lihat, modifikasi, hapus) VALUES (5, ?, 'Y', 'Y', 'Y')");
+                if ($st5) {
+                    while ($r5 = $q5->fetch_assoc()) {
+                        $st5->bind_param('i', $r5['modul_id']);
+                        if ($st5->execute()) $total5++;
+                    }
+                    $st5->close();
+                }
+            }
+            $per_level[5] = $total5;
+
+            // 3. Modul baru (>51) untuk level 2 (Tenaga Administrasi) dan 3 (Guru) — tanpa akses (N/N/N), siap diatur manual
+            foreach ([2, 3] as $lid) {
+                $cnt = 0;
+                $ql = $connection->query("
+                    SELECT m.modul_id FROM modul m
+                    WHERE m.modul_id NOT IN (SELECT r.modul_id FROM role r WHERE r.level_id = $lid)
+                    AND m.modul_id > 51 ORDER BY m.modul_id ASC
+                ");
+                if ($ql && $ql->num_rows > 0) {
+                    $sl = $connection->prepare("INSERT IGNORE INTO role (level_id, modul_id, lihat, modifikasi, hapus) VALUES ($lid, ?, 'N', 'N', 'N')");
+                    if ($sl) {
+                        while ($rl = $ql->fetch_assoc()) {
+                            $sl->bind_param('i', $rl['modul_id']);
+                            if ($sl->execute()) $cnt++;
+                        }
+                        $sl->close();
+                    }
+                }
+                $per_level[$lid] = $cnt;
+            }
+
+            $msg = "Sinkronisasi selesai. Operator: +{$per_level[1]}, Kepsek: +{$per_level[5]}, TU: +{$per_level[2]}, Guru: +{$per_level[3]} modul baru.";
+
+            echo json_encode([
+                'status' => 'success',
+                'message' => $msg
+            ]);
             break;
 
         default:

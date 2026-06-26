@@ -275,7 +275,8 @@ body.module-tentang .sae-home-nav,
 body.module-privasi-kebijakan .sae-home-nav,
 body.module-login .sae-home-nav,
 body.module-nisn .sae-home-nav,
-body.module-kelulusan .sae-home-nav {
+body.module-kelulusan .sae-home-nav,
+body.module-tamu .sae-home-nav {
   position: sticky;
   top: 0;
   z-index: 1200;
@@ -294,7 +295,8 @@ body.module-tentang .sae-home-nav-inner,
 body.module-privasi-kebijakan .sae-home-nav-inner,
 body.module-login .sae-home-nav-inner,
 body.module-nisn .sae-home-nav-inner,
-body.module-kelulusan .sae-home-nav-inner {
+body.module-kelulusan .sae-home-nav-inner,
+body.module-tamu .sae-home-nav-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -312,7 +314,8 @@ body.module-tentang .sae-home-brand,
 body.module-privasi-kebijakan .sae-home-brand,
 body.module-login .sae-home-brand,
 body.module-nisn .sae-home-brand,
-body.module-kelulusan .sae-home-brand {
+body.module-kelulusan .sae-home-brand,
+body.module-tamu .sae-home-brand {
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -328,7 +331,8 @@ body.module-tentang .sae-home-brand:hover,
 body.module-privasi-kebijakan .sae-home-brand:hover,
 body.module-login .sae-home-brand:hover,
 body.module-nisn .sae-home-brand:hover,
-body.module-kelulusan .sae-home-brand:hover { text-decoration: none; }
+body.module-kelulusan .sae-home-brand:hover,
+body.module-tamu .sae-home-brand:hover { text-decoration: none; }
 
 body.module-home .sae-home-brand-logo,
 body.module-absensi .sae-home-brand-logo,
@@ -338,7 +342,8 @@ body.module-tentang .sae-home-brand-logo,
 body.module-privasi-kebijakan .sae-home-brand-logo,
 body.module-login .sae-home-brand-logo,
 body.module-nisn .sae-home-brand-logo,
-body.module-kelulusan .sae-home-brand-logo {
+body.module-kelulusan .sae-home-brand-logo,
+body.module-tamu .sae-home-brand-logo {
   width: 96px;
   height: 96px;
   object-fit: contain;
@@ -354,7 +359,8 @@ body.module-tentang .sae-home-brand-text,
 body.module-privasi-kebijakan .sae-home-brand-text,
 body.module-login .sae-home-brand-text,
 body.module-nisn .sae-home-brand-text,
-body.module-kelulusan .sae-home-brand-text {
+body.module-kelulusan .sae-home-brand-text,
+body.module-tamu .sae-home-brand-text {
   color: var(--c-text);
   font-size: 1.05rem;
   font-weight: 800;
@@ -372,7 +378,8 @@ body.module-tentang .sae-home-nav-links,
 body.module-privasi-kebijakan .sae-home-nav-links,
 body.module-login .sae-home-nav-links,
 body.module-nisn .sae-home-nav-links,
-body.module-kelulusan .sae-home-nav-links {
+body.module-kelulusan .sae-home-nav-links,
+body.module-tamu .sae-home-nav-links {
   display: flex;
   align-items: center;
   gap: .1rem;
@@ -388,7 +395,8 @@ body.module-tentang .sae-home-nav-link,
 body.module-privasi-kebijakan .sae-home-nav-link,
 body.module-login .sae-home-nav-link,
 body.module-nisn .sae-home-nav-link,
-body.module-kelulusan .sae-home-nav-link {
+body.module-kelulusan .sae-home-nav-link,
+body.module-tamu .sae-home-nav-link {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -411,7 +419,8 @@ body.module-tentang .sae-home-nav-link:hover,
 body.module-privasi-kebijakan .sae-home-nav-link:hover,
 body.module-login .sae-home-nav-link:hover,
 body.module-nisn .sae-home-nav-link:hover,
-body.module-kelulusan .sae-home-nav-link:hover {
+body.module-kelulusan .sae-home-nav-link:hover,
+body.module-tamu .sae-home-nav-link:hover {
   background: var(--c-bg);
   color: var(--c-text);
   text-decoration: none;
@@ -424,7 +433,8 @@ body.module-tentang .sae-home-nav-link.is-active,
 body.module-privasi-kebijakan .sae-home-nav-link.is-active,
 body.module-login .sae-home-nav-link.is-active,
 body.module-nisn .sae-home-nav-link.is-active,
-body.module-kelulusan .sae-home-nav-link.is-active {
+body.module-kelulusan .sae-home-nav-link.is-active,
+body.module-tamu .sae-home-nav-link.is-active {
   background: var(--c-action-gradient);
   color: #fff;
   box-shadow: 0 10px 22px rgba(37,99,235,.18);
@@ -437,7 +447,8 @@ body.module-tentang .sae-home-nav-link--cta,
 body.module-privasi-kebijakan .sae-home-nav-link--cta,
 body.module-login .sae-home-nav-link--cta,
 body.module-nisn .sae-home-nav-link--cta,
-body.module-kelulusan .sae-home-nav-link--cta {
+body.module-kelulusan .sae-home-nav-link--cta,
+body.module-tamu .sae-home-nav-link--cta {
   background: var(--c-action-gradient);
   color: #fff !important;
   font-weight: 800;
@@ -455,7 +466,8 @@ body.module-tentang .sae-home-nav-link--cta:hover,
 body.module-privasi-kebijakan .sae-home-nav-link--cta:hover,
 body.module-login .sae-home-nav-link--cta:hover,
 body.module-nisn .sae-home-nav-link--cta:hover,
-body.module-kelulusan .sae-home-nav-link--cta:hover {
+body.module-kelulusan .sae-home-nav-link--cta:hover,
+body.module-tamu .sae-home-nav-link--cta:hover {
   background: linear-gradient(135deg, #0f4c81 0%, #0f766e 100%);
   color: #fff !important;
   text-decoration: none;
@@ -470,7 +482,8 @@ body.module-tentang .sae-home-nav-link--cta.is-active,
 body.module-privasi-kebijakan .sae-home-nav-link--cta.is-active,
 body.module-login .sae-home-nav-link--cta.is-active,
 body.module-nisn .sae-home-nav-link--cta.is-active,
-body.module-kelulusan .sae-home-nav-link--cta.is-active {
+body.module-kelulusan .sae-home-nav-link--cta.is-active,
+body.module-tamu .sae-home-nav-link--cta.is-active {
   background: var(--c-action-gradient);
   color: #fff !important;
   box-shadow: 0 14px 28px rgba(37,99,235,.24);
@@ -485,6 +498,7 @@ body.module-privasi-kebijakan .sae-home-nav-controls,
 body.module-login .sae-home-nav-controls,
 body.module-nisn .sae-home-nav-controls,
 body.module-kelulusan .sae-home-nav-controls,
+body.module-tamu .sae-home-nav-controls,
 .sae-nav-controls {
   display: flex;
   align-items: center;
@@ -602,7 +616,8 @@ body.module-kelulusan .sae-home-nav-controls,
   body.module-privasi-kebijakan .sae-home-nav-links,
   body.module-login .sae-home-nav-links,
   body.module-nisn .sae-home-nav-links,
-  body.module-kelulusan .sae-home-nav-links { display: none; }
+  body.module-kelulusan .sae-home-nav-links,
+  body.module-tamu .sae-home-nav-links { display: none; }
   .sae-public-links { display: none; }
   .sae-nav-hamburger { display: flex; }
 }
@@ -616,7 +631,8 @@ body.module-kelulusan .sae-home-nav-controls,
   body.module-privasi-kebijakan .sae-home-nav-inner,
   body.module-login .sae-home-nav-inner,
   body.module-nisn .sae-home-nav-inner,
-  body.module-kelulusan .sae-home-nav-inner {
+  body.module-kelulusan .sae-home-nav-inner,
+  body.module-tamu .sae-home-nav-inner {
     height: 56px;
     padding: 0 .75rem;
   }
@@ -628,7 +644,8 @@ body.module-kelulusan .sae-home-nav-controls,
   body.module-privasi-kebijakan .sae-home-brand-logo,
   body.module-login .sae-home-brand-logo,
   body.module-nisn .sae-home-brand-logo,
-  body.module-kelulusan .sae-home-brand-logo {
+  body.module-kelulusan .sae-home-brand-logo,
+  body.module-tamu .sae-home-brand-logo {
     width: 75px;
     height: 75px;
   }
@@ -640,7 +657,8 @@ body.module-kelulusan .sae-home-nav-controls,
   body.module-privasi-kebijakan .sae-home-brand-text,
   body.module-login .sae-home-brand-text,
   body.module-nisn .sae-home-brand-text,
-  body.module-kelulusan .sae-home-brand-text {
+  body.module-kelulusan .sae-home-brand-text,
+  body.module-tamu .sae-home-brand-text {
     display: none;
   }
 }
@@ -2828,7 +2846,8 @@ body.module-privasi-kebijakan .main-content { background: var(--c-bg) !important
   body.module-realtime .sae-home-brand-text,
   body.module-tentang .sae-home-brand-text,
   body.module-privasi-kebijakan .sae-home-brand-text,
-  body.module-kelulusan .sae-home-brand-text { display: none; }
+  body.module-kelulusan .sae-home-brand-text,
+  body.module-tamu .sae-home-brand-text { display: none; }
   .home-kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
 

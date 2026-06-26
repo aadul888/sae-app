@@ -13,6 +13,12 @@ if ($module_root_name === 'home') {
 } elseif ($module_root_name === 'spmb') {
   $body_class .= ' spmb-page';
 }
+// Landing modules that share the same layout components (sae-hero, sae-kpi-strip, sae-nisn-panel, etc.)
+// also get .module-home class so all CSS scoped to body.module-home applies automatically
+$landing_modules = ['home', 'absensi', 'agenda', 'realtime', 'tentang', 'kelulusan', 'tamu'];
+if (in_array($module_root_name, $landing_modules)) {
+  $body_class .= ' module-home';
+}
 
 $public_fullpage_modules = ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'privasi-kebijakan', 'kelulusan', 'login', 'nisn', 'registrasi', 'tamu'];
 
@@ -76,6 +82,7 @@ $appYear = defined('SAE_APP_YEAR') ? SAE_APP_YEAR : date('Y');
           'absensi'   => ['label' => 'Absensi',   'url' => $base_url . 'absensi/'],
           'agenda'    => ['label' => 'Agenda',    'url' => $base_url . 'agenda/'],
           'kelulusan' => ['label' => 'Kelulusan', 'url' => $base_url . 'kelulusan/'],
+          'tamu'      => ['label' => 'Buku Tamu', 'url' => $base_url . 'tamu/'],
           'realtime'  => ['label' => 'Monitor',   'url' => $base_url . 'realtime/'],
           'tentang'   => ['label' => 'Tentang',   'url' => $base_url . 'tentang/'],
           'login'     => ['label' => 'Login',     'url' => $base_url . 'login/'],
@@ -88,10 +95,11 @@ $appYear = defined('SAE_APP_YEAR') ? SAE_APP_YEAR : date('Y');
           'agenda'    => ['label' => 'Agenda',    'url' => $base_url . 'agenda/'],
           'kelulusan' => ['label' => 'Kelulusan', 'url' => $base_url . 'kelulusan/'],
           'realtime'  => ['label' => 'Monitor',   'url' => $base_url . 'realtime/'],
+          'tamu'      => ['label' => 'Buku Tamu', 'url' => $base_url . 'tamu/'],
           'tentang'   => ['label' => 'Tentang',   'url' => $base_url . 'tentang/'],
         ];
       ?>
-      <?php if (in_array($module_root_name, ['home', 'absensi', 'agenda', 'realtime', 'tentang', 'privasi-kebijakan', 'kelulusan', 'login', 'nisn'])): ?>
+      <?php if (in_array($module_root_name, ['home', 'absensi', 'agenda', 'realtime', 'tentang', 'privasi-kebijakan', 'kelulusan', 'login', 'nisn', 'tamu'])): ?>
         <nav class="sae-home-nav" aria-label="Navigasi utama SAE">
           <div class="sae-home-nav-inner container-fluid">
             <a class="sae-home-brand" href="<?php echo $base_url; ?>home/" aria-label="Kembali ke beranda SAE">
