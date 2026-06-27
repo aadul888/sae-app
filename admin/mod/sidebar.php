@@ -212,10 +212,10 @@ $logo_path_url = @filemtime("../content/$logo_path") > 0 ? "../content/$logo_pat
                         sidebar_group_close();
                     } ?>
 
-                    <?php if (can_see_any(array(52,53,54,55))) {
+                    <?php if (can_see_any(array(52,53,54,55,130))) {
                         sidebar_group_open('navbar-persuratan', 'fas fa-envelope', 'Persuratan', 'text-primary');
                             if (can_see(52)) sidebar_link('./surat', 'fas fa-tachometer-alt', 'Surat', 'text-primary');
-                            sidebar_soon('Referensi', 'fas fa-list', 'text-info');
+                            if (can_see(130)) sidebar_link('./surat-index', 'fas fa-list', 'Referensi', 'text-info');
                             if (can_see(54)) sidebar_link('./surat-keluar', 'fas fa-paper-plane', 'Surat Keluar', 'text-warning');
                             if (can_see(53)) sidebar_link('./surat-masuk', 'fas fa-envelope-open-text', 'Surat Masuk', 'text-success');
                             if (can_see(55)) sidebar_link('./surat-arsip', 'fas fa-archive', 'Arsip Surat', 'text-secondary');
