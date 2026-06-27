@@ -1,10 +1,48 @@
 'use strict';
 
-/* ====== SURAT INDEX / REFERENSI SURAT ====== */
+var tableSuratIndex = null;
+
+function initTableSuratIndex() {
+  if ($.fn.DataTable && $('#tableSuratIndex').length) {
+    if ($.fn.DataTable.isDataTable('#tableSuratIndex')) {
+      $('#tableSuratIndex').DataTable().destroy();
+    }
+    tableSuratIndex = $('#tableSuratIndex').DataTable({
+      processing: false,
+      serverSide: false,
+      bAutoWidth: false,
+      bSort: true,
+      bStateSave: false,
+      bDestroy: true,
+      paging: true,
+      scrollX: true,
+      scrollCollapse: true,
+      responsive: false,
+      iDisplayLength: 25,
+      order: [[0, 'asc']],
+      aLengthMenu: [[25, 30, 50, -1], [25, 30, 50, 'All']],
+      language: {
+        search: 'Cari:',
+        lengthMenu: 'Tampilkan _MENU_',
+        info: 'Menampilkan _START_ sampai _END_ dari _TOTAL_ data',
+        infoEmpty: 'Tidak ada data',
+        infoFiltered: '(difilter dari _MAX_ total)',
+        paginate: {
+          previous: '<i class="fas fa-angle-left">',
+          next: '<i class="fas fa-angle-right">',
+        },
+      },
+      columnDefs: [
+        { orderable: false, targets: [7] },
+        { searchable: false, targets: [0, 5, 6, 7] },
+      ],
+    });
+  }
+}
 
 $(function () {
-  // Table tanpa DataTables — gunakan CSS table-striped murni untuk hindari konflik
-  // Fungsi DataTable hanya di-enable jika diperlukan nanti
+  initTableSuratIndex();
+  $('[data-toggle="tooltip"]').tooltip();
 });
 
 /* ====== Copy Index ====== */
@@ -14,27 +52,50 @@ $(document).on('click', '.btn-copy-index', function () {
   swal({ title: 'Disalin!', text: val, icon: 'success', timer: 1200 });
 });
 
+/* ====== TAMBAH KATEGORI BARU ====== */
+$(document).on('click', '.btn-add-kategori', function () {
+  var v = prompt('Masukkan nama kategori baru:');
+  if (v === null || v.trim() === '') return;
+  v = v.trim();
+  $('<option>').val(v).text(v).appendTo('#f_kategori');
+  $('#f_kategori').val(v);
+  swal({ title: 'Berhasil!', text: 'Kategori "' + v + '" ditambahkan.', type: 'success', timer: 1200 });
+});
+
+/* ====== TAMBAH JENIS SURAT BARU ====== */
+$(document).on('click', '.btn-add-jenis', function () {
+  var v = prompt('Masukkan jenis surat baru:');
+  if (v === null || v.trim() === '') return;
+  v = v.trim();
+  $('<option>').val(v).text(v).appendTo('#f_jenis');
+  $('#f_jenis').val(v);
+  swal({ title: 'Berhasil!', text: 'Jenis "' + v + '" ditambahkan.', type: 'success', timer: 1200 });
+});
+
 /* ====== FORM TAMBAH / EDIT INDEX ====== */
 $(document).on('submit', '#formIndex', function (e) {
   e.preventDefault();
-  var form = this;
-  var fd = new FormData(form);
+  var btn = $(this).find('button[type=submit]');
+  btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Menyimpan...');
+  var fd = new FormData(this);
   $.ajax({
-    url: './mod/surat-index/proses.php?action=' + (fd.get('id') > 0 ? 'update' : 'add'),
+    url: './mod/surat-index/proses.php?action=' + (parseInt($('#f_id').val()) > 0 ? 'update' : 'add'),
     type: 'POST',
     data: fd,
     processData: false,
     contentType: false,
     success: function (data) {
-      if (data.trim() === 'success') {
+      var t = typeof data === 'string' ? data.trim() : '';
+      if (t === 'success') {
         swal({ title: 'Berhasil!', text: 'Data indeks tersimpan.', icon: 'success', timer: 1500 });
         $('#modalIndex').modal('hide');
         setTimeout(function () { location.reload(); }, 1200);
       } else {
-        swal({ title: 'Gagal!', text: data, icon: 'error' });
+        swal({ title: 'Gagal!', text: t || 'Gagal menyimpan.', icon: 'error' });
       }
     },
-    error: function () { swal({ title: 'Error!', text: 'Koneksi gagal.', icon: 'error' }); }
+    error: function () { swal({ title: 'Error!', text: 'Koneksi gagal.', icon: 'error' }); },
+    complete: function () { btn.prop('disabled', false).html('<i class="fas fa-save mr-1"></i>Simpan'); },
   });
 });
 
@@ -50,7 +111,11 @@ $(document).on('click', '.btn-edit-index', function () {
         $('#f_indeks').val(d.data.indeks).prop('readonly', true);
         $('#f_perihal').val(d.data.perihal);
         $('#f_kategori').val(d.data.kategori);
-        $('#f_jenis').val(d.data.jenis_surat);
+        if ($('#f_jenis option[value="' + d.data.jenis_surat + '"]').length) {
+          $('#f_jenis').val(d.data.jenis_surat);
+        } else {
+          $('#f_jenis').append($('<option>').val(d.data.jenis_surat).text(d.data.jenis_surat)).val(d.data.jenis_surat);
+        }
         $('#modalIndex').modal('show');
       } else {
         swal({ title: 'Error!', text: d.message || 'Data tidak ditemukan.', icon: 'error' });
@@ -73,7 +138,6 @@ $('#modalIndex').on('hidden.bs.modal', function () {
 /* ====== DELETE INDEX ====== */
 $(document).on('click', '.btn-delete-index', function () {
   var id = $(this).data('id');
-  var btn = $(this);
   swal({
     title: 'Hapus Indeks?',
     text: 'Data akan dihapus permanen.',
@@ -94,33 +158,38 @@ $(document).on('click', '.btn-delete-index', function () {
 });
 
 /* ====== IMPORT EXCEL ====== */
-$(document).on("submit", "#formImportExcel, .form-import-excel", function (e) {
+$(document).on('submit', '#formImportExcel, .form-import', function (e) {
   e.preventDefault();
+  var btn = $(this).find('button[type=submit]');
+  btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i>Import...');
   $.ajax({
-    url: "./mod/surat-index/proses.php?action=import_excel",
-    type: "POST",
+    url: './mod/surat-index/proses.php?action=import_excel',
+    type: 'POST',
     data: new FormData(this),
     processData: false,
     contentType: false,
     cache: false,
-    async: false,
-    success: function (data) {
-      if (typeof data === "string" && data.indexOf("Akses ditolak") !== -1) {
-        swal({ title: "Gagal!", text: data, icon: "error", timer: 1800 });
-        setTimeout(function () { window.location.reload(); }, 1800);
-        return;
+    success: function (res) {
+      var ok = false, msg = 'Import gagal.';
+      if (typeof res === 'object' && res !== null) { ok = !!res.ok; msg = res.msg || msg; }
+      else if (typeof res === 'string') {
+        var t = res.trim();
+        try { var j = JSON.parse(t); ok = !!j.ok; msg = j.msg || msg; } catch(e) { ok = (t.indexOf('success') !== -1); msg = t; }
       }
-      if (data === "success" || (typeof data === "string" && data.trim() === "success")) {
-        swal({ title: "Berhasil!", text: "Data indeks berhasil diimport!", icon: "success", timer: 2500 });
-        $(".form-import").trigger("reset");
-        $(".modal-import").modal("hide");
+      if (ok) {
+        swal({ title: 'Berhasil!', text: msg, icon: 'success', timer: 2000 });
+        $('#modalImportExcel').modal('hide');
         setTimeout(function () { location.reload(); }, 1500);
       } else {
-        var msg = typeof data === "string" ? data : "Import gagal.";
-        swal({ title: "Gagal!", text: msg, icon: "error", timer: 3000 });
+        swal({ title: 'Gagal!', text: msg, icon: 'error' });
       }
     },
-    complete: function () {},
+    error: function (xhr) {
+      var msg = 'Koneksi gagal.';
+      if (xhr && xhr.responseText) msg = xhr.responseText.replace(/<[^>]*>/g," ").trim().substring(0, 200);
+      swal({ title: 'Error!', text: msg, icon: 'error' });
+    },
+    complete: function () { btn.prop('disabled', false).html('<i class="fas fa-upload mr-1"></i>Import'); },
   });
 });
 

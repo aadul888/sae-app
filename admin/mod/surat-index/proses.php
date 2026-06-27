@@ -82,58 +82,48 @@ switch ($action) {
 
   // ====== IMPORT EXCEL ======
   case 'import_excel':
+    header('Content-Type: application/json');
     sx_check('modifikasi');
-    if (!isset($_FILES['file_excel']) || $_FILES['file_excel']['error'] !== 0) {
-      echo 'File tidak valid. Kode error: ' . ($_FILES['file_excel']['error'] ?? -1);
-      exit;
+    if (empty($_FILES['file_excel']['name'])) {
+      echo json_encode(['ok'=>false,'msg'=>'Pilih file Excel terlebih dahulu.']); exit;
     }
-    $file_ext = strtolower(pathinfo($_FILES['file_excel']['name'], PATHINFO_EXTENSION));
-    if ($file_ext !== 'xlsx') {
-      echo 'Format file tidak sesuai, upload file XLSX!';
-      exit;
+    if (strtolower(pathinfo($_FILES['file_excel']['name'], PATHINFO_EXTENSION)) !== 'xlsx') {
+      echo json_encode(['ok'=>false,'msg'=>'Format harus XLSX!']); exit;
     }
-    $file_tmp = $_FILES['file_excel']['tmp_name'];
-    if (!file_exists($file_tmp)) { echo 'File upload tidak ditemukan.'; exit; }
     try {
-      $spreadsheet = IOFactory::load($file_tmp);
-      $sheet = $spreadsheet->getActiveSheet();
-      $rows = $sheet->toArray();
-      $header = $rows[0] ?? [];
-      $map = ['indeks' => false, 'perihal' => false, 'kategori' => false, 'jenis surat' => false, 'jenis' => false];
-      foreach ($header as $col_idx => $col_name) {
-        $name = strtolower(trim((string)$col_name));
-        if (isset($map[$name])) $map[$name] = $col_idx;
+      $spreadsheet = IOFactory::load($_FILES['file_excel']['tmp_name']);
+      $rows = $spreadsheet->getActiveSheet()->toArray();
+      if (count($rows) < 2) {
+        echo json_encode(['ok'=>false,'msg'=>'File kosong atau hanya header.']); exit;
       }
-      if ($map['jenis surat'] === false) $map['jenis surat'] = $map['jenis'];
-      unset($map['jenis']);
-      if ($map['indeks'] === false || $map['perihal'] === false) {
-        echo 'Format kolom tidak sesuai. Header file: ' . implode(', ', $header);
-        exit;
+      $hl = array_map('strtolower', array_map('trim', $rows[0]));
+      $ci = array_search('indeks', $hl);
+      $cp = array_search('perihal', $hl);
+      $ck = array_search('kategori', $hl);
+      $cj = array_search('jenis surat', $hl);
+      if ($cj === false) $cj = array_search('jenis', $hl);
+      if ($ci === false || $cp === false) {
+        echo json_encode(['ok'=>false,'msg'=>'Header wajib: Indeks, Perihal. Ditemukan: '.implode(', ',$rows[0])]); exit;
       }
-      $sukses = 0;
-      $total_baris = count($rows);
-      for ($i = 1; $i < $total_baris; $i++) {
-        $indeks_v = trim((string)($rows[$i][$map['indeks']] ?? ''));
-        if ($indeks_v === '') continue;
-        $perihal_v = $connection->real_escape_string(trim((string)($rows[$i][$map['perihal']] ?? '')));
-        $kategori_v = ($map['kategori'] !== false) ? $connection->real_escape_string(trim((string)($rows[$i][$map['kategori']] ?? ''))) : '';
-        $jenis_v = ($map['jenis surat'] !== false) ? $connection->real_escape_string(trim((string)($rows[$i][$map['jenis surat']] ?? 'Surat Keluar'))) : 'Surat Keluar';
-        if ($jenis_v === '') $jenis_v = 'Surat Keluar';
-        $next_id = (int)$connection->query("SELECT COALESCE(MAX(id),0) FROM surat_index")->fetch_row()[0] + 1;
-        $contoh_v = sprintf('%04d/%s-SMKN1PGL', $next_id, $indeks_v);
-        $sql = "INSERT IGNORE INTO surat_index (indeks, perihal, kategori, jenis_surat, contoh_nomor) VALUES ('" . $connection->real_escape_string($indeks_v) . "', '$perihal_v', '$kategori_v', '$jenis_v', '$contoh_v')";
-        if ($connection->query($sql)) {
-          $sukses++;
-        }
+      $ok = 0;
+      for ($i = 1; $i < count($rows); $i++) {
+        $iv = trim($rows[$i][$ci] ?? '');
+        if ($iv === '') continue;
+        $pv = $connection->real_escape_string(trim($rows[$i][$cp] ?? ''));
+        $kv = $ck !== false ? $connection->real_escape_string(trim($rows[$i][$ck] ?? '')) : '';
+        $jv = $cj !== false ? $connection->real_escape_string(trim($rows[$i][$cj] ?? '')) : 'Surat Keluar';
+        if ($jv === '') $jv = 'Surat Keluar';
+        $nx = (int)$connection->query("SELECT COALESCE(MAX(id),0)+1 AS n FROM surat_index")->fetch_row()[0];
+        $ct = sprintf('%04d/%s-SMKN1PGL', $nx, $iv);
+        $sql = "INSERT INTO surat_index (indeks,perihal,kategori,jenis_surat,contoh_nomor) VALUES ('".$connection->real_escape_string($iv)."','$pv','$kv','$jv','$ct')";
+        if ($connection->query($sql)) $ok++;
       }
-      if ($sukses > 0) {
-        echo 'success';
-      } else {
-        echo 'Tidak ada data baru. Total baris di Excel: ' . ($total_baris - 1);
-      }
+      $msg = "$ok data berhasil diimport.";
+      echo json_encode(['ok'=>$ok>0, 'msg'=>$msg]);
     } catch (Exception $e) {
-      echo 'Error: ' . $e->getMessage() . ' (line ' . $e->getLine() . ')';
+      echo json_encode(['ok'=>false,'msg'=>$e->getMessage()]);
     }
+    exit;
     break;
 
   // ====== DOWNLOAD TEMPLATE EXCEL ======

@@ -10,8 +10,8 @@
   --sae-green-dark:  #047857;
   --sae-red:         #f43f5e;
   --sae-red-dark:    #dc2626;
-  --sae-orange:      #fb923c;
-  --sae-orange-dark: #d97706;
+  --sae-orange:      #f97316;
+  --sae-orange-dark: #c2410c;
   --sae-purple:      #6366f1;
   --sae-purple-dark: #4f46e5;
   --sae-teal:        #14b8a6;
@@ -2546,6 +2546,15 @@ body {
 /* Sidebar and shell spacing */
 .sidenav {
   padding-bottom: 1rem;
+}
+
+/* Warna code di modul surat lebih kontras */
+.surat-index-page code,
+.surat-keluar-page code,
+.surat-dashboard-page code,
+.surat-masuk-page code,
+.surat-arsip-page code {
+  color: #1e293b !important;
 }
 
 .sidebar-soon-link {
