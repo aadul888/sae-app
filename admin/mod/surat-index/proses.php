@@ -72,11 +72,6 @@ switch ($action) {
     sx_check('hapus');
     $id = (int)($_POST['id'] ?? 0);
     if ($id <= 0) { echo 'ID tidak valid.'; break; }
-    $q = $connection->query("SELECT format_template FROM surat_index WHERE id=$id");
-    if ($q && $r = $q->fetch_assoc()) {
-      $path = __DIR__ . '/../../../content/templates/' . $r['format_template'];
-      if (!empty($r['format_template']) && file_exists($path)) @unlink($path);
-    }
     echo $connection->query("DELETE FROM surat_index WHERE id=$id") ? 'success' : 'Gagal: ' . $connection->error;
     break;
 
@@ -154,28 +149,7 @@ switch ($action) {
     (new Xlsx($spreadsheet))->save('php://output');
     exit;
 
-  // ====== UPLOAD TEMPLATE WORD ======
-  case 'upload_template':
-    sx_check('modifikasi');
-    $indeks_id = (int)($_POST['indeks_id'] ?? 0);
-    if ($indeks_id <= 0) { echo json_encode(['status' => 'error', 'message' => 'Pilih indeks terlebih dahulu.']); exit; }
-    if (!isset($_FILES['file_template']) || $_FILES['file_template']['error'] !== 0) {
-      echo json_encode(['status' => 'error', 'message' => 'File tidak valid.']); exit;
-    }
-    $target_dir = __DIR__ . '/../../../content/templates/';
-    if (!is_dir($target_dir)) mkdir($target_dir, 0755, true);
-    $ext = strtolower(pathinfo($_FILES['file_template']['name'], PATHINFO_EXTENSION));
-    if ($ext !== 'docx') { echo json_encode(['status' => 'error', 'message' => 'Hanya file .docx yang diizinkan.']); exit; }
-    $filename = 'template_' . $indeks_id . '_' . time() . '.docx';
-    $dest = $target_dir . $filename;
-    if (!move_uploaded_file($_FILES['file_template']['tmp_name'], $dest)) {
-      echo json_encode(['status' => 'error', 'message' => 'Gagal menyimpan file.']); exit;
-    }
-    $connection->query("UPDATE surat_index SET format_template='" . $connection->real_escape_string($filename) . "' WHERE id=$indeks_id");
-    echo json_encode(['status' => 'success', 'message' => 'Template berhasil diupload untuk indeks.']);
-    break;
-
-  default:
+  // ====== EXPORT EXCEL (existing data) ======
     echo 'Aksi tidak dikenali.';
     break;
 }

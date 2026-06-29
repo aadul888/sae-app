@@ -9,126 +9,156 @@ $can_edit = (isset($data_role['modifikasi']) && $data_role['modifikasi'] == 'Y')
 $can_del  = (isset($data_role['hapus']) && $data_role['hapus'] == 'Y');
 
 $indeks_list = [];
-$r_i = $connection->query("SELECT id, indeks, perihal, kategori, contoh_nomor, format_template FROM surat_index ORDER BY indeks ASC");
+$r_i = $connection->query("SELECT id, indeks, perihal, kategori, contoh_nomor FROM surat_index ORDER BY indeks ASC");
 if ($r_i) while ($i = $r_i->fetch_assoc()) $indeks_list[] = $i;
 
-$kepsek = []; $sekolah = []; $a = '';
-$rk = $connection->query("SELECT a.fullname, a.gelar_depan, a.gelar_belakang, a.nip FROM admin a JOIN level l ON a.level_id=l.level_id WHERE l.level_nama='Kepala Sekolah' LIMIT 1");
-if ($rk && $rk->num_rows > 0) $kepsek = $rk->fetch_assoc();
-$rs = $connection->query("SELECT site_name, site_alamat, site_kelurahan, site_kecamatan, site_kota, site_phone, site_email FROM setting LIMIT 1");
-if ($rs) { $sekolah = $rs->fetch_assoc(); $a = trim(($sekolah['site_alamat']??'') . ', ' . ($sekolah['site_kelurahan']??'') . ', ' . ($sekolah['site_kecamatan']??'') . ', ' . ($sekolah['site_kota']??'')); }
-$nk = trim(($kepsek['gelar_depan']??'') . ' ' . ($kepsek['fullname']??'') . (!empty($kepsek['gelar_belakang']) ? ', ' . $kepsek['gelar_belakang'] : ''));
-$ns = $sekolah['site_name'] ?? 'SMK Negeri 1 Pagelaran';
-$ks = $sekolah['site_kota'] ?? '';
-$ts = $sekolah['site_phone'] ?? '';
-$es = $sekolah['site_email'] ?? '';
+$total_surat = 0; $total_draf = 0; $total_terkirim = 0;
+$r = $connection->query("SELECT COUNT(*) c FROM surat_keluar"); if ($r) $total_surat = (int)$r->fetch_row()[0];
+$r = $connection->query("SELECT COUNT(*) c FROM surat_keluar WHERE status='Draf'"); if ($r) $total_draf = (int)$r->fetch_row()[0];
+$r = $connection->query("SELECT COUNT(*) c FROM surat_keluar WHERE status='Terkirim'"); if ($r) $total_terkirim = (int)$r->fetch_row()[0];
 ?>
-<script src="assets/vendor/tinymce/tinymce.min.js"></script>
 <style>
-.sk-bar { background:#fff; border-bottom:1px solid #ddd; padding:8px 12px; display:flex; flex-wrap:wrap; gap:6px; align-items:end; position:sticky; top:0; z-index:99; }
-.sk-bar label { font-size:9px; font-weight:600; color:#666; text-transform:uppercase; display:block; margin:0; }
-.sk-bar select, .sk-bar input { font-size:11px; padding:3px 6px; border:1px solid #ccc; border-radius:3px; height:26px; }
-.sk-bar .sk-grp { display:flex; align-items:center; gap:6px; padding-right:10px; border-right:1px solid #eee; }
-.sk-bar .sk-grp:last-child { border-right:0; }
-.sk-info { background:#f8f9fa; border-bottom:1px solid #eee; padding:4px 12px; font-size:9.5px; color:#555; display:flex; flex-wrap:wrap; gap:2px 14px; font-family:Consolas; }
-.sk-body { background:#e8e8e8; padding:16px; display:flex; justify-content:center; min-height:500px; }
-.sk-paper { background:#fff; width:100%; max-width:794px; box-shadow:0 2px 12px rgba(0,0,0,.12); border:1px solid #bbb; }
-.sk-paper .tox-tinymce { border:0 !important; }
-.sk-foot { background:#f0f0f0; border-top:1px solid #ddd; padding:3px 12px; display:flex; justify-content:space-between; font-size:10px; color:#666; position:sticky; bottom:0; }
-.tox-fullscreen { z-index:9999 !important; }
-.sk-list { background:#fff; margin:8px 12px 0; border:1px solid #ddd; border-radius:4px; }
+/* ─── Surat Keluar — Simple Recording ─── */
+.sk-form-card .form-group { margin-bottom:12px; }
+.sk-form-card label { font-weight:600; font-size:13px; color:#344767; margin-bottom:3px; }
+.sk-form-card .row-form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+@media (max-width:640px) { .sk-form-card .row-form { grid-template-columns:1fr; } }
 </style>
 
 <div class="header bg-primary pb-4 user-page-header-compact"><div class="container-fluid"><div class="header-body"><div class="row align-items-center py-3"></div></div></div></div>
-<div class="container-fluid mt--6" style="padding:0!important">
-<div class="sk-page" style="padding:8px 0;background:#e8e8e8;min-height:100vh">
+<div class="container-fluid mt--6 user-module-page surat-keluar-page sk-container">
 
-<div class="sk-list">
-  <div style="padding:6px 10px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
-    <strong style="font-size:12px"><i class="fas fa-history mr-1"></i>Surat Keluar</strong>
-    <button class="btn btn-sm btn-outline-info btn-export-surat-keluar" style="font-size:10px;padding:2px 8px"><i class="fas fa-download"></i> Export</button>
+  <!-- Stats -->
+  <div class="row">
+    <div class="col-12">
+      <div class="card user-stats-panel module-stats-shell mb-3">
+        <div class="card-body py-2 px-2 px-md-3">
+          <div class="user-stats-wrap">
+            <div class="user-stats module-stats-grid">
+              <div class="user-stat-card module-stat-card user-stat-total">
+                <div class="info"><span class="label">Total Surat</span><span class="value"><?php echo $total_surat; ?></span></div>
+                <div class="icon"><i class="fas fa-envelope"></i></div>
+              </div>
+              <div class="user-stat-card module-stat-card user-stat-identitas">
+                <div class="info"><span class="label">Draf</span><span class="value"><?php echo $total_draf; ?></span></div>
+                <div class="icon"><i class="fas fa-pen"></i></div>
+              </div>
+              <div class="user-stat-card module-stat-card user-stat-belum-sesuai">
+                <div class="info"><span class="label">Terkirim</span><span class="value"><?php echo $total_terkirim; ?></span></div>
+                <div class="icon"><i class="fas fa-check-circle"></i></div>
+              </div>
+              <div class="user-stat-card module-stat-card user-stat-belum">
+                <div class="info"><span class="label">Template Indeks</span><span class="value"><?php echo count($indeks_list); ?></span></div>
+                <div class="icon"><i class="fas fa-list"></i></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
-  <div style="padding:0 8px 6px">
-    <table class="table align-items-center table-flush table-striped surat-keluar-table" width="100%">
-      <thead class="thead-light"><tr><th>No</th><th>No. Surat</th><th>Indeks</th><th>Perihal</th><th>Status</th><th>Aksi</th></tr></thead>
-      <tbody></tbody>
-    </table>
+
+  <!-- Daftar Surat -->
+  <div class="card user-table-panel module-table-card pb-2">
+    <div class="card-header py-3 px-3 user-table-header module-table-header">
+      <div class="user-table-head-row module-header-row" style="gap:10px;">
+        <div>
+          <h4 class="mb-1">Surat Keluar</h4>
+          <small class="text-muted">Riwayat dan daftar surat yang telah dibuat.</small>
+        </div>
+        <div class="user-toolbar-actions user-toolbar-actions-table module-header-actions">
+          <button type="button" class="btn-mod btn-mod-primary btn-baru-surat" title="Buat Surat Baru"><i class="fas fa-plus"></i></button>
+          <button type="button" class="btn-mod btn-mod-info btn-export-surat-keluar" title="Export Excel"><i class="fas fa-download"></i></button>
+          <a href="./surat" class="btn-mod btn-mod-secondary" title="Kembali"><i class="fas fa-arrow-left"></i></a>
+        </div>
+      </div>
+    </div>
+    <div class="card-body pt-3">
+      <div class="table-responsive">
+        <table class="table align-items-center table-flush table-striped surat-keluar-table" width="100%">
+          <thead class="thead-light">
+            <tr><th class="text-center">No</th><th>No. Surat</th><th>Indeks</th><th>Perihal</th><th>Tujuan</th><th>Tanggal</th><th>Status</th><th class="text-center">Aksi</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Form Pencatatan Surat -->
+  <div class="card user-table-panel module-table-card sk-form-card pb-0 mb-3">
+    <div class="card-header py-3 px-3 user-table-header module-table-header">
+      <div class="user-table-head-row module-header-row" style="gap:10px;">
+        <div>
+          <h4 class="mb-1"><span id="frmTitle">Catat Surat Baru</span></h4>
+          <small class="text-muted">Pencatatan dan penomoran surat keluar.</small>
+        </div>
+        <div class="user-toolbar-actions user-toolbar-actions-table module-header-actions">
+          <span id="fStatusBadge" class="badge badge-warning mr-2 d-none">Draf</span>
+        </div>
+      </div>
+    </div>
+
+    <form id="formSurat" method="post">
+      <input type="hidden" name="id" id="fId" value="0">
+      <input type="hidden" name="no_surat" id="fNoSurat">
+      <input type="hidden" name="lampiran" id="fLampiran">
+      <input type="hidden" name="status" id="fStatus" value="Draf">
+
+      <div class="card-body">
+        <div class="row-form">
+          <div class="form-group">
+            <label>Indeks Surat</label>
+            <select name="indeks_id" id="fIndeks" class="form-control" required>
+              <option value="">— Pilih —</option>
+              <?php foreach ($indeks_list as $ix): ?>
+              <option value="<?php echo $ix['id']; ?>" data-indeks="<?php echo htmlspecialchars($ix['indeks']); ?>">
+                <?php echo htmlspecialchars($ix['indeks'] . ' — ' . $ix['perihal']); ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Nomor Surat</label>
+            <div class="input-group">
+              <input type="text" id="fNoSuratDisplay" class="form-control" readonly placeholder="Otomatis">
+              <div class="input-group-append">
+                <button type="button" class="btn btn-info btn-gen-nomor" title="Generate Nomor"><i class="fas fa-sync-alt"></i></button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Tanggal Surat</label>
+            <input type="date" name="tgl_surat" id="fTglSurat" class="form-control" value="<?php echo date('Y-m-d'); ?>">
+          </div>
+          <div class="form-group">
+            <label>Perihal</label>
+            <input type="text" name="perihal" id="fPerihal" class="form-control" placeholder="Perihal surat" required>
+          </div>
+          <div class="form-group">
+            <label>Tujuan / Penerima</label>
+            <input type="text" name="tujuan" id="fTujuan" class="form-control" placeholder="Nama instansi / penerima">
+          </div>
+          <div class="form-group">
+            <label>Lampiran</label>
+            <input type="text" id="fLampiranDisplay" class="form-control" placeholder="-">
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>Isi Surat (opsional — catatan saja)</label>
+            <textarea name="isi_surat" id="fIsiSurat" class="form-control" rows="4" placeholder="Catatan isi surat jika diperlukan..."></textarea>
+          </div>
+          <div class="form-group" style="grid-column:1/-1; text-align:right;">
+            <?php if ($can_edit): ?>
+            <button type="submit" class="btn btn-primary" id="btnSimpan"><i class="fas fa-save mr-1"></i> Simpan</button>
+            <button type="button" class="btn btn-secondary btn-batal" id="btnBatal"><i class="fas fa-times mr-1"></i> Batal</button>
+            <?php endif; ?>
+          </div>
+        </div>
+      </div>
+    </form>
   </div>
 </div>
 
-<div class="sk-list" style="margin-top:8px">
-  <div style="padding:6px 10px;border-bottom:1px solid #eee"><strong style="font-size:12px"><i class="fas fa-file-alt mr-1"></i>Buat Surat</strong></div>
-  <form id="formBuatSurat" method="post">
-    <input type="hidden" name="action" value="buat">
-    <input type="hidden" name="no_surat" id="fNoSurat">
-
-    <div class="sk-bar">
-      <div class="sk-grp">
-        <div><label>Indeks</label>
-          <select name="indeks_id" id="slcIndeks" style="min-width:180px" required>
-            <option value="">-- Cari --</option>
-            <?php foreach ($indeks_list as $ix): ?>
-            <option value="<?php echo $ix['id']; ?>"
-              data-indeks="<?php echo htmlspecialchars($ix['indeks']); ?>"
-              data-perihal="<?php echo htmlspecialchars($ix['perihal']); ?>"
-              data-kategori="<?php echo htmlspecialchars($ix['kategori']); ?>"
-              data-template="<?php echo htmlspecialchars($ix['format_template'] ?? ''); ?>">
-              <?php echo htmlspecialchars($ix['indeks'] . ' — ' . $ix['perihal']); ?>
-            </option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-      </div>
-      <div class="sk-grp">
-        <div><label>Kategori</label><input id="fKategori" readonly style="width:100px" value="Surat Keluar"></div>
-        <div><label>No. Surat</label><input id="fNoSuratDisplay" readonly style="width:150px;font-family:monospace;font-size:10px" placeholder="Otomatis"></div>
-      </div>
-      <div class="sk-grp">
-        <div><label>Tanggal</label><input type="date" name="tgl_surat" value="<?php echo date('Y-m-d'); ?>" style="width:110px"></div>
-        <div><label>Tujuan</label><input name="tujuan" placeholder="Instansi" style="width:120px"></div>
-      </div>
-      <div class="sk-grp" style="border:0">
-        <button type="submit" class="btn btn-primary btn-sm" style="font-size:11px"><i class="fas fa-download mr-1"></i>Simpan</button>
-        <a href="./surat" class="btn btn-sm btn-outline-secondary" style="font-size:10px;padding:3px 6px"><i class="fas fa-arrow-left"></i></a>
-      </div>
-    </div>
-
-    <div class="sk-info">
-      <span><code>{{kepala_sekolah}}</code> <?php echo htmlspecialchars($nk); ?></span>
-      <span><code>{{nip_kepsek}}</code> <?php echo htmlspecialchars($kepsek['nip']??'-'); ?></span>
-      <span><code>{{nama_sekolah}}</code> <?php echo htmlspecialchars($ns); ?></span>
-      <span><code>{{alamat}}</code> <?php echo htmlspecialchars($a); ?></span>
-    </div>
-
-    <div class="sk-body">
-      <div class="sk-paper">
-        <div id="skPlaceholder" style="padding:80px 40px;text-align:center;color:#bbb">
-          <i class="fas fa-file-alt fa-4x mb-2 d-block"></i>
-          <h5 style="color:#aaa">Pilih Indeks Surat</h5>
-        </div>
-        <div id="skEditorWrap" style="display:none">
-          <textarea name="isi_surat" id="fIsiSurat"></textarea>
-        </div>
-      </div>
-    </div>
-
-    <div class="sk-foot">
-      <span>Surat Keluar <?php echo htmlspecialchars($ns); ?></span>
-      <span id="skWordCount">0 kata</span>
-    </div>
-  </form>
-</div>
-
-</div></div>
 <script>
-window.SK = {
-  nk: <?php echo json_encode($nk); ?>,
-  nip: <?php echo json_encode($kepsek['nip']??''); ?>,
-  ns: <?php echo json_encode($ns); ?>,
-  a: <?php echo json_encode($a); ?>,
-  ks: <?php echo json_encode($ks); ?>,
-  ts: <?php echo json_encode($ts); ?>,
-  es: <?php echo json_encode($es); ?>,
-  noSurat: '', perihal: '', tujuan: '.........................'
-};
+var SK_CAN_EDIT = <?php echo $can_edit ? 'true' : 'false'; ?>;
 </script>

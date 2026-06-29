@@ -19,12 +19,6 @@ function sk_check($type) {
   if (!isset($data_role[$type]) || $data_role[$type] !== 'Y') { echo 'Akses ditolak.'; exit; }
 }
 
-$sekolah = []; $kepsek = []; $alamat_sekolah = '';
-$rs = $connection->query("SELECT site_name, site_alamat, site_kelurahan, site_kecamatan, site_kota FROM setting LIMIT 1");
-if ($rs) { $sekolah = $rs->fetch_assoc(); $alamat_sekolah = trim(($sekolah['site_alamat']??'') . ', ' . ($sekolah['site_kelurahan']??'') . ', ' . ($sekolah['site_kecamatan']??'') . ', ' . ($sekolah['site_kota']??'')); }
-$rk = $connection->query("SELECT a.fullname, a.gelar_depan, a.gelar_belakang, a.nip FROM admin a JOIN level l ON a.level_id=l.level_id WHERE l.level_nama='Kepala Sekolah' LIMIT 1");
-if ($rk && $rk->num_rows > 0) $kepsek = $rk->fetch_assoc();
-
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
 
 switch ($action) {
@@ -36,8 +30,11 @@ switch ($action) {
     if ($q) {
       $no = 1;
       while ($sk = $q->fetch_assoc()) {
-        $badge = $sk['status'] === 'Terkirim' ? 'success' : 'secondary';
+        $badge = $sk['status'] === 'Terkirim' ? 'success' : ($sk['status'] === 'Draf' ? 'warning' : 'secondary');
+        $can_edit = (isset($data_role['modifikasi']) && $data_role['modifikasi'] == 'Y');
         $del = (isset($data_role['hapus']) && $data_role['hapus'] == 'Y') ? '<button class="table-action table-action-danger btn-delete-keluar" data-id="' . $sk['id'] . '" title="Hapus"><i class="fas fa-trash"></i></button>' : '';
+        $editBtn = $can_edit ? '<button class="table-action table-action-primary btn-edit-surat" data-id="' . $sk['id'] . '" title="Edit"><i class="fas fa-edit"></i></button>' : '';
+        $kirimBtn = ($can_edit && $sk['status'] === 'Draf') ? '<button class="table-action table-action-info btn-kirim-surat" data-id="' . $sk['id'] . '" title="Tandai Terkirim"><i class="fas fa-check"></i></button>' : '';
         $data[] = [
           '<td class="text-center">' . $no++ . '</td>',
           '<td><code>' . htmlspecialchars($sk['no_surat']) . '</code></td>',
@@ -46,7 +43,7 @@ switch ($action) {
           '<td>' . htmlspecialchars(mb_substr($sk['tujuan'], 0, 30)) . '</td>',
           '<td><small>' . date('d/m/Y', strtotime($sk['tgl_surat'] ?? $sk['created_at'])) . '</small></td>',
           '<td><span class="badge badge-' . $badge . '">' . htmlspecialchars($sk['status']) . '</span></td>',
-          '<td class="text-center"><button class="table-action table-action-warning btn-cetak-surat" data-id="' . $sk['id'] . '" title="Cetak"><i class="fas fa-print"></i></button> <a href="./mod/surat-keluar/proses.php?action=download&id=' . $sk['id'] . '" class="table-action table-action-success" title="Download"><i class="fas fa-file-word"></i></a> ' . $del . '</td>'
+          '<td class="text-center">' . $editBtn . ' ' . $kirimBtn . ' ' . $del . '</td>'
         ];
       }
     }
@@ -63,28 +60,47 @@ switch ($action) {
     echo sprintf('%04d/%s-SMKN1PGL', $next, strtoupper($indeks));
     break;
 
-  case 'load_template':
-    $file = preg_replace('/[^a-zA-Z0-9_.-]/', '', $_GET['file'] ?? '');
-    $path = __DIR__ . '/../../../content/templates/' . $file;
-    if (empty($file) || !file_exists($path)) { echo ''; exit; }
-    try {
-      $phpword = \PhpOffice\PhpWord\IOFactory::load($path);
-      $html = '';
-      foreach ($phpword->getSections() as $section) {
-        foreach ($section->getElements() as $elem) {
-          if (method_exists($elem, 'getText')) {
-            $html .= '<p>' . htmlspecialchars($elem->getText()) . '</p>';
-          } elseif ($elem instanceof \PhpOffice\PhpWord\Element\TextRun) {
-            $line = '';
-            foreach ($elem->getElements() as $te) {
-              if (method_exists($te, 'getText')) $line .= htmlspecialchars($te->getText());
-            }
-            if (trim($line)) $html .= '<p>' . $line . '</p>';
-          }
-        }
-      }
-      echo $html;
-    } catch (Exception $e) { echo ''; }
+  case 'load_surat':
+    $id = (int)($_GET['id'] ?? 0);
+    if ($id <= 0) { echo json_encode(['status'=>'error','message'=>'ID tidak valid']); exit; }
+    $q = $connection->query("SELECT sk.*, si.indeks, si.perihal AS ix_perihal FROM surat_keluar sk LEFT JOIN surat_index si ON sk.indeks_id=si.id WHERE sk.id=$id LIMIT 1");
+    if (!$q || !($sk = $q->fetch_assoc())) { echo json_encode(['status'=>'error','message'=>'Surat tidak ditemukan']); exit; }
+    echo json_encode(['status'=>'success','data'=>$sk]);
+    exit;
+    break;
+
+  case 'update_surat':
+    sk_check('modifikasi');
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id <= 0) { echo json_encode(['status'=>'error','message'=>'ID tidak valid']); exit; }
+    $indeks_id = (int)($_POST['indeks_id'] ?? 0);
+    $no_surat = $connection->real_escape_string($_POST['no_surat'] ?? '');
+    $perihal = $connection->real_escape_string($_POST['perihal'] ?? '');
+    $tujuan = $connection->real_escape_string($_POST['tujuan'] ?? '');
+    $tgl_surat = !empty($_POST['tgl_surat']) ? $_POST['tgl_surat'] : date('Y-m-d');
+    $lampiran = $connection->real_escape_string($_POST['lampiran'] ?? '');
+    $isi_surat = $connection->real_escape_string($_POST['isi_surat'] ?? '');
+    $status = $connection->real_escape_string($_POST['status'] ?? 'Draf');
+    $u = $connection->prepare("UPDATE surat_keluar SET indeks_id=?, no_surat=?, tgl_surat=?, perihal=?, tujuan=?, lampiran=?, isi_surat=?, status=? WHERE id=?");
+    $u->bind_param('isssssssi', $indeks_id, $no_surat, $tgl_surat, $perihal, $tujuan, $lampiran, $isi_surat, $status, $id);
+    if (!$u->execute()) {
+      echo json_encode(['status'=>'error','message'=>'Gagal: '.$connection->error]);
+      $u->close(); exit;
+    }
+    $u->close();
+    echo json_encode(['status'=>'success','message'=>'Surat diperbarui','id'=>$id]);
+    exit;
+    break;
+
+
+
+  case 'kirim':
+    sk_check('modifikasi');
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id <= 0) { echo 'ID tidak valid.'; exit; }
+    $connection->query("UPDATE surat_keluar SET status='Terkirim' WHERE id=$id");
+    echo $connection->affected_rows > 0 ? 'success' : 'Gagal.';
+    exit;
     break;
 
   case 'buat':
@@ -96,50 +112,21 @@ switch ($action) {
     $tgl_surat = !empty($_POST['tgl_surat']) ? $_POST['tgl_surat'] : date('Y-m-d');
     $lampiran = $connection->real_escape_string($_POST['lampiran'] ?? '');
     $isi_surat = $connection->real_escape_string($_POST['isi_surat'] ?? '');
-    $file_template = null;
     if ($indeks_id <= 0 || empty($no_surat) || empty($perihal)) {
       echo json_encode(['status' => 'error', 'message' => 'Lengkapi data.']); exit;
     }
-    $q = $connection->query("SELECT format_template FROM surat_index WHERE id=$indeks_id");
-    if ($q && $r = $q->fetch_assoc()) $file_template = $r['format_template'];
-    $s = $connection->prepare("INSERT INTO surat_keluar (indeks_id, no_surat, tgl_surat, perihal, tujuan, lampiran, isi_surat, template_path, created_by, status) VALUES (?,?,?,?,?,?,?,?,'1','Draf')");
-    $s->bind_param('isssssss', $indeks_id, $no_surat, $tgl_surat, $perihal, $tujuan, $lampiran, $isi_surat, $file_template);
+    $s = $connection->prepare("INSERT INTO surat_keluar (indeks_id, no_surat, tgl_surat, perihal, tujuan, lampiran, isi_surat, created_by, status) VALUES (?,?,?,?,?,?,?,'1','Draf')");
+    $s->bind_param('issssss', $indeks_id, $no_surat, $tgl_surat, $perihal, $tujuan, $lampiran, $isi_surat);
     if (!$s->execute()) {
       echo json_encode(['status' => 'error', 'message' => 'Gagal: ' . $connection->error]);
       $s->close(); exit;
     }
     $surat_id = $connection->insert_id;
     $s->close();
-    echo json_encode(['status' => 'success', 'download_url' => './mod/surat-keluar/proses.php?action=download&id=' . $surat_id]);
+    echo json_encode(['status' => 'success', 'id' => $surat_id]);
     break;
 
-  case 'download':
-    $id = (int)($_GET['id'] ?? 0);
-    if ($id <= 0) exit;
-    $q = $connection->query("SELECT sk.*, si.indeks, si.format_template FROM surat_keluar sk LEFT JOIN surat_index si ON sk.indeks_id=si.id WHERE sk.id=$id LIMIT 1");
-    if (!$q || !($sk = $q->fetch_assoc())) { http_response_code(404); exit; }
-    $templatePath = null;
-    if (!empty($sk['format_template'])) {
-      $tp = __DIR__ . '/../../../content/templates/' . $sk['format_template'];
-      if (file_exists($tp)) $templatePath = $tp;
-    }
-    try {
-      $phpword = $templatePath ? \PhpOffice\PhpWord\IOFactory::load($templatePath) : new \PhpOffice\PhpWord\PhpWord();
-      $vars = [
-        'no_surat' => $sk['no_surat'], 'perihal' => $sk['perihal'], 'tujuan' => $sk['tujuan'],
-        'tgl_surat' => date('d F Y', strtotime($sk['tgl_surat'] ?? $sk['created_at'])),
-        'tanggal' => date('d F Y'), 'bulan' => date('F'), 'tahun' => date('Y'),
-        'nama_sekolah' => $sekolah['site_name'] ?? 'SMK Negeri 1 Pagelaran',
-        'alamat_sekolah' => $alamat_sekolah,
-        'kepala_sekolah' => ($kepsek['gelar_depan']??'') . ' ' . ($kepsek['fullname']??'') . ($kepsek['gelar_belakang'] ? ', ' . $kepsek['gelar_belakang'] : ''),
-        'nip_kepsek' => $kepsek['nip'] ?? '',
-      ];
-      $phpword = sk_replace_placeholders($phpword, $vars);
-      header('Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-      header('Content-Disposition: attachment; filename="Surat_' . $sk['no_surat'] . '.docx"');
-      \PhpOffice\PhpWord\IOFactory::createWriter($phpword, 'Word2007')->save('php://output');
-    } catch (Exception $e) { echo 'Error: ' . $e->getMessage(); }
-    exit;
+
 
   case 'delete':
     sk_check('hapus');
@@ -165,21 +152,4 @@ switch ($action) {
   default:
     echo 'Aksi tidak dikenali.';
     break;
-}
-
-function sk_replace_placeholders($phpword, $vars) {
-  foreach ($phpword->getSections() as $section) {
-    foreach ($section->getElements() as $element) {
-      if ($element instanceof \PhpOffice\PhpWord\Element\TextRun) {
-        foreach ($element->getElements() as $textElement) {
-          if ($textElement instanceof \PhpOffice\PhpWord\Element\Text) {
-            $text = $textElement->getText();
-            foreach ($vars as $key => $val) $text = str_replace('{{' . $key . '}}', $val, $text);
-            $textElement->setText($text);
-          }
-        }
-      }
-    }
-  }
-  return $phpword;
 }

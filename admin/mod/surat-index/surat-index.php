@@ -2,7 +2,7 @@
 /**
  * MODUL: SURAT INDEX — Referensi Indeks & Penomoran Surat
  * Data disimpan di tabel surat_index.
- * Fitur: CRUD, Import Excel, Upload Template Word.
+ * Fitur: CRUD, Import Excel.
  */
 if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
   header('location:./login'); exit;
@@ -39,6 +39,23 @@ if (!in_array('Surat Masuk', $jenis_list)) $jenis_list[] = 'Surat Masuk';
 .surat-index-page .badge { font-weight: 600; font-size:0.8rem; }
 .surat-index-page .user-stat-card .label { font-weight: 600; text-transform:uppercase; }
 .surat-index-page .table tbody td { vertical-align: middle; }
+/* Fix button default border/background on table-action buttons */
+.surat-index-page .table-action,
+.surat-index-page button.table-action {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  outline: none;
+  box-shadow: none;
+}
+.surat-index-page .table-action:focus,
+.surat-index-page button.table-action:focus {
+  outline: none;
+  box-shadow: none;
+}
+/* Add missing teal variant */
+.surat-index-page .table-action-teal:hover { color: #14b8a6; }
 </style>
 <div class="header bg-primary pb-4 user-page-header-compact"><div class="container-fluid"><div class="header-body"><div class="row align-items-center py-3"></div></div></div></div>
 <div class="container-fluid mt--6 user-module-page surat-index-page">
@@ -71,7 +88,6 @@ if (!in_array('Surat Masuk', $jenis_list)) $jenis_list[] = 'Surat Masuk';
           <?php if ($can_edit): ?>
           <button type="button" class="btn-mod btn-mod-add" data-toggle="modal" data-target="#modalIndex" title="Tambah"><i class="fas fa-plus"></i></button>
           <button type="button" class="btn-mod btn-mod-teal" data-toggle="modal" data-target="#modalImportExcel" title="Import Excel"><i class="fas fa-file-excel"></i></button>
-          <button type="button" class="btn-mod btn-mod-warn" data-toggle="modal" data-target="#modalUploadTemplate" title="Upload Template Word"><i class="fas fa-file-word"></i></button>
           <?php endif; ?>
           <button type="button" class="btn-mod btn-mod-info btn-export-index" title="Export Excel"><i class="fas fa-download"></i></button>
         </div>
@@ -85,7 +101,7 @@ if (!in_array('Surat Masuk', $jenis_list)) $jenis_list[] = 'Surat Masuk';
       <div class="table-responsive">
         <table class="table align-items-center table-flush table-striped" id="tableSuratIndex" width="100%">
           <thead class="thead-light">
-            <tr><th class="text-center" style="width:10px">No</th><th>Indeks</th><th>Perihal</th><th>Kategori</th><th>Jenis Surat</th><th>Contoh Nomor</th><th>Template</th><th class="text-center" style="width:110px">Aksi</th></tr>
+            <tr><th class="text-center" style="width:10px">No</th><th>Indeks</th><th>Perihal</th><th>Kategori</th><th>Jenis Surat</th><th>Contoh Nomor</th><th class="text-center" style="width:110px">Aksi</th></tr>
           </thead>
           <tbody>
             <?php
@@ -93,7 +109,6 @@ if (!in_array('Surat Masuk', $jenis_list)) $jenis_list[] = 'Surat Masuk';
             $no = 1;
             if ($r && $r->num_rows > 0) {
               while ($row = $r->fetch_assoc()) {
-                $has_template = !empty($row['format_template']);
             ?>
             <tr>
               <td class="text-center"><?php echo $no++; ?></td>
@@ -102,7 +117,6 @@ if (!in_array('Surat Masuk', $jenis_list)) $jenis_list[] = 'Surat Masuk';
               <td><span class="badge badge-primary"><?php echo htmlspecialchars($row['kategori']); ?></span></td>
               <td><span class="badge badge-<?php echo $row['jenis_surat'] === 'Surat Masuk' ? 'success' : 'info'; ?>"><?php echo htmlspecialchars($row['jenis_surat']); ?></span></td>
               <td class="text-nowrap"><code><?php echo htmlspecialchars($row['contoh_nomor']); ?></code></td>
-              <td class="text-center"><?php echo $has_template ? '<span class="text-success"><i class="fas fa-check-circle"></i></span>' : '<span class="text-muted">-</span>'; ?></td>
               <td class="text-center">
                 <button class="table-action table-action-warning btn-edit-index" data-id="<?php echo $row['id']; ?>" title="Edit" data-toggle="tooltip"><i class="fas fa-edit"></i></button>
                 <?php if ($can_del): ?>
@@ -110,7 +124,7 @@ if (!in_array('Surat Masuk', $jenis_list)) $jenis_list[] = 'Surat Masuk';
                 <?php endif; ?>
               </td>
             </tr>
-            <?php } } else { echo '<tr class="dt-empty"><td colspan="8" class="text-center text-muted py-4"><i class="fas fa-inbox mr-1"></i>Belum ada data referensi.</td></tr>'; } ?>
+            <?php } } else { echo '<tr class="dt-empty"><td colspan="7" class="text-center text-muted py-4"><i class="fas fa-inbox mr-1"></i>Belum ada data referensi.</td></tr>'; } ?>
           </tbody>
         </table>
       </div>
@@ -172,27 +186,8 @@ if (!in_array('Surat Masuk', $jenis_list)) $jenis_list[] = 'Surat Masuk';
   </div></div>
 </div>
 
-<!-- Modal Upload Template Word -->
-<div class="modal fade" id="modalUploadTemplate" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog" role="document"><div class="modal-content">
-    <div class="modal-header bg-warning"><h5 class="modal-title text-white"><i class="fas fa-file-word mr-2"></i>Upload Template Word</h5><button type="button" class="close text-white" data-dismiss="modal"><span>&times;</span></button></div>
-    <form id="formUploadTemplate" enctype="multipart/form-data" method="post">
-      <input type="hidden" name="action" value="upload_template">
-      <div class="modal-body">
-        <div class="alert alert-warning">Upload .docx template. Placeholder: <code>{{kepala_sekolah}}</code>, <code>{{nama_sekolah}}</code>, <code>{{alamat_sekolah}}</code>, <code>{{tanggal}}</code>, <code>{{perihal}}</code>, <code>{{no_surat}}</code>.</div>
-        <div class="form-group"><label class="font-weight-bold">Indeks Tujuan</label>
-          <select class="form-control" name="indeks_id" required>
-            <option value="">-- Pilih indeks --</option>
-            <?php $r_i = $connection->query("SELECT id, indeks, perihal FROM surat_index ORDER BY indeks ASC"); if ($r_i) while ($i = $r_i->fetch_assoc()) echo '<option value="'.$i['id'].'">'.htmlspecialchars($i['indeks'].' — '.$i['perihal']).'</option>'; ?>
-          </select>
-        </div>
-        <div class="form-group"><label class="font-weight-bold">File Template (.docx)</label><input type="file" class="form-control" name="file_template" accept=".docx" required></div>
-      </div>
-      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button><button type="submit" class="btn btn-warning"><i class="fas fa-upload mr-1"></i>Upload</button></div>
-    </form>
-  </div></div>
-</div>
-
 <?php if ($can_edit): ?>
 <script>var suratIndexCanEdit = true;</script>
 <?php endif; ?>
+
+
