@@ -1,6 +1,8 @@
 "use strict";
 
 var tableSuratIndex = null;
+var tableKategori = null;
+var tableJenis = null;
 
 function initTableSuratIndex() {
   if ($.fn.DataTable && $("#tableSuratIndex").length) {
@@ -43,9 +45,91 @@ function initTableSuratIndex() {
   }
 }
 
+function initTableKategori() {
+  if ($.fn.DataTable && $("#tableKategori").length) {
+    if ($.fn.DataTable.isDataTable("#tableKategori")) {
+      $("#tableKategori").DataTable().destroy();
+    }
+    tableKategori = $("#tableKategori").DataTable({
+      paging: true,
+      bAutoWidth: false,
+      bSort: true,
+      iDisplayLength: 25,
+      order: [[0, "asc"]],
+      aLengthMenu: [
+        [25, 30, 50, -1],
+        [25, 30, 50, "All"],
+      ],
+      language: {
+        search: "Cari:",
+        lengthMenu: "Tampilkan _MENU_",
+        info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
+        infoEmpty: "Tidak ada data",
+        infoFiltered: "(difilter dari _MAX_ total)",
+        paginate: {
+          previous: '<i class="fas fa-angle-left">',
+          next: '<i class="fas fa-angle-right">',
+        },
+      },
+      columnDefs: [
+        { orderable: false, targets: [3] },
+        { searchable: false, targets: [0, 3] },
+      ],
+    });
+  }
+}
+
+function initTableJenis() {
+  if ($.fn.DataTable && $("#tableJenis").length) {
+    if ($.fn.DataTable.isDataTable("#tableJenis")) {
+      $("#tableJenis").DataTable().destroy();
+    }
+    tableJenis = $("#tableJenis").DataTable({
+      paging: true,
+      bAutoWidth: false,
+      bSort: true,
+      iDisplayLength: 25,
+      order: [[0, "asc"]],
+      aLengthMenu: [
+        [25, 30, 50, -1],
+        [25, 30, 50, "All"],
+      ],
+      language: {
+        search: "Cari:",
+        lengthMenu: "Tampilkan _MENU_",
+        info: "Menampilkan _START_ sampai _END_ dari _TOTAL_ data",
+        infoEmpty: "Tidak ada data",
+        infoFiltered: "(difilter dari _MAX_ total)",
+        paginate: {
+          previous: '<i class="fas fa-angle-left">',
+          next: '<i class="fas fa-angle-right">',
+        },
+      },
+      columnDefs: [
+        { orderable: false, targets: [3] },
+        { searchable: false, targets: [0, 3] },
+      ],
+    });
+  }
+}
+
+/* ====== Reload DataTables after tab visibility ====== */
 $(function () {
   initTableSuratIndex();
-  $('[data-toggle="tooltip"]').tooltip();
+  initTableKategori();
+  initTableJenis();
+
+  // Adjust columns when tab shown (hidden tables need layout recalc)
+  $('a[data-toggle="tab"]').on("shown.bs.tab", function (e) {
+    var target = $(e.target).attr("href");
+    if (target === "#tab-kategori" && tableKategori) {
+      tableKategori.columns.adjust().draw();
+    } else if (target === "#tab-jenis" && tableJenis) {
+      tableJenis.columns.adjust().draw();
+    } else if (target === "#tab-referensi" && tableSuratIndex) {
+      tableSuratIndex.columns.adjust().draw();
+    }
+  });
 });
 
 /* ====== Copy Index ====== */
@@ -55,35 +139,298 @@ $(document).on("click", ".btn-copy-index", function () {
   swal({ title: "Disalin!", text: val, icon: "success", timer: 1200 });
 });
 
-/* ====== TAMBAH KATEGORI BARU ====== */
+/* =================================================================
+ * KATEGORI CRUD
+ * ================================================================= */
+
+/* ----- TAMBAH KATEGORI (dari tombol + di form indeks) ----- */
 $(document).on("click", ".btn-add-kategori", function () {
-  var v = prompt("Masukkan nama kategori baru:");
-  if (v === null || v.trim() === "") return;
+  $("#f_kategori_id").val(0);
+  $("#f_nama_kategori").val("");
+  $("#modalKategoriTitle").html(
+    '<i class="fas fa-tag mr-2"></i>Tambah Kategori',
+  );
+  $("#modalKategori").modal("show");
+  setTimeout(function () {
+    $("#f_nama_kategori").focus();
+  }, 300);
+});
+
+/* ----- SIMPAN KATEGORI (add / update) ----- */
+$(document).on("click", "#btnSimpanKategori", function () {
+  var id = parseInt($("#f_kategori_id").val()) || 0;
+  var v = $("#f_nama_kategori").val();
+  if (v === null || v.trim() === "") {
+    swal({
+      title: "Peringatan",
+      text: "Nama kategori tidak boleh kosong.",
+      icon: "warning",
+    });
+    return;
+  }
   v = v.trim();
-  $("<option>").val(v).text(v).appendTo("#f_kategori");
-  $("#f_kategori").val(v);
+  var action = id > 0 ? "kategori_update" : "kategori_add";
+  $.post(
+    "./mod/surat-index/proses.php?action=" + action,
+    { id: id, nama: v },
+    function (res) {
+      try {
+        var d = typeof res === "object" ? res : JSON.parse(res);
+        if (d.status === "success") {
+          swal({
+            title: "Berhasil!",
+            text: "Kategori tersimpan.",
+            icon: "success",
+            timer: 1200,
+          });
+          $("#modalKategori").modal("hide");
+          reloadKategoriDropdown();
+          location.reload();
+        } else {
+          swal({
+            title: "Gagal!",
+            text: d.message || "Gagal menyimpan.",
+            icon: "error",
+          });
+        }
+      } catch (e) {
+        swal({
+          title: "Error!",
+          text: "Gagal memproses respons.",
+          icon: "error",
+        });
+      }
+    },
+  );
+});
+
+/* ----- EDIT KATEGORI ----- */
+$(document).on("click", ".btn-edit-kategori", function () {
+  var id = $(this).data("id");
+  var nama = $(this).data("nama");
+  $("#f_kategori_id").val(id);
+  $("#f_nama_kategori").val(nama);
+  $("#modalKategoriTitle").html(
+    '<i class="fas fa-edit mr-2"></i>Edit Kategori',
+  );
+  $("#modalKategori").modal("show");
+  setTimeout(function () {
+    $("#f_nama_kategori").focus();
+  }, 300);
+});
+
+/* ----- HAPUS KATEGORI ----- */
+$(document).on("click", ".btn-delete-kategori", function () {
+  var id = $(this).data("id");
   swal({
-    title: "Berhasil!",
-    text: 'Kategori "' + v + '" ditambahkan.',
-    type: "success",
-    timer: 1200,
+    title: "Hapus Kategori?",
+    text: "Data akan dihapus permanen.",
+    icon: "warning",
+    buttons: ["Batal", "Ya, Hapus!"],
+    dangerMode: true,
+  }).then(function (confirm) {
+    if (!confirm) return;
+    $.post(
+      "./mod/surat-index/proses.php?action=kategori_delete",
+      { id: id },
+      function (res) {
+        try {
+          var d = typeof res === "object" ? res : JSON.parse(res);
+          if (d.status === "success") {
+            swal({
+              title: "Berhasil!",
+              text: "Kategori dihapus.",
+              icon: "success",
+              timer: 1200,
+            });
+            reloadKategoriDropdown();
+            location.reload();
+          } else {
+            swal({
+              title: "Gagal!",
+              text: d.message || "Gagal menghapus.",
+              icon: "error",
+            });
+          }
+        } catch (e) {
+          swal({
+            title: "Error!",
+            text: "Gagal memproses respons.",
+            icon: "error",
+          });
+        }
+      },
+    );
   });
 });
 
-/* ====== TAMBAH JENIS SURAT BARU ====== */
+/* =================================================================
+ * JENIS SURAT CRUD
+ * ================================================================= */
+
+/* ----- TAMBAH JENIS (dari tombol + di form indeks) ----- */
 $(document).on("click", ".btn-add-jenis", function () {
-  var v = prompt("Masukkan jenis surat baru:");
-  if (v === null || v.trim() === "") return;
+  $("#f_jenis_id").val(0);
+  $("#f_nama_jenis").val("");
+  $("#modalJenisTitle").html(
+    '<i class="fas fa-envelope mr-2"></i>Tambah Jenis Surat',
+  );
+  $("#modalJenis").modal("show");
+  setTimeout(function () {
+    $("#f_nama_jenis").focus();
+  }, 300);
+});
+
+/* ----- SIMPAN JENIS ----- */
+$(document).on("click", "#btnSimpanJenis", function () {
+  var id = parseInt($("#f_jenis_id").val()) || 0;
+  var v = $("#f_nama_jenis").val();
+  if (v === null || v.trim() === "") {
+    swal({
+      title: "Peringatan",
+      text: "Nama jenis surat tidak boleh kosong.",
+      icon: "warning",
+    });
+    return;
+  }
   v = v.trim();
-  $("<option>").val(v).text(v).appendTo("#f_jenis");
-  $("#f_jenis").val(v);
+  var action = id > 0 ? "jenis_update" : "jenis_add";
+  $.post(
+    "./mod/surat-index/proses.php?action=" + action,
+    { id: id, nama: v },
+    function (res) {
+      try {
+        var d = typeof res === "object" ? res : JSON.parse(res);
+        if (d.status === "success") {
+          swal({
+            title: "Berhasil!",
+            text: "Jenis surat tersimpan.",
+            icon: "success",
+            timer: 1200,
+          });
+          $("#modalJenis").modal("hide");
+          reloadJenisDropdown();
+          location.reload();
+        } else {
+          swal({
+            title: "Gagal!",
+            text: d.message || "Gagal menyimpan.",
+            icon: "error",
+          });
+        }
+      } catch (e) {
+        swal({
+          title: "Error!",
+          text: "Gagal memproses respons.",
+          icon: "error",
+        });
+      }
+    },
+  );
+});
+
+/* ----- EDIT JENIS ----- */
+$(document).on("click", ".btn-edit-jenis", function () {
+  var id = $(this).data("id");
+  var nama = $(this).data("nama");
+  $("#f_jenis_id").val(id);
+  $("#f_nama_jenis").val(nama);
+  $("#modalJenisTitle").html(
+    '<i class="fas fa-edit mr-2"></i>Edit Jenis Surat',
+  );
+  $("#modalJenis").modal("show");
+  setTimeout(function () {
+    $("#f_nama_jenis").focus();
+  }, 300);
+});
+
+/* ----- HAPUS JENIS ----- */
+$(document).on("click", ".btn-delete-jenis", function () {
+  var id = $(this).data("id");
   swal({
-    title: "Berhasil!",
-    text: 'Jenis "' + v + '" ditambahkan.',
-    type: "success",
-    timer: 1200,
+    title: "Hapus Jenis Surat?",
+    text: "Data akan dihapus permanen.",
+    icon: "warning",
+    buttons: ["Batal", "Ya, Hapus!"],
+    dangerMode: true,
+  }).then(function (confirm) {
+    if (!confirm) return;
+    $.post(
+      "./mod/surat-index/proses.php?action=jenis_delete",
+      { id: id },
+      function (res) {
+        try {
+          var d = typeof res === "object" ? res : JSON.parse(res);
+          if (d.status === "success") {
+            swal({
+              title: "Berhasil!",
+              text: "Jenis surat dihapus.",
+              icon: "success",
+              timer: 1200,
+            });
+            reloadJenisDropdown();
+            location.reload();
+          } else {
+            swal({
+              title: "Gagal!",
+              text: d.message || "Gagal menghapus.",
+              icon: "error",
+            });
+          }
+        } catch (e) {
+          swal({
+            title: "Error!",
+            text: "Gagal memproses respons.",
+            icon: "error",
+          });
+        }
+      },
+    );
   });
 });
+
+/* =================================================================
+ * HELPER: Reload dropdown kategori & jenis
+ * ================================================================= */
+function reloadKategoriDropdown() {
+  $.get("./mod/surat-index/proses.php?action=kategori_list", function (res) {
+    try {
+      var d = typeof res === "object" ? res : JSON.parse(res);
+      if (d.status === "success" && d.data) {
+        var sel = $("#f_kategori");
+        var current = sel.val();
+        sel.find("option").not(":first").remove();
+        $.each(d.data, function (i, item) {
+          sel.append(
+            $("<option>").val(item.nama_kategori).text(item.nama_kategori),
+          );
+        });
+        sel.val(current);
+      }
+    } catch (e) {}
+  });
+}
+
+function reloadJenisDropdown() {
+  $.get("./mod/surat-index/proses.php?action=jenis_list", function (res) {
+    try {
+      var d = typeof res === "object" ? res : JSON.parse(res);
+      if (d.status === "success" && d.data) {
+        var sel = $("#f_jenis");
+        var current = sel.val();
+        sel.find("option").not(":first").remove();
+        $.each(d.data, function (i, item) {
+          sel.append($("<option>").val(item.nama_jenis).text(item.nama_jenis));
+        });
+        sel.val(current);
+      }
+    } catch (e) {}
+  });
+}
+
+/* =================================================================
+ * INDEX CRUD (existing — kept unchanged)
+ * ================================================================= */
 
 /* ====== FORM TAMBAH / EDIT INDEX ====== */
 $(document).on("submit", "#formIndex", function (e) {
@@ -152,6 +499,7 @@ $(document).on("click", ".btn-edit-index", function () {
             )
             .val(d.data.jenis_surat);
         }
+        $("#f_docid").val(d.data.format_template || "");
         $("#modalIndex").modal("show");
       } else {
         swal({

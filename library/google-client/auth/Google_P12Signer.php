@@ -26,22 +26,31 @@ class Google_P12Signer extends Google_Signer {
   // OpenSSL private key resource
   private $privateKey;
 
-  // Creates a new signer from a .p12 file.
+  // Creates a new signer from a .p12 file or PEM private key string.
   function __construct($p12, $password) {
     if (!function_exists('openssl_x509_read')) {
       throw new Exception(
           'The Google PHP API library needs the openssl PHP extension');
     }
 
-    // This throws on error
+    // Deteksi jika private_key dalam format PEM (Service Account JSON modern)
+    $trimmed = trim($p12);
+    if (strpos($trimmed, '-----BEGIN') !== false) {
+      // Ini adalah PEM private key — langsung load
+      $this->privateKey = openssl_pkey_get_private($trimmed);
+      if (!$this->privateKey) {
+        throw new Google_AuthException("Unable to load PEM private key. OpenSSL error: " . openssl_error_string());
+      }
+      return;
+    }
+
+    // Legacy: parse sebagai file .p12 (PKCS#12)
     $certs = array();
     if (!openssl_pkcs12_read($p12, $certs, $password)) {
       throw new Google_AuthException("Unable to parse the p12 file.  " .
           "Is this a .p12 file?  Is the password correct?  OpenSSL error: " .
           openssl_error_string());
     }
-    // TODO(beaton): is this part of the contract for the openssl_pkcs12_read
-    // method?  What happens if there are multiple private keys?  Do we care?
     if (!array_key_exists("pkey", $certs) || !$certs["pkey"]) {
       throw new Google_AuthException("No private key found in p12 file.");
     }

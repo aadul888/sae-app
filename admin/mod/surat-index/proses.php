@@ -46,8 +46,9 @@ switch ($action) {
     $jenis = $connection->real_escape_string($_POST['jenis_surat'] ?? 'Surat Keluar');
     if (empty($indeks) || empty($perihal)) { echo 'Indeks dan Perihal wajib diisi.'; break; }
     $contoh = sprintf('%04d/%s-SMKN1PGL', (int)$connection->query("SELECT COALESCE(MAX(id),0)+1 AS next FROM surat_index")->fetch_row()[0], $indeks);
-    $s = $connection->prepare("INSERT INTO surat_index (indeks, perihal, kategori, jenis_surat, contoh_nomor) VALUES (?,?,?,?,?)");
-    $s->bind_param('sssss', $indeks, $perihal, $kategori, $jenis, $contoh);
+    $doc_id = $connection->real_escape_string($_POST['format_template'] ?? '');
+    $s = $connection->prepare("INSERT INTO surat_index (indeks, perihal, kategori, jenis_surat, contoh_nomor, format_template) VALUES (?,?,?,?,?,?)");
+    $s->bind_param('ssssss', $indeks, $perihal, $kategori, $jenis, $contoh, $doc_id);
     echo $s->execute() ? 'success' : 'Gagal: ' . $connection->error;
     $s->close();
     break;
@@ -61,8 +62,9 @@ switch ($action) {
     $perihal = $connection->real_escape_string($_POST['perihal'] ?? '');
     $kategori = $connection->real_escape_string($_POST['kategori'] ?? '');
     $jenis = $connection->real_escape_string($_POST['jenis_surat'] ?? 'Surat Keluar');
-    $u = $connection->prepare("UPDATE surat_index SET indeks=?, perihal=?, kategori=?, jenis_surat=? WHERE id=?");
-    $u->bind_param('ssssi', $indeks, $perihal, $kategori, $jenis, $id);
+    $doc_id = $connection->real_escape_string($_POST['format_template'] ?? '');
+    $u = $connection->prepare("UPDATE surat_index SET indeks=?, perihal=?, kategori=?, jenis_surat=?, format_template=? WHERE id=?");
+    $u->bind_param('sssssi', $indeks, $perihal, $kategori, $jenis, $doc_id, $id);
     echo $u->execute() ? 'success' : 'Gagal: ' . $connection->error;
     $u->close();
     break;
@@ -149,7 +151,87 @@ switch ($action) {
     (new Xlsx($spreadsheet))->save('php://output');
     exit;
 
-  // ====== EXPORT EXCEL (existing data) ======
+  // ====== SURAT KATEGORI CRUD ======
+  case 'kategori_list':
+    header('Content-Type: application/json');
+    $q = $connection->query("SELECT * FROM surat_kategori ORDER BY nama_kategori ASC");
+    $data = [];
+    if ($q) while ($r = $q->fetch_assoc()) $data[] = $r;
+    echo json_encode(['status' => 'success', 'data' => $data]);
+    break;
+
+  case 'kategori_add':
+    header('Content-Type: application/json');
+    sx_check('modifikasi');
+    $nama = $connection->real_escape_string($_POST['nama'] ?? '');
+    if (empty($nama)) { echo json_encode(['status' => 'error', 'message' => 'Nama kategori wajib diisi.']); break; }
+    $s = $connection->prepare("INSERT INTO surat_kategori (nama_kategori) VALUES (?)");
+    $s->bind_param('s', $nama);
+    echo $s->execute() ? json_encode(['status' => 'success']) : json_encode(['status' => 'error', 'message' => $connection->error]);
+    $s->close();
+    break;
+
+  case 'kategori_update':
+    header('Content-Type: application/json');
+    sx_check('modifikasi');
+    $id = (int)($_POST['id'] ?? 0);
+    $nama = $connection->real_escape_string($_POST['nama'] ?? '');
+    if ($id <= 0 || empty($nama)) { echo json_encode(['status' => 'error', 'message' => 'Data tidak valid.']); break; }
+    $u = $connection->prepare("UPDATE surat_kategori SET nama_kategori=? WHERE id=?");
+    $u->bind_param('si', $nama, $id);
+    echo $u->execute() ? json_encode(['status' => 'success']) : json_encode(['status' => 'error', 'message' => $connection->error]);
+    $u->close();
+    break;
+
+  case 'kategori_delete':
+    header('Content-Type: application/json');
+    sx_check('hapus');
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id <= 0) { echo json_encode(['status' => 'error', 'message' => 'ID tidak valid.']); break; }
+    echo $connection->query("DELETE FROM surat_kategori WHERE id=$id") ? json_encode(['status' => 'success']) : json_encode(['status' => 'error', 'message' => $connection->error]);
+    break;
+
+  // ====== SURAT JENIS CRUD ======
+  case 'jenis_list':
+    header('Content-Type: application/json');
+    $q = $connection->query("SELECT * FROM surat_jenis ORDER BY nama_jenis ASC");
+    $data = [];
+    if ($q) while ($r = $q->fetch_assoc()) $data[] = $r;
+    echo json_encode(['status' => 'success', 'data' => $data]);
+    break;
+
+  case 'jenis_add':
+    header('Content-Type: application/json');
+    sx_check('modifikasi');
+    $nama = $connection->real_escape_string($_POST['nama'] ?? '');
+    if (empty($nama)) { echo json_encode(['status' => 'error', 'message' => 'Nama jenis surat wajib diisi.']); break; }
+    $s = $connection->prepare("INSERT INTO surat_jenis (nama_jenis) VALUES (?)");
+    $s->bind_param('s', $nama);
+    echo $s->execute() ? json_encode(['status' => 'success']) : json_encode(['status' => 'error', 'message' => $connection->error]);
+    $s->close();
+    break;
+
+  case 'jenis_update':
+    header('Content-Type: application/json');
+    sx_check('modifikasi');
+    $id = (int)($_POST['id'] ?? 0);
+    $nama = $connection->real_escape_string($_POST['nama'] ?? '');
+    if ($id <= 0 || empty($nama)) { echo json_encode(['status' => 'error', 'message' => 'Data tidak valid.']); break; }
+    $u = $connection->prepare("UPDATE surat_jenis SET nama_jenis=? WHERE id=?");
+    $u->bind_param('si', $nama, $id);
+    echo $u->execute() ? json_encode(['status' => 'success']) : json_encode(['status' => 'error', 'message' => $connection->error]);
+    $u->close();
+    break;
+
+  case 'jenis_delete':
+    header('Content-Type: application/json');
+    sx_check('hapus');
+    $id = (int)($_POST['id'] ?? 0);
+    if ($id <= 0) { echo json_encode(['status' => 'error', 'message' => 'ID tidak valid.']); break; }
+    echo $connection->query("DELETE FROM surat_jenis WHERE id=$id") ? json_encode(['status' => 'success']) : json_encode(['status' => 'error', 'message' => $connection->error]);
+    break;
+
+  default:
     echo 'Aksi tidak dikenali.';
     break;
 }
