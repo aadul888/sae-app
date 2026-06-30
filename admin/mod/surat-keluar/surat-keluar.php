@@ -28,7 +28,6 @@ $r = $connection->query("SELECT COUNT(*) c FROM surat_keluar WHERE status='Terki
 .sk-form-card label { font-weight:600; font-size:13px; color:#344767; margin-bottom:3px; }
 .sk-form-card .row-form { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
 @media (max-width:640px) { .sk-form-card .row-form { grid-template-columns:1fr; } }
-/* ─── Generate Form ─── */
 .sk-gen-form .form-group { margin-bottom:10px; }
 .sk-gen-form label { font-weight:600; font-size:13px; color:#344767; margin-bottom:2px; }
 .sk-gen-form .row-dynamic { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -81,7 +80,7 @@ $r = $connection->query("SELECT COUNT(*) c FROM surat_keluar WHERE status='Terki
         </div>
         <div class="user-toolbar-actions user-toolbar-actions-table module-header-actions">
           <button type="button" class="btn-mod btn-mod-primary btn-baru-surat" title="Buat Surat Baru"><i class="fas fa-plus"></i></button>
-          <button type="button" class="btn-mod btn-mod-info btn-export-surat-keluar" title="Export Excel"><i class="fas fa-download"></i></button>
+          <button type="button" class="btn-mod btn-mod-info btn-export-surat-keluar" title="Export Excel"><i class="fas fa-file-excel"></i></button>
           <a href="./surat" class="btn-mod btn-mod-secondary" title="Kembali"><i class="fas fa-arrow-left"></i></a>
         </div>
       </div>
@@ -90,7 +89,7 @@ $r = $connection->query("SELECT COUNT(*) c FROM surat_keluar WHERE status='Terki
       <div class="table-responsive">
         <table class="table align-items-center table-flush table-striped surat-keluar-table" width="100%">
           <thead class="thead-light">
-            <tr><th class="text-center">No</th><th>No. Surat</th><th>Indeks</th><th>Perihal</th><th>Tujuan</th><th>Tanggal</th><th>Status</th><th class="text-center">Aksi</th></tr>
+            <tr><th class="text-center">No</th><th>No. Surat</th><th>Indeks</th><th>Perihal</th><th>Tanggal</th><th>Status</th><th class="text-center">Link Dokumen</th><th class="text-center">Aksi</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -98,28 +97,21 @@ $r = $connection->query("SELECT COUNT(*) c FROM surat_keluar WHERE status='Terki
     </div>
   </div>
 
-  <!-- Form Pencatatan Surat -->
-  <div class="card user-table-panel module-table-card sk-form-card pb-0 mb-3">
-    <div class="card-header py-3 px-3 user-table-header module-table-header">
-      <div class="user-table-head-row module-header-row" style="gap:10px;">
-        <div>
-          <h4 class="mb-1"><span id="frmTitle">Catat Surat Baru</span></h4>
-          <small class="text-muted">Pencatatan dan penomoran surat keluar.</small>
-        </div>
-        <div class="user-toolbar-actions user-toolbar-actions-table module-header-actions">
-          <span id="fStatusBadge" class="badge badge-warning mr-2 d-none">Draf</span>
-        </div>
+</div>
+
+<!-- ===== MODAL 1: Buat Surat Baru / Edit Surat ===== -->
+<div class="modal fade" id="modalBuatSurat" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalBuatTitle">Buat Surat Baru</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
-    </div>
-
-    <form id="formSurat" method="post">
-      <input type="hidden" name="id" id="fId" value="0">
-      <input type="hidden" name="no_surat" id="fNoSurat">
-      <input type="hidden" name="lampiran" id="fLampiran">
-      <input type="hidden" name="status" id="fStatus" value="Draf">
-
-      <div class="card-body">
-        <div class="row-form">
+      <form id="formSurat" method="post">
+        <input type="hidden" name="id" id="fId" value="0">
+        <input type="hidden" name="no_surat" id="fNoSurat">
+        <input type="hidden" name="status" id="fStatus" value="Draf">
+        <div class="modal-body">
           <div class="form-group">
             <label>Indeks Surat</label>
             <select name="indeks_id" id="fIndeks" class="form-control" required>
@@ -148,110 +140,80 @@ $r = $connection->query("SELECT COUNT(*) c FROM surat_keluar WHERE status='Terki
             <label>Perihal</label>
             <input type="text" name="perihal" id="fPerihal" class="form-control" placeholder="Perihal surat" required>
           </div>
-          <div class="form-group">
-            <label>Tujuan / Penerima</label>
-            <input type="text" name="tujuan" id="fTujuan" class="form-control" placeholder="Nama instansi / penerima">
-          </div>
-          <div class="form-group">
-            <label>Lampiran</label>
-            <input type="text" id="fLampiranDisplay" class="form-control" placeholder="-">
-          </div>
-          <div class="form-group" style="grid-column:1/-1;">
-            <label>Isi Surat (opsional — catatan saja)</label>
-            <textarea name="isi_surat" id="fIsiSurat" class="form-control" rows="4" placeholder="Catatan isi surat jika diperlukan..."></textarea>
-          </div>
-          <div class="form-group" style="grid-column:1/-1; text-align:right;">
-            <?php if ($can_edit): ?>
-            <button type="submit" class="btn btn-primary" id="btnSimpan"><i class="fas fa-save mr-1"></i> Simpan</button>
-            <button type="button" class="btn btn-secondary btn-batal" id="btnBatal"><i class="fas fa-times mr-1"></i> Batal</button>
-            <?php endif; ?>
-          </div>
         </div>
-      </div>
-    </form>
-  </div>
-
-  <!-- ====== 2-Kolom: Form Generate + PDF Preview ====== -->
-  <div class="card user-table-panel module-table-card mb-3 sk-gen-card">
-    <div class="card-header py-3 px-3 user-table-header module-table-header">
-      <div class="user-table-head-row module-header-row" style="gap:10px;">
-        <div>
-          <h4 class="mb-1"><i class="fas fa-file-pdf mr-1"></i> Generate Surat dari Template</h4>
-          <small class="text-muted">Isi variabel template, generate PDF, dan simpan ke spreadsheet.</small>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+          <button type="submit" class="btn btn-primary" id="btnSimpan"><i class="fas fa-save mr-1"></i> Simpan</button>
         </div>
-        <div class="user-toolbar-actions user-toolbar-actions-table module-header-actions">
-          <span id="genStatusBadge" class="badge badge-info mr-2 d-none">Tersimpan</span>
-        </div>
-      </div>
+      </form>
     </div>
-    <div class="card-body p-3">
-      <!-- Pilihan template -->
-      <div class="form-group row mb-3">
-        <label class="col-md-2 col-form-label font-weight-bold">Pilih Template</label>
-        <div class="col-md-5">
-          <select id="genTemplateSelect" class="form-control">
-            <option value="">— Pilih Template —</option>
-            <?php foreach ($template_list as $tmpl):
-              $tags_count = !empty($tmpl['variabel_tag']) ? count(array_filter(array_map('trim', explode(',', $tmpl['variabel_tag'])))) : 0;
-            ?>
-            <option value="<?php echo $tmpl['id']; ?>" data-indeks-id="<?php echo $tmpl['indeks_id']; ?>" data-indeks="<?php echo htmlspecialchars($tmpl['indeks_surat']); ?>" data-tags-count="<?php echo $tags_count; ?>">
-              <?php echo htmlspecialchars($tmpl['indeks_surat'] . ' — ' . $tmpl['perihal'] . ' (' . $tags_count . ' variabel)'); ?>
-            </option>
-            <?php endforeach; ?>
-          </select>
-          <small class="text-muted">Pilih template surat yang akan digenerate. <a href="./surat-template" target="_blank" class="text-info">Kelola Template <i class="fas fa-external-link-alt"></i></a></small>
-        </div>
-        <div class="col-md-5">
-          <div class="input-group">
-            <input type="text" id="genNoSurat" class="form-control" placeholder="Nomor surat (otomatis)" readonly>
-            <div class="input-group-append">
-              <button type="button" class="btn btn-info" id="btnGenNomor" title="Generate Nomor"><i class="fas fa-sync-alt"></i></button>
-            </div>
-          </div>
-          <small class="text-muted">Nomor surat akan terisi otomatis saat template dipilih.</small>
-        </div>
+  </div>
+</div>
+
+<!-- ===== MODAL 2: Generate PDF ===== -->
+<div class="modal fade" id="modalGenerateSurat" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-file-pdf mr-1"></i> Generate Surat dari Template</h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
       </div>
-
-      <div class="row">
-        <!-- Kiri: Form Dinamis -->
-        <div class="col-md-6">
-          <div class="card border sk-gen-form h-100">
-            <div class="card-header bg-light py-2 px-3">
-              <h6 class="mb-0"><i class="fas fa-edit mr-1"></i> Isi Variabel Surat</h6>
-            </div>
-            <div class="card-body" id="genDynamicFields">
-              <div class="text-center text-muted py-5">
+      <div class="modal-body">
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label class="font-weight-bold">Nomor Surat</label>
+            <input type="text" id="genNoSurat" class="form-control" readonly>
+          </div>
+          <div class="col-md-6">
+            <label class="font-weight-bold">Template</label>
+            <select id="genTemplateSelect" class="form-control">
+              <option value="">— Pilih Template —</option>
+              <?php foreach ($template_list as $tmpl):
+                $tags_count = !empty($tmpl['variabel_tag']) ? count(array_filter(array_map('trim', explode(',', $tmpl['variabel_tag'])))) : 0;
+              ?>
+              <option value="<?php echo $tmpl['id']; ?>" data-indeks-id="<?php echo $tmpl['indeks_id']; ?>" data-indeks="<?php echo htmlspecialchars($tmpl['indeks_surat']); ?>" data-tags-count="<?php echo $tags_count; ?>">
+                <?php echo htmlspecialchars($tmpl['indeks_surat'] . ' — ' . $tmpl['perihal'] . ' (' . $tags_count . ' variabel)'); ?>
+              </option>
+              <?php endforeach; ?>
+            </select>
+          </div>
+        </div>
+        
+        <div class="row">
+          <!-- Kiri: Form Variabel -->
+          <div class="col-md-5 border-right">
+            <h6 class="font-weight-bold"><i class="fas fa-edit mr-1"></i> Form Variabel</h6>
+            <div id="genDynamicFields" class="pr-2" style="max-height: 400px; overflow-y: auto;">
+              <div class="text-center text-muted py-4">
                 <i class="fas fa-arrow-left mb-2" style="font-size:32px;"></i>
-                <p class="mb-0">Pilih template terlebih dahulu untuk menampilkan form.</p>
+                <p class="mb-0">Pilih template untuk menampilkan form variabel.</p>
               </div>
             </div>
-            <div class="card-footer bg-light text-right" id="genActions" style="display:none;">
-              <button type="button" class="btn btn-success" id="btnGenerate"><i class="fas fa-file-pdf mr-1"></i> Generate PDF</button>
-              <button type="button" class="btn btn-primary" id="btnSaveToSpreadsheet"><i class="fas fa-save mr-1"></i> Simpan &amp; Kirim ke Spreadsheet</button>
-              <button type="button" class="btn btn-secondary" id="btnGenReset"><i class="fas fa-undo mr-1"></i> Reset</button>
-            </div>
           </div>
-        </div>
-
-        <!-- Kanan: PDF Preview -->
-        <div class="col-md-6">
-          <div class="card border h-100">
-            <div class="card-header bg-light py-2 px-3 d-flex justify-content-between align-items-center">
-              <h6 class="mb-0"><i class="fas fa-file-pdf mr-1"></i> Hasil Generate</h6>
+          
+          <!-- Kanan: Preview PDF -->
+          <div class="col-md-7">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="font-weight-bold mb-0"><i class="fas fa-eye mr-1"></i> Preview PDF</h6>
               <div>
-                <a id="btnDownloadPdf" class="btn btn-sm btn-outline-danger d-none" href="#" download><i class="fas fa-download mr-1"></i> Download</a>
-                <button id="btnPrintPdf" class="btn btn-sm btn-outline-secondary d-none"><i class="fas fa-print mr-1"></i> Print</button>
+                <a id="btnDownloadPdf" class="btn btn-sm btn-danger d-none" href="#" download><i class="fas fa-download mr-1"></i> Download PDF</a>
               </div>
             </div>
-            <div class="card-body p-2" id="genPreviewArea">
-              <div class="sk-preview-placeholder">
-                <i class="far fa-file-pdf"></i>
-                <span>Hasil generate PDF akan tampil di sini</span>
+            <div id="genPreviewArea" class="bg-light d-flex align-items-center justify-content-center" style="width:100%; height:400px; border:1px solid #dee2e6; border-radius:6px;">
+              <div class="text-center text-muted" id="genPreviewPlaceholder">
+                <i class="fas fa-file-pdf mb-2" style="font-size:32px;"></i>
+                <p class="mb-0">PDF belum di-generate.</p>
               </div>
-              <iframe id="pdfPreview" class="sk-preview-frame d-none" src="about:blank"></iframe>
+              <iframe id="pdfPreview" class="d-none" style="width:100%;height:100%;border:none;border-radius:6px;" src="about:blank"></iframe>
             </div>
           </div>
         </div>
+        
+      </div>
+      <div class="modal-footer" id="genActions" style="display:none;">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+        <button type="button" class="btn btn-success" id="btnGenerate"><i class="fas fa-file-pdf mr-1"></i> Generate PDF</button>
+        <button type="button" class="btn btn-primary" id="btnSaveToSpreadsheet"><i class="fas fa-save mr-1"></i> Simpan &amp; Spreadsheet</button>
       </div>
     </div>
   </div>

@@ -34,7 +34,40 @@ if (isset($current_user)) {
 }
 $nama_pembuat_auto = trim($userFrontTitle . ' ' . $userFullName . ' ' . $userBackTitle);
 ?>
-<!-- CSS moved to global style.css -->
+<style>
+/* Truncate variabel tag with click to expand */
+.tag-truncate {
+  display: inline-block;
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.tag-truncate:hover {
+  max-width: none;
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  z-index: 10;
+  position: relative;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+.tag-truncate.expanded {
+  max-width: none;
+  white-space: normal;
+  word-break: break-word;
+  overflow: visible;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+</style>
 <div class="header bg-primary pb-4 user-page-header-compact"><div class="container-fluid"><div class="header-body"><div class="row align-items-center py-3"></div></div></div></div>
 <div class="container-fluid mt--6 user-module-page surat-template-page">
   <div class="row">
@@ -109,13 +142,23 @@ $nama_pembuat_auto = trim($userFrontTitle . ' ' . $userFullName . ' ' . $userBac
                 $short_link = $link ? (mb_strlen($link) > 50 ? mb_substr($link, 0, 50) . '...' : $link) : '-';
                 $drive_file_id = $row['drive_file_id'] ?? '';
                 $variabel_tag = $row['variabel_tag'] ?? '';
+                // Truncate variabel_tag for display, full version in data-full
+                $display_tag = $variabel_tag ? (mb_strlen($variabel_tag) > 60 ? mb_substr($variabel_tag, 0, 60) . '…' : $variabel_tag) : '-';
             ?>
             <tr>
               <td class="text-center"><?php echo $no++; ?></td>
               <td><strong><?php echo htmlspecialchars($row['indeks_surat']); ?></strong></td>
               <td><?php echo htmlspecialchars($row['jenis_surat'] ?? '-'); ?></td>
               <td><?php echo htmlspecialchars($row['nama_pembuat'] ?? '-'); ?></td>
-              <td><?php echo htmlspecialchars($variabel_tag ?: '-'); ?></td>
+              <td>
+                <?php if ($variabel_tag): ?>
+                <span class="tag-truncate" data-full="<?php echo htmlspecialchars($variabel_tag); ?>" title="Klik untuk lihat lengkap">
+                  <?php echo htmlspecialchars($display_tag); ?>
+                </span>
+                <?php else: ?>
+                <span class="text-muted">-</span>
+                <?php endif; ?>
+              </td>
               <td><?php echo $updated; ?></td>
               <td>
                 <?php if ($link): ?>

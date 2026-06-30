@@ -40,6 +40,21 @@ class GoogleDriveHelper {
     /** @var array|null Full credentials from JSON */
     private $creds = null;
 
+    /** @var string|null OAuth Client ID */
+    private $oauthClientId = null;
+
+    /** @var string|null OAuth Client Secret */
+    private $oauthClientSecret = null;
+
+    /** @var string|null OAuth Refresh Token */
+    private $oauthRefreshToken = null;
+
+    /** @var string|null Access token hasil refresh OAuth */
+    private $oauthAccessToken = null;
+
+    /** @var int|null Waktu expiry access token OAuth */
+    private $oauthTokenExpiry = null;
+
     /**
      * @param string $jsonFilePath Path absolut ke file JSON Service Account
      * @param string|array $scopes Scope yang diinginkan
@@ -79,6 +94,77 @@ class GoogleDriveHelper {
 
         // Inisialisasi Drive Service
         $this->driveService = new Google_DriveService($this->client);
+    }
+
+    /**
+     * Set OAuth 2.0 credentials (Client ID, Client Secret, Refresh Token)
+     * untuk menggantikan Service Account authentication.
+     *
+     * @param string $clientId
+     * @param string $clientSecret
+     * @param string $refreshToken
+     * @return self
+     */
+    public function setOAuthCredentials($clientId, $clientSecret, $refreshToken) {
+        $this->oauthClientId = $clientId;
+        $this->oauthClientSecret = $clientSecret;
+        $this->oauthRefreshToken = $refreshToken;
+        return $this;
+    }
+
+    /**
+     * Dapatkan access token dari OAuth refresh token.
+     * Jika token sudah pernah di-refresh dan masih berlaku, gunakan cache.
+     *
+     * @return string|false
+     */
+    private function getOAuthAccessToken() {
+        // Cek cache
+        if ($this->oauthAccessToken && $this->oauthTokenExpiry && time() < $this->oauthTokenExpiry) {
+            return $this->oauthAccessToken;
+        }
+
+        if (empty($this->oauthClientId) || empty($this->oauthClientSecret) || empty($this->oauthRefreshToken)) {
+            return false;
+        }
+
+        $postData = http_build_query([
+            'client_id' => $this->oauthClientId,
+            'client_secret' => $this->oauthClientSecret,
+            'refresh_token' => $this->oauthRefreshToken,
+            'grant_type' => 'refresh_token',
+        ]);
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => 'https://oauth2.googleapis.com/token',
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $postData,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_TIMEOUT => 15,
+        ]);
+        $resp = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpCode !== 200) {
+            $this->lastError = 'OAuth refresh token error (HTTP ' . $httpCode . ')';
+            return false;
+        }
+
+        $data = json_decode($resp, true);
+        if (!$data || empty($data['access_token'])) {
+            $this->lastError = 'OAuth refresh response tidak valid.';
+            return false;
+        }
+
+        $this->oauthAccessToken = $data['access_token'];
+        // Set expiry (default 3600 detik, kurangi 60 detik untuk safety margin)
+        $this->oauthTokenExpiry = time() + ($data['expires_in'] ?? 3600) - 60;
+
+        return $this->oauthAccessToken;
     }
 
     /**
@@ -271,21 +357,22 @@ class GoogleDriveHelper {
             return $body;
         }
 
-        // 2) Coba dengan Bearer token — untuk file yg bisa diakses Service Account
+        // 2) Coba dengan Bearer token — OAuth or Service Account
         $result = $this->httpGet($exportUrl);
         if ($result !== false) {
             return $result;
         }
 
-        // 3) Fallback: JWT langsung (bypass legacy library yg bermasalah dengan SSL)
-        $result = $this->directJwtDownload($exportUrl);
-        if ($result !== false) {
-            return $result;
+        // 3) Fallback: JWT langsung (hanya jika Service Account valid)
+        if (!empty($this->creds) && isset($this->creds['private_key']) && strpos($this->creds['private_key'], 'dummy') === false) {
+            $result = $this->directJwtDownload($exportUrl);
+            if ($result !== false) {
+                return $result;
+            }
         }
 
         $this->lastError = 'downloadDirectExport gagal (HTTP ' . $httpCode . '). ' .
-            'Pastikan dokumen sudah di-share "Anyone with the link" atau share ke Service Account email: ' .
-            $this->getServiceAccountEmail();
+            'Pastikan dokumen sudah di-share "Anyone with the link".';
         return false;
     }
 
@@ -443,8 +530,8 @@ class GoogleDriveHelper {
      * @return string|false Response body
      */
     private function httpGet($url) {
-        // Dapatkan access token
-        $accessToken = $this->getAccessToken();
+        // Dapatkan access token — OAuth 2.0 dulu, fallback Service Account
+        $accessToken = $this->getWriteAccessToken();
         if (!$accessToken) return false;
 
         $ch = curl_init();
@@ -478,11 +565,17 @@ class GoogleDriveHelper {
     }
 
     /**
-     * Dapatkan access token dari Google_Client (via assertion).
+     * Dapatkan access token dari Google_Client (via assertion) atau OAuth 2.0.
      *
      * @return string|false
      */
     private function getAccessToken() {
+        // Prioritaskan OAuth 2.0
+        if (!empty($this->oauthRefreshToken)) {
+            $token = $this->getOAuthAccessToken();
+            if ($token) return $token;
+        }
+
         try {
             // Trigger refresh token via assertion credentials
             $tokenData = $this->client->getAccessToken();
@@ -534,6 +627,33 @@ class GoogleDriveHelper {
      * @return string|false
      */
     private function directJwtGetToken() {
+        return $this->directJwtGetTokenWithScope('https://www.googleapis.com/auth/drive.readonly');
+    }
+
+    /**
+     * Dapatkan access token dengan scope Drive + Docs (write).
+     * Menggunakan OAuth 2.0 jika refresh token tersedia, fallback ke Service Account.
+     * @return string|false
+     */
+    public function getWriteAccessToken() {
+        // Prioritaskan OAuth 2.0 jika refresh token tersedia
+        if (!empty($this->oauthRefreshToken)) {
+            $token = $this->getOAuthAccessToken();
+            if ($token) return $token;
+            // Jika OAuth gagal, fallback ke Service Account
+        }
+
+        return $this->directJwtGetTokenWithScope(
+            'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/documents'
+        );
+    }
+
+    /**
+     * Dapatkan access token via JWT dengan scope tertentu.
+     * @param string $scope
+     * @return string|false
+     */
+    private function directJwtGetTokenWithScope($scope) {
         if (empty($this->creds) || empty($this->creds['client_email']) || empty($this->creds['private_key'])) {
             return false;
         }
@@ -542,7 +662,7 @@ class GoogleDriveHelper {
         $now = time();
         $claim = $this->base64UrlEncode(json_encode([
             'iss' => $this->creds['client_email'],
-            'scope' => 'https://www.googleapis.com/auth/drive.readonly',
+            'scope' => $scope,
             'aud' => 'https://oauth2.googleapis.com/token',
             'exp' => $now + 3600,
             'iat' => $now,
@@ -570,10 +690,304 @@ class GoogleDriveHelper {
         curl_close($ch);
 
         if ($httpCode !== 200) {
+            $this->lastError = 'JWT token error (HTTP ' . $httpCode . ')';
             return false;
         }
         $tokenData = json_decode($resp, true);
         return $tokenData['access_token'] ?? false;
+    }
+
+    /**
+     * Lakukan API call ke Google Drive/Docs API dengan access token write.
+     *
+     * @param string $method HTTP method (GET, POST, PATCH, DELETE)
+     * @param string $url Full URL API
+     * @param array|null $data Data untuk dikirim (akan di-json_encode)
+     * @return array|false Parsed response
+     */
+    public function apiCall($method, $url, $data = null) {
+        $token = $this->getWriteAccessToken();
+        if (!$token) return false;
+
+        // Service Accounts perlu supportsAllDrives=true untuk semua operasi Drive API
+        if (strpos($url, 'https://www.googleapis.com/drive/') === 0) {
+            $separator = (strpos($url, '?') === false) ? '?' : '&';
+            $url .= $separator . 'supportsAllDrives=true';
+        }
+
+        $ch = curl_init();
+        $options = array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTPHEADER => array(
+                'Authorization: Bearer ' . $token,
+                'Content-Type: application/json',
+            ),
+            CURLOPT_TIMEOUT => 30,
+        );
+
+        if ($method === 'POST') {
+            $options[CURLOPT_POST] = true;
+            if ($data !== null) {
+                $options[CURLOPT_POSTFIELDS] = json_encode($data);
+            }
+        } elseif ($method === 'PATCH') {
+            $options[CURLOPT_CUSTOMREQUEST] = 'PATCH';
+            if ($data !== null) {
+                $options[CURLOPT_POSTFIELDS] = json_encode($data);
+            }
+        } elseif ($method === 'DELETE') {
+            $options[CURLOPT_CUSTOMREQUEST] = 'DELETE';
+        } else {
+            // GET
+            $options[CURLOPT_HTTPGET] = true;
+        }
+
+        curl_setopt_array($ch, $options);
+        $body = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error) {
+            $this->lastError = 'API call error: ' . $error;
+            return false;
+        }
+
+        $decoded = json_decode($body, true);
+        if ($httpCode >= 200 && $httpCode < 300) {
+            return $decoded !== null ? $decoded : true;
+        }
+
+        $errMsg = isset($decoded['error']['message']) ? $decoded['error']['message'] : substr($body, 0, 200);
+        $this->lastError = 'API error (HTTP ' . $httpCode . '): ' . $errMsg;
+        return false;
+    }
+
+    /**
+     * Copy file Google Drive.
+     *
+     * @param string $fileId ID file yang akan dicopy
+     * @param string|null $title Nama baru (optional)
+     * @param string|null $parentFolderId Folder tujuan (optional)
+     * @return string|false File ID baru
+     */
+    public function copyFile($fileId, $title = null, $parentFolderId = null) {
+        $body = [];
+        if ($title) $body['name'] = $title;
+        if ($parentFolderId) $body['parents'] = [$parentFolderId];
+
+        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '/copy?supportsAllDrives=true';
+        $result = $this->apiCall('POST', $url, $body);
+        if ($result && isset($result['id'])) {
+            return $result['id'];
+        }
+        return false;
+    }
+
+    /**
+     * Replace text di Google Docs menggunakan Docs API batchUpdate.
+     *
+     * @param string $fileId ID Google Doc
+     * @param array $replacements Array asosiatif [pattern => replacement]
+     * @return bool
+     */
+    public function batchReplaceText($fileId, $replacements) {
+        $requests = [];
+        foreach ($replacements as $pattern => $replacement) {
+            $requests[] = [
+                'replaceAllText' => [
+                    'containsText' => [
+                        'text' => $pattern,
+                        'matchCase' => true,
+                    ],
+                    'replaceText' => $replacement,
+                ],
+            ];
+        }
+
+        if (empty($requests)) return true;
+
+        $result = $this->apiCall('POST', 'https://docs.googleapis.com/v1/documents/' . rawurlencode($fileId) . ':batchUpdate', [
+            'requests' => $requests,
+        ]);
+
+        return $result !== false;
+    }
+
+    /**
+     * Export file Google Drive ke format tertentu dan dapatkan konten binary.
+     *
+     * @param string $fileId
+     * @param string $mimeType MIME type tujuan (default: application/pdf)
+     * @return string|false Binary content
+     */
+    public function exportFile($fileId, $mimeType = 'application/pdf') {
+        $token = $this->getWriteAccessToken();
+        if (!$token) return false;
+
+        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '/export?mimeType=' . rawurlencode($mimeType) . '&supportsAllDrives=true';
+
+        $ch = curl_init();
+        curl_setopt_array($ch, array(
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTPHEADER => array(
+                'Authorization: Bearer ' . $token,
+            ),
+            CURLOPT_TIMEOUT => 60,
+        ));
+        $body = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error || $httpCode !== 200 || empty($body)) {
+            $this->lastError = 'Export error (HTTP ' . $httpCode . '): ' . $error;
+            return false;
+        }
+
+        return $body;
+    }
+
+    /**
+     * Upload file ke Google Drive.
+     *
+     * @param string $name Nama file
+     * @param string $content Binary content
+     * @param string $mimeType MIME type
+     * @param string|null $parentFolderId Folder ID tujuan
+     * @return string|false File ID
+     */
+    public function uploadFile($name, $content, $mimeType, $parentFolderId = null) {
+        $token = $this->getWriteAccessToken();
+        if (!$token) return false;
+
+        // Step 1: Buat metadata file via API (agar SA punya parents yg di-share)
+        $metadata = [
+            'name' => $name,
+            'mimeType' => $mimeType,
+        ];
+        if ($parentFolderId) {
+            $metadata['parents'] = [$parentFolderId];
+        }
+
+        // Gunakan apiCall untuk membuat file — apiCall otomatis tambah supportsAllDrives=true
+        $created = $this->apiCall('POST', 'https://www.googleapis.com/drive/v3/files', $metadata);
+        if (!$created || !isset($created['id'])) {
+            $this->lastError = 'Upload error: gagal membuat file metadata. ' . ($this->lastError ?? '');
+            return false;
+        }
+        $fileId = $created['id'];
+
+        // Step 2: Upload konten binary ke file via PATCH
+        $url = 'https://www.googleapis.com/upload/drive/v3/files/' . rawurlencode($fileId) . '?uploadType=media&supportsAllDrives=true';
+        $ch = curl_init();
+        curl_setopt_array($ch, array(
+            CURLOPT_URL => $url,
+            CURLOPT_CUSTOMREQUEST => 'PATCH',
+            CURLOPT_POSTFIELDS => $content,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTPHEADER => array(
+                'Authorization: Bearer ' . $token,
+                'Content-Type: ' . $mimeType,
+                'Content-Length: ' . strlen($content),
+            ),
+            CURLOPT_TIMEOUT => 60,
+        ));
+        $resp = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error || $httpCode < 200 || $httpCode >= 300) {
+            $this->lastError = 'Upload error (HTTP ' . $httpCode . '): ' . $error . ' | Response: ' . substr($resp, 0, 500);
+            return false;
+        }
+
+        return $fileId;
+    }
+
+    /**
+     * Buat folder di Google Drive.
+     *
+     * @param string $name Nama folder
+     * @param string|null $parentFolderId Parent folder
+     * @return string|false Folder ID
+     */
+    public function createFolder($name, $parentFolderId = null) {
+        $body = [
+            'name' => $name,
+            'mimeType' => 'application/vnd.google-apps.folder',
+        ];
+        if ($parentFolderId) {
+            $body['parents'] = [$parentFolderId];
+        }
+
+        $result = $this->apiCall('POST', 'https://www.googleapis.com/drive/v3/files?supportsAllDrives=true', $body);
+        if ($result && isset($result['id'])) {
+            return $result['id'];
+        }
+        return false;
+    }
+
+    /**
+     * Set permission "Anyone with the link can view" pada file.
+     *
+     * @param string $fileId
+     * @return bool
+     */
+    public function makePublic($fileId) {
+        $result = $this->apiCall('POST', 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '/permissions', [
+            'type' => 'anyone',
+            'role' => 'reader',
+        ]);
+        return $result !== false;
+    }
+
+    /**
+     * Dapatkan webViewLink untuk ditampilkan di browser.
+     *
+     * @param string $fileId
+     * @return string|false
+     */
+    public function getWebViewLink($fileId) {
+        $result = $this->apiCall('GET', 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?fields=webViewLink,id,name');
+        if ($result && isset($result['webViewLink'])) {
+            return $result['webViewLink'];
+        }
+        return false;
+    }
+
+    /**
+     * Dapatkan informasi file.
+     *
+     * @param string $fileId
+     * @param string $fields
+     * @return array|false
+     */
+    public function getFileInfo($fileId, $fields = 'id,name,mimeType,webViewLink,webContentLink') {
+        $result = $this->apiCall('GET', 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '?fields=' . rawurlencode($fields));
+        return $result;
+    }
+
+    /**
+     * Hapus file dari Google Drive.
+     *
+     * @param string $fileId
+     * @return bool
+     */
+    public function deleteFile($fileId) {
+        $result = $this->apiCall('DELETE', 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId));
+        return $result !== false;
     }
 
     /**
@@ -645,5 +1059,119 @@ class GoogleDriveHelper {
             return false;
         }
         return $this->downloadCleanHtml($fileId);
+    }
+
+    /**
+     * Import file (upload dengan konversi) ke Google Docs.
+     * Mengupload konten dan mengkonversinya ke Google Docs format.
+     *
+     * @param string $name Nama dokumen
+     * @param string $content Konten (binary atau text)
+     * @param string $sourceMimeType MIME type konten sumber (misal: text/html, text/plain)
+     * @param string|null $parentFolderId Folder tujuan
+     * @return string|false File ID Google Docs baru
+     */
+    public function importAsGoogleDoc($name, $content, $sourceMimeType = 'text/html', $parentFolderId = null) {
+        $token = $this->getWriteAccessToken();
+        if (!$token) return false;
+
+        // Metadata untuk file Google Docs
+        $metadata = [
+            'name' => $name,
+            'mimeType' => 'application/vnd.google-apps.document',
+        ];
+        if ($parentFolderId) {
+            $metadata['parents'] = [$parentFolderId];
+        }
+
+        // Upload dengan multipart — metadata + media
+        $boundary = 'boundary_' . uniqid();
+        $delimiter = "\r\n--" . $boundary . "\r\n";
+        $closeDelim = "\r\n--" . $boundary . "--\r\n";
+
+        $body = '';
+        // Bagian metadata
+        $body .= $delimiter;
+        $body .= 'Content-Type: application/json; charset=UTF-8' . "\r\n\r\n";
+        $body .= json_encode($metadata) . "\r\n";
+        // Bagian konten
+        $body .= $delimiter;
+        $body .= 'Content-Type: ' . $sourceMimeType . "\r\n";
+        $body .= 'Content-Transfer-Encoding: binary' . "\r\n\r\n";
+        $body .= $content . "\r\n";
+        $body .= $closeDelim;
+
+        $url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&convert=true';
+
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_HTTPHEADER => [
+                'Authorization: Bearer ' . $token,
+                'Content-Type: multipart/related; boundary="' . $boundary . '"',
+                'Content-Length: ' . strlen($body),
+            ],
+            CURLOPT_TIMEOUT => 60,
+        ]);
+        $resp = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $error = curl_error($ch);
+        curl_close($ch);
+
+        if ($error || $httpCode < 200 || $httpCode >= 300) {
+            $this->lastError = 'Import Google Docs error (HTTP ' . $httpCode . '): ' . $error . ' | ' . substr($resp, 0, 300);
+            return false;
+        }
+
+        $decoded = json_decode($resp, true);
+        return $decoded['id'] ?? false;
+    }
+
+    /**
+     * Copy file dan konversi ke Google Docs jika perlu.
+     * Jika file sumber sudah Google Docs, lakukan copy biasa.
+     * Jika file sumber adalah Office file, copy dengan mimeType Google Docs
+     * agar otomatis dikonversi tanpa merusak format.
+     *
+     * @param string $fileId ID file sumber
+     * @param string $title Nama baru
+     * @param string|null $parentFolderId Folder tujuan
+     * @return string|false ID file Google Docs baru
+     */
+    public function copyAsGoogleDoc($fileId, $title, $parentFolderId = null) {
+        // Cek mimeType file sumber
+        $info = $this->getFileInfo($fileId, 'id,name,mimeType');
+        if (!$info) {
+            $this->lastError = 'Tidak dapat membaca metadata file sumber.';
+            return false;
+        }
+
+        $sourceMime = $info['mimeType'] ?? '';
+
+        // Jika sudah Google Docs native, copy biasa
+        if ($sourceMime === 'application/vnd.google-apps.document') {
+            return $this->copyFile($fileId, $title, $parentFolderId);
+        }
+
+        // Jika file Office (docx, doc, odt, dll):
+        // Copy dengan override mimeType ke Google Docs — API akan konversi otomatis
+        $body = [];
+        if ($title) $body['name'] = $title;
+        if ($parentFolderId) $body['parents'] = [$parentFolderId];
+        // PENTING: override mimeType agar file Office dikonversi ke Google Docs
+        $body['mimeType'] = 'application/vnd.google-apps.document';
+
+        $url = 'https://www.googleapis.com/drive/v3/files/' . rawurlencode($fileId) . '/copy?supportsAllDrives=true';
+        $result = $this->apiCall('POST', $url, $body);
+        if ($result && isset($result['id'])) {
+            return $result['id'];
+        }
+        $this->lastError = 'Konversi file ke Google Docs gagal: ' . ($this->lastError ?? '');
+        return false;
     }
 }

@@ -4,38 +4,60 @@ var genFields = []; // array of {name,label,type} dari load_template_tags
 var genTemplateId = 0;
 var genIndeksId = 0;
 
-$(function () {
-  if ($.fn.DataTable && $(".surat-keluar-table").length) {
-    $(".surat-keluar-table").DataTable({
-      iDisplayLength: 5,
-      aLengthMenu: [
-        [5, 10, 25, -1],
-        [5, 10, 25, "All"],
-      ],
-      aaSorting: [[0, "desc"]],
-      language: {
-        search: "Cari:",
-        lengthMenu: "_MENU_",
-        info: "_START_-_END_ dari _TOTAL_",
-        infoEmpty: "0",
-        paginate: {
-          previous: '<i class="fas fa-angle-left">',
-          next: '<i class="fas fa-angle-right">',
-        },
-      },
-      columnDefs: [{ orderable: false, targets: [7] }],
-      ajax: {
-        url: "./mod/surat-keluar/proses.php?action=datatable",
-        dataSrc: function (j) {
-          return j.data || [];
-        },
-      },
-    });
-  }
+var tableSuratKeluar = null;
 
+$(function () {
+  initDataTable();
   // Init template select → load fields
   initGenerateModule();
 });
+
+function initDataTable() {
+  if ($.fn.DataTable.isDataTable(".surat-keluar-table")) {
+    $(".surat-keluar-table").DataTable().destroy();
+    $(".surat-keluar-table").empty();
+    $(".surat-keluar-table").html(
+      '<thead class="thead-light"><tr><th class="text-center">No</th><th>No. Surat</th><th>Indeks</th><th>Perihal</th><th>Tanggal</th><th>Status</th><th class="text-center">Link Dokumen</th><th class="text-center">Aksi</th></tr></thead><tbody></tbody>',
+    );
+  }
+  tableSuratKeluar = $(".surat-keluar-table").DataTable({
+    processing: true,
+    serverSide: true,
+    bAutoWidth: false,
+    bSort: true,
+    bStateSave: false,
+    bDestroy: true,
+    paging: true,
+    scrollX: true,
+    scrollCollapse: true,
+    responsive: false,
+    iDisplayLength: 25,
+    order: [[0, "desc"]],
+    aLengthMenu: [
+      [25, 50, 100, -1],
+      [25, 50, 100, "All"],
+    ],
+    language: {
+      search: "Cari:",
+      lengthMenu: "_MENU_",
+      info: "_START_-_END_ dari _TOTAL_",
+      infoEmpty: "0",
+      paginate: {
+        previous: '<i class="fas fa-angle-left">',
+        next: '<i class="fas fa-angle-right">',
+      },
+    },
+    ajax: {
+      url: "./mod/surat-keluar/datatable.php",
+      type: "GET",
+      dataSrc: function (json) {
+        if (json && json.data) return json.data;
+        return [];
+      },
+    },
+    columnDefs: [{ orderable: false, targets: [6, 7] }],
+  });
+}
 
 function resetForm() {
   skEditingId = 0;
@@ -45,27 +67,14 @@ function resetForm() {
   $("#fNoSuratDisplay").val("");
   $("#fTglSurat").val(new Date().toISOString().split("T")[0]);
   $("#fPerihal").val("");
-  $("#fTujuan").val("");
-  $("#fLampiran").val("");
-  $("#fLampiranDisplay").val("");
-  $("#fIsiSurat").val("");
   $("#fStatus").val("Draf");
-  $("#frmTitle").text("Catat Surat Baru");
-  $("#fStatusBadge").addClass("d-none");
+  $("#modalBuatTitle").text("Buat Surat Baru");
   $("#btnSimpan").html('<i class="fas fa-save mr-1"></i> Simpan');
-  $("#btnBatal").hide();
 }
 
 $(document).on("click", ".btn-baru-surat", function () {
   resetForm();
-  $("html, body").animate(
-    { scrollTop: $(".sk-form-card").offset().top - 90 },
-    400,
-  );
-});
-
-$(document).on("click", "#btnBatal", function () {
-  resetForm();
+  $("#modalBuatSurat").modal("show");
 });
 
 $(document).on("click", ".btn-gen-nomor", function () {
@@ -115,7 +124,6 @@ $(document).on("submit", "#formSurat", function (e) {
     });
     return;
   }
-  $("#fLampiran").val($("#fLampiranDisplay").val());
   var isEdit = skEditingId > 0;
   var fd = new FormData(this);
   fd.set("action", isEdit ? "update_surat" : "buat");
@@ -132,18 +140,16 @@ $(document).on("submit", "#formSurat", function (e) {
       try {
         var r = typeof data === "object" ? data : JSON.parse(data);
         if (r.status === "success") {
+          $("#modalBuatSurat").modal("hide");
           swal({
             title: "Berhasil!",
             text: isEdit ? "Surat diperbarui." : "Surat tersimpan.",
             icon: "success",
             timer: 1500,
           });
-          setTimeout(
-            function () {
-              location.reload();
-            },
-            isEdit ? 1500 : 2000,
-          );
+          setTimeout(function () {
+            location.reload();
+          }, 1500);
         } else {
           swal({ title: "Gagal!", text: r.message || data, icon: "error" });
         }
@@ -183,28 +189,10 @@ $(document).on("click", ".btn-edit-surat", function () {
       $("#fNoSuratDisplay").val(d.no_surat);
       $("#fTglSurat").val(d.tgl_surat ? d.tgl_surat.substring(0, 10) : "");
       $("#fPerihal").val(d.perihal);
-      $("#fTujuan").val(d.tujuan);
-      $("#fLampiran").val(d.lampiran || "");
-      $("#fLampiranDisplay").val(d.lampiran || "");
-      $("#fIsiSurat").val(d.isi_surat || "");
       $("#fStatus").val(d.status);
-      $("#frmTitle").text("Edit Surat — " + d.no_surat);
-      var badgeCls =
-        d.status === "Terkirim"
-          ? "badge-success"
-          : d.status === "Draf"
-            ? "badge-warning"
-            : "badge-secondary";
-      $("#fStatusBadge")
-        .removeClass("d-none badge-success badge-warning badge-secondary")
-        .addClass(badgeCls)
-        .text(d.status);
+      $("#modalBuatTitle").text("Edit Surat — " + d.no_surat);
       $("#btnSimpan").html('<i class="fas fa-save mr-1"></i> Perbarui');
-      $("#btnBatal").show();
-      $("html, body").animate(
-        { scrollTop: $(".sk-form-card").offset().top - 90 },
-        400,
-      );
+      $("#modalBuatSurat").modal("show");
     },
     error: function () {
       swal({ title: "Error", text: "Gagal memuat surat.", icon: "error" });
@@ -297,7 +285,7 @@ function initGenerateModule() {
     genTemplateId = tid;
     genIndeksId = parseInt($(this).find(":selected").data("indeks-id")) || 0;
 
-    // Auto-generate nomor surat
+    // Auto-generate nomor surat berdasarkan indeks
     var indeks = $(this).find(":selected").data("indeks") || "";
     if (indeks) {
       $.get(
@@ -305,30 +293,15 @@ function initGenerateModule() {
           encodeURIComponent(indeks),
         function (d) {
           var no = (d || "").trim();
-          if (no) $("#genNoSurat").val(no);
+          if (no) {
+            $("#genNoSurat").val(no);
+          }
         },
       );
     }
 
     // Load template fields via AJAX
     loadTemplateFields(tid);
-  });
-
-  // Manual generate nomor
-  $("#btnGenNomor").on("click", function () {
-    var indeks = $sel.find(":selected").data("indeks") || "";
-    if (!indeks) {
-      swal({ title: "Pilih template dulu!", icon: "warning" });
-      return;
-    }
-    $.get(
-      "./mod/surat-keluar/proses.php?action=gen_nomor&indeks=" +
-        encodeURIComponent(indeks),
-      function (d) {
-        var no = (d || "").trim();
-        if (no) $("#genNoSurat").val(no);
-      },
-    );
   });
 
   // Generate PDF
@@ -339,12 +312,6 @@ function initGenerateModule() {
   // Simpan & Kirim ke Spreadsheet
   $("#btnSaveToSpreadsheet").on("click", function () {
     saveToSpreadsheet();
-  });
-
-  // Reset
-  $("#btnGenReset").on("click", function () {
-    resetGenerateForm();
-    $sel.val("").trigger("change");
   });
 }
 
@@ -514,12 +481,11 @@ function generatePdf() {
         if (r.status === "success") {
           // Tampilkan PDF
           showPdfPreview(r.pdf_url);
-          $("#genPdfPath").val(r.pdf_path || "");
           swal({
-            title: "PDF Berhasil!",
-            text: "Surat berhasil digenerate.",
+            title: "Dokumen Berhasil!",
+            text: "Surat berhasil digenerate. Silakan tutup modal.",
             icon: "success",
-            timer: 1500,
+            timer: 2000,
           });
         } else {
           swal({
@@ -547,9 +513,20 @@ function createDraftSurat(noSurat, fieldVals) {
   var defer = $.Deferred();
 
   var indeksId = genIndeksId;
-  var perihal =
-    $("#fPerihal").val().trim() ||
-    "Surat " + $("#genTemplateSelect").find(":selected").text();
+  // Ambil perihal dari template select atau dari kolom perihal di form buat surat
+  var perihal = "";
+  var $sel = $("#genTemplateSelect").find(":selected");
+  if ($sel.length && $sel.text()) {
+    // Ambil dari teks option: "INDEKS — Perihal (N variabel)"
+    var txt = $sel.text().trim();
+    var dashIdx = txt.indexOf(" — ");
+    if (dashIdx > 0) {
+      perihal = txt.substring(dashIdx + 3);
+      // Hapus "(N variabel)" di akhir
+      perihal = perihal.replace(/\s*\(\d+\s*variabel\)\s*$/, "").trim();
+    }
+  }
+  if (!perihal) perihal = "Surat " + noSurat;
 
   $.ajax({
     url: "./mod/surat-keluar/proses.php?action=buat",
@@ -558,11 +535,7 @@ function createDraftSurat(noSurat, fieldVals) {
       indeks_id: indeksId,
       no_surat: noSurat,
       perihal: perihal,
-      tujuan: "",
-      tgl_surat:
-        $("#fTglSurat").val() || new Date().toISOString().split("T")[0],
-      lampiran: "",
-      isi_surat: "",
+      tgl_surat: new Date().toISOString().split("T")[0],
     },
     dataType: "json",
     success: function (r) {
@@ -582,10 +555,23 @@ function createDraftSurat(noSurat, fieldVals) {
 
 function showPdfPreview(url) {
   var $iframe = $("#pdfPreview");
-  var $placeholder = $(".sk-preview-placeholder");
+  var $placeholder = $("#genPreviewPlaceholder");
 
   $placeholder.addClass("d-none");
-  $iframe.removeClass("d-none").attr("src", url);
+  $iframe.removeClass("d-none");
+
+  // Konversi link Google Docs edit → preview untuk iframe
+  var previewUrl = url;
+  if (
+    url.indexOf("docs.google.com/document/d/") !== -1 &&
+    url.indexOf("/edit") !== -1
+  ) {
+    previewUrl = url.replace("/edit", "/preview");
+  } else if (url.indexOf("drive.google.com/file/d/") !== -1) {
+    // Link Drive file → gunakan langsung
+    previewUrl = url;
+  }
+  $iframe.attr("src", previewUrl);
   $("#btnDownloadPdf").attr("href", url).removeClass("d-none");
   $("#btnPrintPdf").removeClass("d-none");
 }
@@ -596,16 +582,15 @@ function resetGenerateForm() {
   genFields = [];
   $("#genNoSurat").val("");
   $("#genDynamicFields").html(
-    '<div class="text-center text-muted py-5"><i class="fas fa-arrow-left mb-2" style="font-size:32px;"></i><p class="mb-0">Pilih template terlebih dahulu untuk menampilkan form.</p></div>',
+    '<div class="text-center text-muted py-4"><i class="fas fa-arrow-left mb-2" style="font-size:32px;"></i><p class="mb-0">Pilih template untuk menampilkan form variabel.</p></div>',
   );
   $("#genActions").hide();
   $("#pdfPreview").addClass("d-none").attr("src", "about:blank");
-  $(".sk-preview-placeholder").removeClass("d-none");
+  $("#genPreviewPlaceholder").removeClass("d-none");
   $("#btnDownloadPdf").addClass("d-none").attr("href", "#");
   $("#btnPrintPdf").addClass("d-none");
   $("#genSuratId").val(0);
   $("#genPdfPath").val("");
-  $("#genStatusBadge").addClass("d-none");
 }
 
 function saveToSpreadsheet() {
@@ -653,9 +638,7 @@ function saveToSpreadsheet() {
             window.open(r.spreadsheet_url, "_blank");
           }
           if (r.spreadsheet_range) {
-            $("#genStatusBadge")
-              .removeClass("d-none")
-              .text("Spreadsheet: " + r.spreadsheet_range);
+            // badge dihilangkan karena tidak ada di modal
           }
           setTimeout(function () {
             location.reload();
@@ -682,4 +665,43 @@ $(document).on("click", "#btnPrintPdf", function () {
   if (pdfUrl && pdfUrl !== "about:blank") {
     window.open(pdfUrl, "_blank");
   }
+});
+
+// ===================================================================
+// Generate Button in DataTable — buka modal generate
+// ===================================================================
+$(document).on("click", ".btn-generate-surat", function () {
+  var $btn = $(this);
+  var suratId = $btn.data("id");
+  var indeksId = $btn.data("indeks-id");
+  var templateId = $btn.data("template-id");
+  var noSurat = $btn.data("no-surat");
+
+  if (!templateId || !suratId) {
+    swal({ title: "Data tidak lengkap", icon: "error" });
+    return;
+  }
+
+  // Reset modal generate
+  resetGenerateForm();
+
+  // Set hidden surat ID dan nomor surat (jangan sampai ter-overwrite auto-generate)
+  $("#genSuratId").val(suratId);
+  $("#genNoSurat").val(noSurat);
+
+  // Set template manual — jangan trigger change agar auto-generate nomor TIDAK berjalan
+  genTemplateId = templateId;
+  genIndeksId = indeksId;
+  var $tmpl = $("#genTemplateSelect");
+  $tmpl.val(templateId);
+  loadTemplateFields(templateId);
+
+  // Buka modal
+  $("#modalGenerateSurat").modal("show");
+});
+
+// Ketika modal generate ditutup, reset biar bersih
+$("#modalGenerateSurat").on("hidden.bs.modal", function () {
+  resetGenerateForm();
+  $("#genTemplateSelect").val("");
 });

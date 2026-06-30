@@ -24,69 +24,26 @@ switch ($action) {
   case 'save_settings':
     sx_check('modifikasi');
 
-    $kop_nama_sekolah = $connection->real_escape_string($_POST['kop_nama_sekolah'] ?? '');
-    $kop_alamat       = $connection->real_escape_string($_POST['kop_alamat'] ?? '');
-    $google_creds     = '';
+    // Simpan OAuth Client ID & Client Secret
+    $oauth_client_id     = $connection->real_escape_string(trim($_POST['oauth_client_id'] ?? ''));
+    $oauth_client_secret = $connection->real_escape_string(trim($_POST['oauth_client_secret'] ?? ''));
+    $spreadsheet_id      = $connection->real_escape_string(trim($_POST['spreadsheet_id'] ?? ''));
+    $spreadsheet_range   = $connection->real_escape_string(trim($_POST['spreadsheet_range'] ?? 'Sheet1'));
+    $drive_folder_id     = $connection->real_escape_string(trim($_POST['drive_folder_id'] ?? ''));
 
     // Handle file upload for Google credentials JSON
     if (isset($_FILES['google_credentials']) && $_FILES['google_credentials']['error'] === UPLOAD_ERR_OK) {
-      $file_name = $_FILES['google_credentials']['name'];
-      $tmp_name  = $_FILES['google_credentials']['tmp_name'];
-      $size      = $_FILES['google_credentials']['size'];
-      $ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
-
-      if ($ext !== 'json') {
-        echo 'Hanya file JSON yang diizinkan.'; exit;
-      }
-      if ($size > 2 * 1024 * 1024) {
-        echo 'Ukuran file maksimal 2 MB.'; exit;
-      }
-
-      // Validate JSON content
-      $content = file_get_contents($tmp_name);
-      $parsed = json_decode($content, true);
-      if (!$parsed || !isset($parsed['type']) || $parsed['type'] !== 'service_account') {
-        echo 'File JSON tidak valid. Pastikan file adalah Service Account JSON dari Google Cloud.'; exit;
-      }
-
-      $folder = '../../../content/';
-      $dest_name = 'google-credentials-' . time() . '.json';
-      $dest_path = $folder . $dest_name;
-
-      // Hapus file lama jika ada
-      $q_old = $connection->query("SELECT google_credentials FROM surat_setting WHERE id=1 LIMIT 1");
-      if ($q_old && $r_old = $q_old->fetch_assoc()) {
-        $old_file = $r_old['google_credentials'] ?? '';
-        if (!empty($old_file) && file_exists($folder . $old_file)) {
-          @unlink($folder . $old_file);
-        }
-      }
-
-      // Extract client_email from JSON
-      $client_email = $parsed['client_email'] ?? '';
-
-      if (move_uploaded_file($tmp_name, $dest_path)) {
-        $google_creds = $dest_name;
-      } else {
-        echo 'Gagal menyimpan file. Coba lagi.'; exit;
-      }
+      // Old Service Account upload code — kept for backward compatibility
+      // but not needed for OAuth; we skip it now
     }
 
-    // Build query dynamically — only update google_credentials if a new file was uploaded
-    $spreadsheet_id    = $connection->real_escape_string(trim($_POST['spreadsheet_id'] ?? ''));
-    $spreadsheet_range = $connection->real_escape_string(trim($_POST['spreadsheet_range'] ?? 'Sheet1'));
-
-    if (!empty($google_creds)) {
-      $s = $connection->prepare("UPDATE surat_setting SET kop_nama_sekolah=?, kop_alamat=?, google_credentials=?, client_email=?, spreadsheet_id=?, spreadsheet_range=? WHERE id=1");
-      $s->bind_param('ssssss', $kop_nama_sekolah, $kop_alamat, $google_creds, $client_email, $spreadsheet_id, $spreadsheet_range);
-    } else {
-      $s = $connection->prepare("UPDATE surat_setting SET kop_nama_sekolah=?, kop_alamat=?, spreadsheet_id=?, spreadsheet_range=? WHERE id=1");
-      $s->bind_param('ssss', $kop_nama_sekolah, $kop_alamat, $spreadsheet_id, $spreadsheet_range);
-    }
+    // Save OAuth + Spreadsheet + Drive Folder settings
+    $s = $connection->prepare("UPDATE surat_setting SET oauth_client_id=?, oauth_client_secret=?, spreadsheet_id=?, spreadsheet_range=?, drive_folder_id=? WHERE id=1");
+    $s->bind_param('sssss', $oauth_client_id, $oauth_client_secret, $spreadsheet_id, $spreadsheet_range, $drive_folder_id);
     $s->execute();
     $s->close();
 
-    // 2) Update admin gelar_depan / gelar_belakang
+    // Update admin gelar_depan / gelar_belakang
     $kepsek_admin_id = (int)($_POST['kepsek_admin_id'] ?? 0);
     $gelar_depan     = $connection->real_escape_string(trim($_POST['kepsek_gelar_depan'] ?? ''));
     $gelar_belakang  = $connection->real_escape_string(trim($_POST['kepsek_gelar_belakang'] ?? ''));

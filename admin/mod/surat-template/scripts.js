@@ -294,3 +294,20 @@ $(document).on("click", ".btn-delete-template", function () {
     );
   });
 });
+
+/* ====== EXPAND VARIABEL TAG on click ====== */
+$(document).on("click", ".tag-truncate", function (e) {
+  e.stopPropagation();
+  var $el = $(this);
+  var full = $el.data("full");
+  if (!full || full === "-") return;
+
+  // Toggle expanded state
+  if ($el.hasClass("expanded")) {
+    $el.removeClass("expanded").text($el.text().replace(/\s*⌄$/, ""));
+    $el.attr("title", "Klik untuk lihat lengkap");
+  } else {
+    $el.addClass("expanded").text(full + " ⌄");
+    $el.attr("title", "Klik untuk sembunyikan");
+  }
+});

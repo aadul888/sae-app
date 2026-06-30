@@ -162,8 +162,14 @@ switch ($action) {
       }
 
       preg_match_all('/\{\{(\w+)\}\}/', $html, $matches);
-      $tagNames = array_unique($matches[1]);
-      sort($tagNames);
+      $seen = [];
+      $tagNames = [];
+      foreach ($matches[1] as $name) {
+        if (!isset($seen[$name])) {
+          $seen[$name] = true;
+          $tagNames[] = $name;
+        }
+      }
 
       $fields = [];
       foreach ($tagNames as $name) {

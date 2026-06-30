@@ -4,6 +4,13 @@
  * Menyimpan file kredensial JSON Google Service Account, pengaturan kop surat,
  * serta data kepala sekolah (gelar depan/belakang).
  */
+
+// Jika diakses langsung (bukan melalui index.php), redirect ke router
+if (!isset($connection)) {
+  header('Location: ../../?mod=surat-setting');
+  exit;
+}
+
 if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
   header('location:./login'); exit;
 }
@@ -14,6 +21,13 @@ if (!$has_access) { hak_akses(); return; }
 // Only allow users with modify permission
 if (!isset($data_role['modifikasi']) || $data_role['modifikasi'] != 'Y') {
   theme_404(); return;
+}
+
+// Handle disconnect OAuth
+if (isset($_GET['action']) && $_GET['action'] === 'disconnect_oauth') {
+  $connection->query("UPDATE surat_setting SET oauth_refresh_token=NULL, oauth_token_json=NULL, oauth_email=NULL WHERE id=1");
+  header('Location: ?mod=surat-setting&oauth=disconnected');
+  exit;
 }
 
 // Load current surat_setting data
@@ -35,15 +49,23 @@ if ($q2) {
 // Current kepala sekolah identity (ambil admin_id pertama yang level=13)
 $kepsek_selected = !empty($kepsek_list) ? $kepsek_list[0] : ['admin_id'=>0,'fullname'=>'','gelar_depan'=>'','gelar_belakang'=>'','gtk_nip'=>''];
 
-// Kop surat dari tabel setting (site_kop)
-$site_kop_img = '';
-$qkop = $connection->query("SELECT site_kop, site_name, site_address FROM setting ORDER BY site_id ASC LIMIT 1");
-if ($qkop && $rk = $qkop->fetch_assoc()) {
-  if (!empty($rk['site_kop']) && file_exists("../content/" . $rk['site_kop'])) {
-    $site_kop_img = $rk['site_kop'];
-  }
-  $kop_nama_sekolah = $rk['site_name'] ?? '';
-  $kop_alamat = $rk['site_address'] ?? '';
+/**
+ * Buat URL OAuth untuk login Google.
+ * @param string $clientId
+ * @param string $redirectUri
+ * @return string
+ */
+function getOAuthUrl($clientId, $redirectUri) {
+  if (empty($clientId)) return '#';
+  $params = http_build_query([
+    'client_id' => $clientId,
+    'redirect_uri' => $redirectUri,
+    'response_type' => 'code',
+    'scope' => 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/userinfo.email',
+    'access_type' => 'offline',
+    'prompt' => 'consent',
+  ]);
+  return 'https://accounts.google.com/o/oauth2/v2/auth?' . $params;
 }
 ?>
 <style>
@@ -105,11 +127,11 @@ if ($qkop && $rk = $qkop->fetch_assoc()) {
         <div class="card-header py-3 px-3 module-table-header d-flex justify-content-between align-items-center flex-wrap" style="gap:8px;">
           <div>
             <h4 class="mb-1"><i class="fas fa-cog text-primary mr-2"></i> Pengaturan Surat</h4>
-            <small class="text-muted">Konfigurasi kop surat, identitas kepala sekolah, dan integrasi Google API.</small>
+            <small class="text-muted">Konfigurasi identitas kepala sekolah dan integrasi Google API.</small>
           </div>
           <div>
-            <a href="./surat-template" class="btn-mod btn-mod-secondary" title="Template Surat"><i class="fas fa-file-code"></i></a>
-            <a href="./surat" class="btn-mod btn-mod-secondary" title="Dashboard Surat"><i class="fas fa-arrow-left"></i></a>
+            <a href="../../?mod=surat-template" class="btn-mod btn-mod-secondary" title="Template Surat"><i class="fas fa-file-code"></i></a>
+            <a href="../../?mod=surat" class="btn-mod btn-mod-secondary" title="Dashboard Surat"><i class="fas fa-arrow-left"></i></a>
           </div>
         </div>
 
@@ -117,46 +139,7 @@ if ($qkop && $rk = $qkop->fetch_assoc()) {
           <form id="formSuratSetting" method="post" autocomplete="off">
             <input type="hidden" name="action" value="save_settings">
 
-            <!-- ===== SECTION 1: Kop Surat ===== -->
-            <div class="form-section-card">
-              <div class="card-header">
-                <h5><i class="fas fa-envelope-open-text text-primary mr-2"></i> Kop Surat</h5>
-              </div>
-              <div class="card-body">
-                <div class="row">
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label class="form-control-label font-weight-bold">Nama Sekolah</label>
-                      <input type="text" class="form-control" name="kop_nama_sekolah" id="kop_nama_sekolah" value="<?php echo htmlspecialchars($kop_nama_sekolah ?? ''); ?>" placeholder="Nama lengkap sekolah">
-                      <small class="form-text text-muted">Nama sekolah yang akan tampil di kop surat</small>
-                    </div>
-                  </div>
-                  <div class="col-md-6">
-                    <div class="form-group">
-                      <label class="form-control-label font-weight-bold">Logo / Kop Surat</label>
-                      <div class="kop-preview" id="kopPreview">
-                        <?php if ($site_kop_img): ?>
-                          <img src="../content/<?php echo $site_kop_img; ?>?v=<?php echo filemtime("../content/".$site_kop_img); ?>" alt="Kop Surat">
-                        <?php else: ?>
-                          <span class="kop-placeholder"><i class="fas fa-image mr-1"></i> Belum ada kop surat</span>
-                        <?php endif; ?>
-                      </div>
-                      <small class="form-text text-muted">Kop surat diatur melalui <a href="./pengaturan" target="_blank">Pengaturan Website</a> → Upload Kop Sekolah. Format yang didukung: JPG, PNG, GIF.</small>
-                    </div>
-                  </div>
-                </div>
-                <div class="row">
-                  <div class="col-12">
-                    <div class="form-group">
-                      <label class="form-control-label font-weight-bold">Alamat</label>
-                      <textarea class="form-control" name="kop_alamat" id="kop_alamat" rows="3" placeholder="Alamat lengkap sekolah"><?php echo htmlspecialchars($kop_alamat ?? ''); ?></textarea>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- ===== SECTION 2: Kepala Sekolah ===== -->
+            <!-- ===== SECTION 1: Kepala Sekolah ===== -->
             <div class="form-section-card">
               <div class="card-header">
                 <h5><i class="fas fa-user-tie text-primary mr-2"></i> Kepala Sekolah</h5>
@@ -224,62 +207,85 @@ if ($qkop && $rk = $qkop->fetch_assoc()) {
               </div>
             </div>
 
-            <!-- ===== SECTION 3: Google API Credentials ===== -->
+            <!-- ===== SECTION 2: OAuth 2.0 (Google Login) ===== -->
             <div class="form-section-card">
               <div class="card-header">
-                <h5><i class="fab fa-google text-primary mr-2"></i> Google API Credentials</h5>
+                <h5><i class="fab fa-google text-primary mr-2"></i> OAuth 2.0 — Login Google</h5>
               </div>
               <div class="card-body">
                 <div class="alert alert-info d-flex align-items-center mb-3">
                   <i class="fas fa-info-circle mr-2"></i>
-                  <span>Upload file JSON kredensial Service Account dari <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a>. File ini akan digunakan untuk menghubungkan API Spreadsheet & Docs.</span>
+                  <span>Gunakan OAuth 2.0 (login Google pribadi) untuk mengakses Google Drive. Buat kredensial OAuth 2.0 di <a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a> &rarr; APIs &amp; Services &rarr; Credentials &rarr; Buat <strong>OAuth 2.0 Client ID</strong> (tipe: Web Application).</span>
                 </div>
+
+                <?php
+                $oauth_client_id = $setting['oauth_client_id'] ?? '';
+                $oauth_client_secret = $setting['oauth_client_secret'] ?? '';
+                $oauth_email = $setting['oauth_email'] ?? '';
+                $oauth_refresh = $setting['oauth_refresh_token'] ?? '';
+                $is_oauth_connected = !empty($oauth_refresh);
+
+                // Tentukan redirect URI — hardcode path ke modul surat-setting
+                $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                $host = $_SERVER['HTTP_HOST'];
+                $redirect_uri = $protocol . '://' . $host . '/saev5/admin/mod/surat-setting/oauth-callback.php';
+                ?>
+
                 <div class="row">
-                  <div class="col-md-12">
-                    <?php
-                    $creds_file = $setting['google_credentials'] ?? '';
-                    $creds_valid = false;
-                    if (!empty($creds_file) && file_exists('../content/' . $creds_file)) {
-                      $creds_valid = true;
-                    }
-                    ?>
+                  <div class="col-md-6">
                     <div class="form-group">
-                      <label class="form-control-label font-weight-bold">Upload File JSON Kredensial</label>
-                      <div class="custom-file">
-                        <input type="file" class="custom-file-input" name="google_credentials" id="google_credentials" accept=".json">
-                        <label class="custom-file-label" for="google_credentials"><?php echo $creds_valid ? htmlspecialchars($creds_file) : 'Pilih file JSON...'; ?></label>
-                      </div>
-                      <small class="form-text text-muted">File JSON Service Account dari Google Cloud (type: service_account).</small>
-                      <?php if ($creds_valid): ?>
-                        <div class="mt-2">
-                          <span class="badge badge-success"><i class="fas fa-check mr-1"></i> File terpasang</span>
-                          <small class="text-muted ml-2"><?php echo htmlspecialchars($creds_file); ?></small>
-                        </div>
-                        <?php
-                        $client_email = $setting['client_email'] ?? '';
-                        if (!empty($client_email)):
-                        ?>
-                        <div class="mt-3 p-3 bg-light rounded">
-                          <label class="form-control-label font-weight-bold">Client Email (Service Account)</label>
-                          <div class="input-group">
-                            <input type="text" class="form-control" id="clientEmail" value="<?php echo htmlspecialchars($client_email); ?>" readonly>
-                            <div class="input-group-append">
-                              <button class="btn btn-primary" type="button" onclick="copyClientEmail()" title="Salin email">
-                                <i class="fas fa-copy"></i>
-                              </button>
-                            </div>
-                          </div>
-                          <small class="form-text text-muted">Gunakan email ini untuk memberikan akses spreadsheet/docs ke Service Account ini.</small>
-                        </div>
-                        <?php endif; ?>
-                      <?php endif; ?>
+                      <label class="form-control-label font-weight-bold">OAuth Client ID</label>
+                      <input type="text" class="form-control" name="oauth_client_id" id="oauth_client_id" value="<?php echo htmlspecialchars($oauth_client_id); ?>" placeholder="123456789-xxxxx.apps.googleusercontent.com">
+                    </div>
+                  </div>
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <label class="form-control-label font-weight-bold">OAuth Client Secret</label>
+                      <input type="text" class="form-control" name="oauth_client_secret" id="oauth_client_secret" value="<?php echo htmlspecialchars($oauth_client_secret); ?>" placeholder="GOCSPX-xxxxx">
                     </div>
                   </div>
                 </div>
+
+                <div class="p-3 bg-light rounded mb-3">
+                  <strong>Redirect URI:</strong>
+                  <code class="ml-2"><?php echo htmlspecialchars($redirect_uri); ?></code>
+                  <small class="form-text text-muted">Daftarkan URI ini di <strong>Authorized redirect URIs</strong> pada OAuth 2.0 Client ID di Google Cloud Console.</small>
+                </div>
+
+                <?php if ($is_oauth_connected): ?>
+                  <div class="alert alert-success d-flex align-items-center">
+                    <i class="fas fa-check-circle mr-2 fa-lg"></i>
+                    <span>
+                      <strong>Terhubung!</strong>
+                      <?php if (!empty($oauth_email)): ?>
+                        Akun: <strong><?php echo htmlspecialchars($oauth_email); ?></strong>
+                      <?php endif; ?>
+                      <br><small>Refresh token tersimpan. Klik tombol di bawah untuk menghubungkan ulang.</small>
+                    </span>
+                  </div>
+                  <div class="d-flex gap-2" style="gap:8px;">
+                    <a href="<?php echo htmlspecialchars(getOAuthUrl($oauth_client_id, $redirect_uri)); ?>" class="btn btn-primary">
+                      <i class="fab fa-google mr-1"></i> Hubungkan Ulang
+                    </a>
+                    <a href="#" class="btn btn-outline-danger btn-disconnect-oauth">
+                      <i class="fas fa-unlink mr-1"></i> Putuskan
+                    </a>
+                  </div>
+                <?php elseif (!empty($oauth_client_id) && !empty($oauth_client_secret)): ?>
+                  <a href="<?php echo htmlspecialchars(getOAuthUrl($oauth_client_id, $redirect_uri)); ?>" class="btn btn-primary">
+                    <i class="fab fa-google mr-1"></i> Login dengan Google
+                  </a>
+                  <small class="form-text text-muted mt-1">Klik untuk memberikan izin akses Google Drive.</small>
+                <?php else: ?>
+                  <div class="alert alert-warning mb-0">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    Isi Client ID dan Client Secret terlebih dahulu, simpan, lalu halaman akan reload dengan tombol login.
+                  </div>
+                <?php endif; ?>
               </div>
             </div>
 
-            <!-- ===== SECTION 4: Google Spreadsheet ===== -->
+            <!-- ===== SECTION 3: Google Spreadsheet ===== -->
             <div class="form-section-card">
               <div class="card-header">
                 <h5><i class="fas fa-table text-primary mr-2"></i> Google Spreadsheet Integration</h5>
@@ -302,6 +308,37 @@ if ($qkop && $rk = $qkop->fetch_assoc()) {
                       <label class="form-control-label font-weight-bold">Range / Sheet</label>
                       <input type="text" class="form-control" name="spreadsheet_range" id="spreadsheet_range" value="<?php echo htmlspecialchars($setting['spreadsheet_range'] ?? 'Sheet1'); ?>" placeholder="Sheet1">
                       <small class="form-text text-muted">Nama sheet dan range (contoh: <code>Sheet1</code> atau <code>Sheet1!A:Z</code>)</small>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ===== SECTION 4: Google Drive PDF Folder ===== -->
+            <div class="form-section-card">
+              <div class="card-header">
+                <h5><i class="fab fa-google-drive text-primary mr-2"></i> Google Drive — Folder PDF Surat Keluar</h5>
+              </div>
+              <div class="card-body">
+                <div class="alert alert-info d-flex align-items-center mb-3">
+                  <i class="fas fa-info-circle mr-2"></i>
+                  <span>Masukkan Folder ID tujuan penyimpanan PDF. Folder ID bisa didapat dari URL folder Google Drive: <code>https://drive.google.com/drive/folders/FOLDER_ID</code>. Folder harus sudah dibuat manual di Google Drive.</span>
+                </div>
+                <div class="row">
+                  <div class="col-md-8">
+                    <div class="form-group">
+                      <label class="form-control-label font-weight-bold">Folder ID</label>
+                      <input type="text" class="form-control" name="drive_folder_id" id="drive_folder_id" value="<?php echo htmlspecialchars($setting['drive_folder_id'] ?? ''); ?>" placeholder="Masukkan Folder ID">
+                      <small class="form-text text-muted">ID folder Google Drive tempat PDF akan disimpan.</small>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label class="form-control-label font-weight-bold">Cek Folder</label>
+                      <button type="button" class="btn btn-outline-primary btn-block" id="btnCheckDriveFolder">
+                        <i class="fas fa-folder-open mr-1"></i> Buka di Drive
+                      </button>
+                      <small class="form-text text-muted">Klik untuk membuka folder Google Drive.</small>
                     </div>
                   </div>
                 </div>

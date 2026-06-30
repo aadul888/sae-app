@@ -979,23 +979,28 @@
  * Global table-action styles — used by surat-index & surat-template
  * ============================================================ */
 .surat-index-page .badge,
-.surat-template-page .badge {
+.surat-template-page .badge,
+.surat-keluar-page .badge {
   font-weight: 600;
   font-size: 0.8rem;
 }
 .surat-index-page .user-stat-card .label,
-.surat-template-page .user-stat-card .label {
+.surat-template-page .user-stat-card .label,
+.surat-keluar-page .user-stat-card .label {
   font-weight: 600;
   text-transform: uppercase;
 }
 .surat-index-page .table tbody td,
-.surat-template-page .table tbody td {
+.surat-template-page .table tbody td,
+.surat-keluar-page .table tbody td {
   vertical-align: middle;
 }
 .surat-index-page .table-action,
 .surat-index-page button.table-action,
 .surat-template-page .table-action,
-.surat-template-page button.table-action {
+.surat-template-page button.table-action,
+.surat-keluar-page .table-action,
+.surat-keluar-page button.table-action {
   border: none;
   background: none;
   padding: 0;
@@ -1006,12 +1011,15 @@
 .surat-index-page .table-action:focus,
 .surat-index-page button.table-action:focus,
 .surat-template-page .table-action:focus,
-.surat-template-page button.table-action:focus {
+.surat-template-page button.table-action:focus,
+.surat-keluar-page .table-action:focus,
+.surat-keluar-page button.table-action:focus {
   outline: none;
   box-shadow: none;
 }
 .surat-index-page .table-action-teal:hover,
-.surat-template-page .table-action-teal:hover {
+.surat-template-page .table-action-teal:hover,
+.surat-keluar-page .table-action-teal:hover {
   color: #14b8a6;
 }
 

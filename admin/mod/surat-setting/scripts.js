@@ -123,4 +123,47 @@ $(function () {
       },
     });
   });
+
+  // ====== BUKA FOLDER GOOGLE DRIVE ======
+  $(document).on("click", "#btnCheckDriveFolder", function () {
+    var folderId = $("#drive_folder_id").val().trim();
+    if (!folderId) {
+      swal({
+        title: "Info",
+        text: "Isi Folder ID terlebih dahulu.",
+        icon: "info",
+      });
+      return;
+    }
+    window.open("https://drive.google.com/drive/folders/" + folderId, "_blank");
+  });
+
+  // ====== PUTUSKAN KONEKSI GOOGLE OAUTH ======
+  $(document).on("click", ".btn-disconnect-oauth", function (e) {
+    e.preventDefault();
+    swal({
+      title: "Putuskan Koneksi Google?",
+      text: "Token akses Google Drive akan dihapus. Anda perlu login ulang untuk mengunggah surat ke Google Drive.",
+      icon: "warning",
+      buttons: {
+        cancel: {
+          text: "Batal",
+          visible: true,
+          closeModal: true,
+        },
+        confirm: {
+          text: "Ya, Putuskan",
+          value: true,
+          visible: true,
+          closeModal: true,
+          className: "btn-danger",
+        },
+      },
+      dangerMode: true,
+    }).then((willDisconnect) => {
+      if (willDisconnect) {
+        window.location.href = "?mod=surat-setting&action=disconnect_oauth";
+      }
+    });
+  });
 });

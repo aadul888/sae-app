@@ -26,6 +26,13 @@ switch ($action) {
   case 'datatable':
     header('Content-Type: application/json');
     $data = [];
+    // Cari template yang punya indeks_id untuk menentukan apakah tombol generate perlu ditampilkan
+    $templateMap = [];
+    $tq = $connection->query("SELECT id, indeks_id FROM surat_template WHERE indeks_id IS NOT NULL");
+    if ($tq) while ($tr = $tq->fetch_assoc()) {
+      $templateMap[(int)$tr['indeks_id']] = (int)$tr['id'];
+    }
+
     $q = $connection->query("SELECT sk.*, si.indeks FROM surat_keluar sk LEFT JOIN surat_index si ON sk.indeks_id=si.id ORDER BY sk.id DESC LIMIT 50");
     if ($q) {
       $no = 1;
@@ -35,10 +42,19 @@ switch ($action) {
         $del = (isset($data_role['hapus']) && $data_role['hapus'] == 'Y') ? '<button class="table-action table-action-danger btn-delete-keluar" data-id="' . $sk['id'] . '" title="Hapus"><i class="fas fa-trash"></i></button>' : '';
         $editBtn = $can_edit ? '<button class="table-action table-action-primary btn-edit-surat" data-id="' . $sk['id'] . '" title="Edit"><i class="fas fa-edit"></i></button>' : '';
         $kirimBtn = ($can_edit && $sk['status'] === 'Draf') ? '<button class="table-action table-action-info btn-kirim-surat" data-id="' . $sk['id'] . '" title="Tandai Terkirim"><i class="fas fa-check"></i></button>' : '';
-        // PDF link
+        // Generate button (hanya jika indeks memiliki template)
+        $genBtn = '';
+        $indeksId = (int)$sk['indeks_id'];
+        if ($can_edit && isset($templateMap[$indeksId])) {
+          $tmplId = $templateMap[$indeksId];
+          $genBtn = '<button class="table-action table-action-warning btn-generate-surat" data-id="' . $sk['id'] . '" data-indeks-id="' . $indeksId . '" data-template-id="' . $tmplId . '" data-no-surat="' . htmlspecialchars($sk['no_surat']) . '" title="Generate PDF"><i class="fas fa-magic"></i></button>';
+        }
+        // PDF link — prioritaskan drive_view_link
         $pdfLink = '';
-        if (!empty($sk['template_path'])) {
-          $pdfUrl = htmlspecialchars('../../../' . $sk['template_path']);
+        if (!empty($sk['drive_view_link'])) {
+          $pdfLink = '<a href="' . htmlspecialchars($sk['drive_view_link']) . '" target="_blank" class="table-action table-action-success" title="Lihat PDF (Google Drive)"><i class="fas fa-file-pdf"></i></a> ';
+        } elseif (!empty($sk['template_path']) && strpos($sk['template_path'], 'drive:') !== 0) {
+          $pdfUrl = htmlspecialchars('/saev5/' . $sk['template_path']);
           $pdfLink = '<a href="' . $pdfUrl . '" target="_blank" class="table-action table-action-success" title="Lihat PDF"><i class="fas fa-file-pdf"></i></a> ';
         }
         $data[] = [
@@ -46,10 +62,9 @@ switch ($action) {
           '<td><code>' . htmlspecialchars($sk['no_surat']) . '</code></td>',
           '<td>' . htmlspecialchars($sk['indeks'] ?? '-') . '</td>',
           '<td><strong>' . htmlspecialchars(mb_substr($sk['perihal'], 0, 50)) . '</strong></td>',
-          '<td>' . htmlspecialchars(mb_substr($sk['tujuan'], 0, 30)) . '</td>',
           '<td><small>' . date('d/m/Y', strtotime($sk['tgl_surat'] ?? $sk['created_at'])) . '</small></td>',
           '<td><span class="badge badge-' . $badge . '">' . htmlspecialchars($sk['status']) . '</span></td>',
-          '<td class="text-center">' . $pdfLink . $editBtn . ' ' . $kirimBtn . ' ' . $del . '</td>'
+          '<td class="text-center">' . $pdfLink . $genBtn . ' ' . $editBtn . ' ' . $kirimBtn . ' ' . $del . '</td>'
         ];
       }
     }
@@ -88,13 +103,11 @@ switch ($action) {
     $indeks_id = (int)($_POST['indeks_id'] ?? 0);
     $no_surat = $connection->real_escape_string($_POST['no_surat'] ?? '');
     $perihal = $connection->real_escape_string($_POST['perihal'] ?? '');
-    $tujuan = $connection->real_escape_string($_POST['tujuan'] ?? '');
     $tgl_surat = !empty($_POST['tgl_surat']) ? $_POST['tgl_surat'] : date('Y-m-d');
-    $lampiran = $connection->real_escape_string($_POST['lampiran'] ?? '');
-    $isi_surat = $connection->real_escape_string($_POST['isi_surat'] ?? '');
+    $lampiran = '';
     $status = $connection->real_escape_string($_POST['status'] ?? 'Draf');
-    $u = $connection->prepare("UPDATE surat_keluar SET indeks_id=?, no_surat=?, tgl_surat=?, perihal=?, tujuan=?, lampiran=?, isi_surat=?, status=? WHERE id=?");
-    $u->bind_param('isssssssi', $indeks_id, $no_surat, $tgl_surat, $perihal, $tujuan, $lampiran, $isi_surat, $status, $id);
+    $u = $connection->prepare("UPDATE surat_keluar SET indeks_id=?, no_surat=?, tgl_surat=?, perihal=?, lampiran=?, status=? WHERE id=?");
+    $u->bind_param('isssssi', $indeks_id, $no_surat, $tgl_surat, $perihal, $lampiran, $status, $id);
     if (!$u->execute()) {
       echo json_encode(['status'=>'error','message'=>'Gagal: '.$connection->error]);
       $u->close(); exit;
@@ -120,15 +133,13 @@ switch ($action) {
     $indeks_id = (int)($_POST['indeks_id'] ?? 0);
     $no_surat = $connection->real_escape_string($_POST['no_surat'] ?? '');
     $perihal = $connection->real_escape_string($_POST['perihal'] ?? '');
-    $tujuan = $connection->real_escape_string($_POST['tujuan'] ?? '');
     $tgl_surat = !empty($_POST['tgl_surat']) ? $_POST['tgl_surat'] : date('Y-m-d');
-    $lampiran = $connection->real_escape_string($_POST['lampiran'] ?? '');
-    $isi_surat = $connection->real_escape_string($_POST['isi_surat'] ?? '');
-    if ($indeks_id <= 0 || empty($no_surat) || empty($perihal)) {
+    $lampiran = '';
+    if ($indeks_id <= 0 || empty($no_surat)) {
       echo json_encode(['status' => 'error', 'message' => 'Lengkapi data.']); exit;
     }
-    $s = $connection->prepare("INSERT INTO surat_keluar (indeks_id, no_surat, tgl_surat, perihal, tujuan, lampiran, isi_surat, created_by, status) VALUES (?,?,?,?,?,?,?,'1','Draf')");
-    $s->bind_param('issssss', $indeks_id, $no_surat, $tgl_surat, $perihal, $tujuan, $lampiran, $isi_surat);
+    $s = $connection->prepare("INSERT INTO surat_keluar (indeks_id, no_surat, tgl_surat, perihal, lampiran, created_by, status) VALUES (?,?,?,?,?,'1','Draf')");
+    $s->bind_param('issss', $indeks_id, $no_surat, $tgl_surat, $perihal, $lampiran);
     if (!$s->execute()) {
       echo json_encode(['status' => 'error', 'message' => 'Gagal: ' . $connection->error]);
       $s->close(); exit;
@@ -143,17 +154,52 @@ switch ($action) {
   case 'delete':
     sk_check('hapus');
     $id = (int)($_POST['id'] ?? 0);
-    echo $id > 0 && $connection->query("DELETE FROM surat_keluar WHERE id=$id") ? 'success' : 'Gagal.';
+    if ($id <= 0) { echo 'ID tidak valid.'; exit; }
+    
+    // Ambil dulu template_path & drive_file_id sebelum hapus record
+    $dq = $connection->query("SELECT template_path, drive_file_id FROM surat_keluar WHERE id=$id LIMIT 1");
+    if ($dq && $dr = $dq->fetch_assoc()) {
+      // Hapus dari Google Drive jika ada drive_file_id
+      $driveFileId = $dr['drive_file_id'] ?? '';
+      if (!empty($driveFileId)) {
+        try {
+          require_once __DIR__ . '/../../../library/google_drive_helper.php';
+          $gdrive = new GoogleDriveHelper($creds_path);
+          $gdrive->deleteFile($driveFileId);
+        } catch (Exception $e) {
+          // Abaikan error hapus Drive
+        }
+      }
+      
+      // Hapus file PDF lokal jika masih ada (legacy)
+      $oldPath = $dr['template_path'] ?? '';
+      if (!empty($oldPath) && strpos($oldPath, 'drive:') !== 0) {
+        $fullPath = __DIR__ . '/../../../' . $oldPath;
+        if (file_exists($fullPath)) {
+          @unlink($fullPath);
+        }
+        $baseDir = dirname($fullPath);
+        $baseName = pathinfo($fullPath, PATHINFO_FILENAME);
+        if ($baseDir && is_dir($baseDir)) {
+          $pattern = $baseDir . '/' . preg_replace('/_\d{8}_\d{6}$/', '', $baseName) . '_*.pdf';
+          foreach (glob($pattern) as $oldFile) {
+            if (file_exists($oldFile)) @unlink($oldFile);
+          }
+        }
+      }
+    }
+    
+    echo $connection->query("DELETE FROM surat_keluar WHERE id=$id") ? 'success' : 'Gagal.';
     break;
 
   case 'export_excel':
     $spreadsheet = new Spreadsheet();
     $sheet = $spreadsheet->getActiveSheet();
-    $sheet->setCellValue('A1','No')->setCellValue('B1','No. Surat')->setCellValue('C1','Indeks')->setCellValue('D1','Perihal')->setCellValue('E1','Tujuan')->setCellValue('F1','Tanggal')->setCellValue('G1','Status');
+    $sheet->setCellValue('A1','No')->setCellValue('B1','No. Surat')->setCellValue('C1','Indeks')->setCellValue('D1','Perihal')->setCellValue('E1','Tanggal')->setCellValue('F1','Status');
     $no = 2;
     $q = $connection->query("SELECT sk.*, si.indeks FROM surat_keluar sk LEFT JOIN surat_index si ON sk.indeks_id=si.id ORDER BY sk.id DESC");
     if ($q) while ($r = $q->fetch_assoc()) {
-      $sheet->setCellValue('A'.$no, $no-1)->setCellValue('B'.$no, $r['no_surat'])->setCellValue('C'.$no, $r['indeks']??'')->setCellValue('D'.$no, $r['perihal'])->setCellValue('E'.$no, $r['tujuan'])->setCellValue('F'.$no, $r['tgl_surat']??$r['created_at'])->setCellValue('G'.$no, $r['status']);
+      $sheet->setCellValue('A'.$no, $no-1)->setCellValue('B'.$no, $r['no_surat'])->setCellValue('C'.$no, $r['indeks']??'')->setCellValue('D'.$no, $r['perihal'])->setCellValue('E'.$no, $r['tgl_surat']??$r['created_at'])->setCellValue('F'.$no, $r['status']);
       $no++;
     }
     header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -177,10 +223,16 @@ switch ($action) {
       echo json_encode(['status'=>'error','message'=>'Template ini belum memiliki variabel tag. Silakan scan tags terlebih dahulu di menu Template Surat.']); exit;
     }
 
-    // Parse {{tag}} from variabel_tag string
+    // Parse {{tag}} from variabel_tag string — urut sesuai kemunculan di template
     preg_match_all('/\{\{(\w+)\}\}/', $variabel_tag, $matches);
-    $tagNames = array_unique($matches[1]);
-    sort($tagNames);
+    $seen = [];
+    $tagNames = [];
+    foreach ($matches[1] as $name) {
+      if (!isset($seen[$name])) {
+        $seen[$name] = true;
+        $tagNames[] = $name;
+      }
+    }
 
     $fields = [];
     foreach ($tagNames as $name) {
@@ -195,7 +247,7 @@ switch ($action) {
     exit;
     break;
 
-  // ====== GENERATE PDF — download HTML dari Google Docs, replace tags, render PDF ======
+  // ====== GENERATE SURAT — copy template Google Docs, replace text via Docs API ======
   case 'generate_pdf':
     header('Content-Type: application/json');
     sk_check('modifikasi');
@@ -204,7 +256,7 @@ switch ($action) {
     while (ob_get_level()) ob_end_clean();
     ob_start();
 
-    // Set time limit tidak terbatas untuk proses download & generate PDF
+    // Set time limit tidak terbatas
     set_time_limit(0);
 
     $template_id = (int)($_POST['template_id'] ?? 0);
@@ -225,32 +277,39 @@ switch ($action) {
       echo json_encode(['status'=>'error','message'=>'Drive File ID tidak ditemukan pada template.']); exit;
     }
 
-    // Ambil setting kredensial
-    $qs = $connection->query("SELECT google_credentials FROM surat_setting WHERE id=1 LIMIT 1");
+    // Ambil setting kredensial — dukung OAuth 2.0 dan Service Account
+    $qs = $connection->query("SELECT google_credentials, drive_folder_id, oauth_client_id, oauth_client_secret, oauth_refresh_token FROM surat_setting WHERE id=1 LIMIT 1");
     $set = $qs ? $qs->fetch_assoc() : null;
-    if (!$set || empty($set['google_credentials'])) {
-      echo json_encode(['status'=>'error','message'=>'Kredensial Google API belum dikonfigurasi.']); exit;
-    }
-    $creds_path = __DIR__ . '/../../../content/' . $set['google_credentials'];
-    if (!file_exists($creds_path)) {
-      echo json_encode(['status'=>'error','message'=>'File kredensial tidak ditemukan.']); exit;
+    if (!$set) {
+      echo json_encode(['status'=>'error','message'=>'Setting tidak ditemukan.']); exit;
     }
 
     try {
       // Load Google Drive Helper
       require_once __DIR__ . '/../../../library/google_drive_helper.php';
 
-      // Cek apakah sudah ada html_content, jika tidak download dulu
-      $html_content = $tmpl['html_content'];
-      if (empty($html_content)) {
-        $gdrive = new GoogleDriveHelper($creds_path);
-        $html_content = $gdrive->downloadDirectExport($drive_file_id);
-        if ($html_content === false) {
-          echo json_encode(['status'=>'error','message'=>'Gagal download HTML dari Google Docs. Pastikan dokumen di-share "Anyone with the link".']); exit;
+      $useOAuth = !empty($set['oauth_client_id']) && !empty($set['oauth_client_secret']) && !empty($set['oauth_refresh_token']);
+
+      if ($useOAuth) {
+        $creds_path = __DIR__ . '/../../../content/google-oauth-helper.json';
+        if (!file_exists($creds_path)) {
+          file_put_contents($creds_path, json_encode([
+            'type' => 'service_account',
+            'client_email' => 'oauth@dummy.com',
+            'private_key' => 'dummy',
+          ]));
         }
-        // Simpan ke database
-        $escaped_html = $connection->real_escape_string($html_content);
-        $connection->query("UPDATE surat_template SET html_content='$escaped_html', updated_at=NOW() WHERE id=$template_id");
+        $gdrive = new GoogleDriveHelper($creds_path);
+        $gdrive->setOAuthCredentials($set['oauth_client_id'], $set['oauth_client_secret'], $set['oauth_refresh_token']);
+      } else {
+        if (empty($set['google_credentials'])) {
+          echo json_encode(['status'=>'error','message'=>'Kredensial Google API belum dikonfigurasi.']); exit;
+        }
+        $creds_path = __DIR__ . '/../../../content/' . $set['google_credentials'];
+        if (!file_exists($creds_path)) {
+          echo json_encode(['status'=>'error','message'=>'File kredensial tidak ditemukan.']); exit;
+        }
+        $gdrive = new GoogleDriveHelper($creds_path);
       }
 
       // Decode JSON string if sent as string from JS
@@ -258,105 +317,70 @@ switch ($action) {
         $field_values = json_decode($field_values, true) ?? [];
       }
 
-      // Replace {{tags}} with actual values
-      $bodyHtml = $html_content;
+      // =================================================================
+      // STRATEGI BARU: Copy template → Replace text via Docs API → Selesai
+      // Tidak perlu mPDF, format template Google Docs terjaga 100%.
+      // =================================================================
+
+      // Folder tujuan
+      $pdfFolderId = $set['drive_folder_id'] ?? null;
+      if (empty($pdfFolderId)) {
+        echo json_encode(['status'=>'error','message'=>'Folder ID Google Drive belum dikonfigurasi. Silakan isi Folder ID di menu Pengaturan Surat.']); exit;
+      }
+
+      // 1. Copy template — otomatis konversi ke Google Docs jika file Office
+      $tmplTitle = $tmpl['indeks_surat'] ?? 'Surat';
+      $noSuratSafe = preg_replace('/[^a-zA-Z0-9.-]/', '_', substr($no_surat, 0, 40));
+      $timestamp = date('Ymd_His');
+      $docTitle = $tmplTitle . '_' . $noSuratSafe . '_' . $timestamp;
+
+      $newFileId = $gdrive->copyAsGoogleDoc($drive_file_id, $docTitle, $pdfFolderId);
+      if (!$newFileId) {
+        echo json_encode(['status'=>'error','message'=>'Gagal copy/konversi template. ' . $gdrive->getLastError()]); exit;
+      }
+
+      // 2. Siapkan replacement — ganti {{tags}} dengan nilai dari form
+      $replacements = [];
       foreach ($field_values as $key => $val) {
-        $bodyHtml = str_replace('{{' . $key . '}}', htmlspecialchars($val ?? ''), $bodyHtml);
+        $replacements['{{' . $key . '}}'] = $val ?? '';
+      }
+      // Tambahkan nomor surat jika ada
+      if (!empty($no_surat)) {
+        $replacements['{{no_surat}}'] = $no_surat;
       }
 
-      // Prepare Kop Surat
-      $qs2 = $connection->query("SELECT kop_nama_sekolah, kop_alamat, kop_logo FROM surat_setting WHERE id=1 LIMIT 1");
-      $setting = $qs2 ? $qs2->fetch_assoc() : [];
-
-      // Load mPDF
-      require_once __DIR__ . '/../../../admin/assets/vendor/autoload.php';
-
-      $mpdf = new \Mpdf\Mpdf([
-        'mode' => 'utf-8',
-        'format' => 'A4',
-        'margin_top' => 25,
-        'margin_bottom' => 20,
-        'margin_left' => 20,
-        'margin_right' => 20,
-        'default_font' => 'serif',
-        'tempDir' => __DIR__ . '/../../../content/cache',
-      ]);
-
-      // Buat header kop surat
-      $nama_sekolah = htmlspecialchars($setting['kop_nama_sekolah'] ?? '');
-      $alamat_sekolah = htmlspecialchars($setting['kop_alamat'] ?? '');
-      $logo = $setting['kop_logo'] ?? '';
-
-      $headerHtml = '';
-      if (!empty($nama_sekolah)) {
-        $logoImg = '';
-        if (!empty($logo) && file_exists(__DIR__ . '/../../../content/' . $logo)) {
-          $logoPath = __DIR__ . '/../../../content/' . $logo;
-          $logoImg = '<img src="' . $logoPath . '" style="height:50px;margin-right:10px;" />';
+      // 3. Lakukan batchReplaceText via Docs API
+      if (!empty($replacements)) {
+        $replaceResult = $gdrive->batchReplaceText($newFileId, $replacements);
+        if (!$replaceResult) {
+          // Hapus file yang sudah tercopy jika gagal replace
+          $gdrive->deleteFile($newFileId);
+          echo json_encode(['status'=>'error','message'=>'Gagal replace text di dokumen. ' . $gdrive->getLastError()]); exit;
         }
-        $headerHtml = '
-        <table style="width:100%;border-bottom:2px solid #333;margin-bottom:10px;padding-bottom:6px;">
-          <tr>
-            <td style="width:60px;vertical-align:middle;">' . $logoImg . '</td>
-            <td style="text-align:center;vertical-align:middle;">
-              <div style="font-size:14pt;font-weight:bold;">' . $nama_sekolah . '</div>
-              <div style="font-size:9pt;">' . $alamat_sekolah . '</div>
-            </td>
-          </tr>
-        </table>';
       }
 
-      // Nomor surat
-      $noSuratDisplay = !empty($no_surat) ? '<p style="text-align:right;font-size:10pt;">Nomor: ' . htmlspecialchars($no_surat) . '</p>' : '';
+      // 4. Set public (Anyone with the link can view)
+      $gdrive->makePublic($newFileId);
 
-      $fullHtml = '
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: serif; font-size: 12pt; line-height: 1.5; color: #000; }
-          .kop-surat { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 8px; }
-          .kop-surat .nama { font-size: 14pt; font-weight: bold; }
-          .kop-surat .alamat { font-size: 9pt; }
-          .no-surat { text-align: right; font-size: 10pt; margin-bottom: 10px; }
-          .isi-surat { text-align: justify; }
-          table { border-collapse: collapse; }
-          td, th { padding: 4px 6px; }
-        </style>
-      </head>
-      <body>
-        ' . $headerHtml . '
-        ' . $noSuratDisplay . '
-        <div class="isi-surat">' . $bodyHtml . '</div>
-      </body>
-      </html>';
+      // 5. Dapatkan webViewLink untuk preview
+      $webViewLink = $gdrive->getWebViewLink($newFileId);
+      if (!$webViewLink) {
+        $webViewLink = 'https://docs.google.com/document/d/' . $newFileId . '/edit';
+      }
 
-      $mpdf->WriteHTML($fullHtml);
-
-      // Generate filename
-      $indeks_clean = preg_replace('/[^a-zA-Z0-9.-]/', '_', $tmpl['indeks_surat'] ?? 'surat');
-      $no_clean = preg_replace('/[^a-zA-Z0-9.-]/', '_', substr($no_surat, 0, 30));
-      $filename = $indeks_clean . '_' . $no_clean . '_' . date('Ymd_His') . '.pdf';
-
-      $saveDir = __DIR__ . '/../../../content/surat-keluar';
-      if (!is_dir($saveDir)) mkdir($saveDir, 0755, true);
-      $savePath = $saveDir . '/' . $filename;
-
-      $mpdf->Output($savePath, \Mpdf\Output\Destination::FILE);
-
-      // Simpan template_path dan template_fields_json di surat_keluar jika ada surat_id
+      // 6. Simpan info surat di surat_keluar
       if ($surat_id_editing > 0) {
-        $path_db = $connection->real_escape_string('content/surat-keluar/' . $filename);
         $fields_json = $connection->real_escape_string(json_encode($field_values));
-        $connection->query("UPDATE surat_keluar SET template_path='$path_db', template_fields_json='$fields_json', updated_at=NOW() WHERE id=$surat_id_editing");
+        $efid = $connection->real_escape_string($newFileId);
+        $elink = $connection->real_escape_string($webViewLink);
+        $connection->query("UPDATE surat_keluar SET template_path='drive:$efid', template_fields_json='$fields_json', drive_file_id='$efid', drive_view_link='$elink', updated_at=NOW() WHERE id=$surat_id_editing");
       }
 
-      $publicPath = 'content/surat-keluar/' . $filename;
       echo json_encode([
         'status' => 'success',
-        'pdf_url' => '../../../' . $publicPath,
-        'pdf_path' => $publicPath,
-        'filename' => $filename,
+        'pdf_url' => $webViewLink,
+        'pdf_file_id' => $newFileId,
+        'filename' => $docTitle,
       ]);
     } catch (Exception $e) {
       echo json_encode(['status'=>'error','message'=>'Exception: '.$e->getMessage()]);
