@@ -2164,6 +2164,37 @@
 }
 
 /* ========================================================
+   Berkas Modal - Responsive Card Grid
+   ======================================================== */
+#modalLihatSemuaBerkas .modal-body {
+  overflow-y: auto;
+  max-height: 80vh;
+}
+#modalLihatSemuaBerkas .btn {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.75rem;
+}
+@media (max-width: 576px) {
+  #modalLihatSemuaBerkas .modal-dialog {
+    margin: 0.25rem;
+    max-width: calc(100% - 0.5rem) !important;
+  }
+  #modalLihatSemuaBerkas .card-body {
+    padding: 0.75rem;
+  }
+  #modalLihatSemuaBerkas .btn {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+  }
+  #modalLihatSemuaBerkas .doc-reason-checkboxes {
+    flex-direction: column;
+  }
+  #modalLihatSemuaBerkas .doc-reason-checkboxes .custom-control {
+    margin-right: 0 !important;
+  }
+}
+
+/* ========================================================
    Admin Login Page
    ======================================================== */
 body.admin-login-page {

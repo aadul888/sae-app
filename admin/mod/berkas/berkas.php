@@ -50,13 +50,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                 </div>
                 <div class="icon"><i class="fas fa-times-circle"></i></div>
               </div>
-              <div class="user-stat-card user-stat-belum">
-                <div class="info">
-                  <span class="label">Perlu Revisi</span>
-                  <span class="value text-warning" id="berkas-stat-revisi">0</span>
-                </div>
-                <div class="icon"><i class="fas fa-exclamation-triangle"></i></div>
-              </div>
               <div class="user-stat-card user-stat-berkas-belum">
                 <div class="info">
                   <span class="label">Belum Divalidasi</span>
@@ -71,26 +64,22 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     </div>
   </div>
 
-  <div class="card user-table-panel pb-2">
-    <div class="card-header py-3 px-3 user-table-header">
-      <div class="user-table-head-row" style="gap:10px;">
+  <div class="card user-table-panel module-table-card pb-2">
+    <div class="card-header py-3 px-3 user-table-header module-table-header">
+      <div class="user-table-head-row module-header-row" style="gap:10px;">
         <div>
           <h4 class="mb-1">Berkas Persyaratan Siswa</h4>
           <small class="text-muted">Kelola dan validasi berkas persyaratan siswa.</small>
         </div>
-        <div class="user-toolbar-actions user-toolbar-actions-table">
+        <div class="user-toolbar-actions user-toolbar-actions-table module-header-actions">
           ';
         if (isset($level_id) && intval($level_id) === 1) {
-          echo '<select class="form-control filter-kelas d-inline-block" style="width:auto;min-width:140px;">'
-            . '<option value="">Semua Kelas</option>';
-          $query_kelas = "SELECT * FROM kelas ORDER BY nama_kelas ASC";
-          $result_kelas = $connection->query($query_kelas);
-          while ($data_kelas = $result_kelas->fetch_assoc()) {
-            echo '<option value="' . $data_kelas['kelas_id'] . '">' . $data_kelas['nama_kelas'] . '</option>';
-          }
-          echo '</select>';
+          echo '<input type="hidden" class="filter-kelas" value="">
+          <input type="hidden" class="filter-status" value="">
+          <button type="button" class="btn-mod btn-mod-teal btn-open-filter-kelas" title="Filter Kelas & Status"><i class="fas fa-filter"></i></button>';
         } else {
-          echo '<input type="hidden" class="filter-kelas" value="">';
+          echo '<input type="hidden" class="filter-kelas" value="">
+          <input type="hidden" class="filter-status" value="">';
         }
         echo '
         </div>
@@ -137,21 +126,66 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
   <!-- Modal Lihat Semua Berkas -->
   <div class="modal fade" id="modalLihatSemuaBerkas" tabindex="-1" role="dialog" aria-labelledby="modalLihatSemuaBerkasLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl" role="document" style="max-width:95%;margin:1rem auto;">
-      <div class="modal-content" style="height:90vh;">
-        <div class="modal-header">
+    <div class="modal-dialog modal-xl" role="document" style="max-width:95%;margin:0.5rem auto;">
+      <div class="modal-content">
+        <div class="modal-header py-2 px-3">
           <h5 class="modal-title" id="modalLihatSemuaBerkasLabel">Semua Berkas Siswa</h5>
           <button type="button" class="close" data-dismiss="modal" aria-label="Close">
             <span aria-hidden="true">&times;</span>
           </button>
         </div>
-        <div class="modal-body" id="modalLihatSemuaBerkasBody" style="overflow-y:auto;height:calc(90vh - 60px);">
+        <div class="modal-body p-2 p-md-3" id="modalLihatSemuaBerkasBody">
           <!-- Content akan diisi via JavaScript -->
         </div>
       </div>
     </div>
   </div>
   ';
+
+        // Modal Filter Kelas & Status
+        if (isset($level_id) && intval($level_id) === 1) {
+          echo '
+  <div class="modal fade modal-filter-kelas" tabindex="-1" role="dialog" aria-labelledby="modalFilterKelasLabel" aria-hidden="true">
+    <div class="modal-dialog modal-md" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalFilterKelasLabel">Filter Kelas & Status Validasi</h5>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div class="modal-body pb-2">
+          <div class="form-group mb-3">
+            <label class="form-control-label">Pilih Kelas</label>
+            <select class="form-control modal-filter-kelas-select">
+              <option value="">Semua Kelas</option>';
+          $query_kelas_modal = "SELECT * FROM kelas ORDER BY nama_kelas ASC";
+          $result_kelas_modal = $connection->query($query_kelas_modal);
+          while ($data_kelas_modal = $result_kelas_modal->fetch_assoc()) {
+            echo '<option value="' . $data_kelas_modal['kelas_id'] . '">' . $data_kelas_modal['nama_kelas'] . '</option>';
+          }
+          echo '
+            </select>
+          </div>
+          <div class="form-group mb-0">
+            <label class="form-control-label">Status Validasi</label>
+            <select class="form-control modal-status-select">
+              <option value="">Semua Status</option>
+              <option value="valid">Valid</option>
+              <option value="tidak_valid">Tidak Valid</option>
+              <option value="belum">Belum Divalidasi</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-reset-filter-kelas">Reset</button>
+          <button type="button" class="btn btn-primary btn-apply-filter-kelas">Terapkan</button>
+        </div>
+      </div>
+    </div>
+  </div>';
+        }
+
         // Upload modal removed
       } else {
         hak_akses();

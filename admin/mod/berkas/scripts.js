@@ -1,30 +1,5 @@
 "use strict";
 
-// === Unduh PDF Berkas Belum Valid ===
-$(document).on("click", ".btn-open-unduh-berkas-modal", function () {
-  $("#unduh-berkas-tingkat").val("");
-  $("#modalUnduhBerkasPDF").modal("show");
-});
-
-$(document).on("click", "#btn-unduh-berkas-pdf", function () {
-  var tingkat = $("#unduh-berkas-tingkat").val();
-  var url = "./mod/berkas/print-berkas-tidak-valid.php";
-  if (tingkat) {
-    url += "?tingkat=" + encodeURIComponent(tingkat);
-  }
-  window.open(url, "_blank");
-  $("#modalUnduhBerkasPDF").modal("hide");
-});
-
-var adminBerkasLabels = {
-  kk: "Kartu Keluarga",
-  ijazah: "Ijazah",
-  akte: "Akte Lahir",
-  kip: "KIP",
-  kks: "KKS/PKH/BPNT",
-  kis: "KIS",
-};
-
 function ensureBerkasTooltipStyle() {
   if (document.getElementById("berkas-tooltip-style")) return;
   var style = document.createElement("style");
@@ -89,297 +64,15 @@ function openBerkasModal(selector) {
   setTimeout(enforceBerkasModalLayer, 0);
 }
 
-function buildValidationKeteranganPayload() {
-  var reasons = [];
-  $(".validation-reason-checkbox:checked").each(function () {
-    var val = ($(this).val() || "").trim();
-    if (val) reasons.push(val);
-  });
-
-  return {
-    reasons: reasons,
-    text: reasons.join("; "),
-  };
-}
-
-function prefillValidationReasonsFromNote(noteText) {
-  if (!noteText) return;
-  var lower = String(noteText).toLowerCase();
-  $(".validation-reason-checkbox").each(function () {
-    var value = String($(this).val() || "").toLowerCase();
-    if (value && lower.indexOf(value) !== -1) {
-      $(this).prop("checked", true);
-    }
-  });
-}
-
-function resetAdminUploadModal() {
-  var form = $("#formUploadBerkasAdmin");
-  if (form.length && form[0]) {
-    form[0].reset();
-  }
-  $("#upload-admin-user-id").val("");
-  $("#upload-admin-student-name").text("-");
-  $("#upload-admin-student-meta").text("-");
-  $("#upload-admin-student-select").val("").trigger("change.select2");
-  $("#upload-admin-status").empty();
-  Object.keys(adminBerkasLabels).forEach(function (field) {
-    $('[data-file-info="' + field + '"]').text("Belum ada file.");
-  });
-}
-
-function initAdminUploadStudentSelect() {
-  var select = $("#upload-admin-student-select");
-  if (!select.length) {
-    return;
-  }
-
-  if ($.fn.select2 && !select.data("select2")) {
-    select.select2({
-      width: "100%",
-      dropdownParent: $("#modalUploadBerkasAdmin"),
-      placeholder: select.data("placeholder") || "Pilih siswa",
-      allowClear: true,
-    });
-  }
-}
-
-function loadAdminUploadStudents(selectedUserId) {
-  var kelas = $(".filter-kelas").length ? $(".filter-kelas").val() : "";
-  var select = $("#upload-admin-student-select");
-
-  select.html('<option value="">Memuat siswa...</option>');
-
-  $.ajax({
-    url: "./mod/berkas/proses.php?action=get_upload_students",
-    type: "GET",
-    dataType: "json",
-    data: { kelas: kelas },
-    success: function (response) {
-      var options = '<option value="">Pilih siswa</option>';
-      var students = (response && response.students) || [];
-
-      students.forEach(function (student) {
-        options +=
-          '<option value="' +
-          student.user_id +
-          '">' +
-          student.text +
-          "</option>";
-      });
-
-      select.html(options);
-      initAdminUploadStudentSelect();
-
-      if (selectedUserId) {
-        select.val(String(selectedUserId)).trigger("change");
-      } else {
-        select.val("").trigger("change.select2");
-      }
-    },
-    error: function () {
-      select.html('<option value="">Gagal memuat siswa</option>');
-      $("#upload-admin-status").html(
-        '<div class="alert alert-danger mb-0">Gagal memuat daftar siswa.</div>',
-      );
-    },
-  });
-}
-
-function loadAdminUploadStudentDetail(userId) {
-  if (!userId) {
-    $("#upload-admin-user-id").val("");
-    $("#upload-admin-student-name").text("-");
-    $("#upload-admin-student-meta").text("-");
-    fillAdminUploadFileInfo({});
-    return;
-  }
-
-  $("#upload-admin-status").html(
-    '<div class="alert alert-info mb-0"><i class="fas fa-spinner fa-spin mr-2"></i>Memuat data siswa...</div>',
-  );
-
-  $.ajax({
-    url: "./mod/berkas/proses.php?action=get_upload_student_detail",
-    type: "GET",
-    dataType: "json",
-    data: { user_id: userId },
-    success: function (response) {
-      if (!response || !response.success || !response.student) {
-        $("#upload-admin-status").html(
-          '<div class="alert alert-danger mb-0">Gagal memuat data siswa.</div>',
-        );
-        return;
-      }
-
-      var student = response.student;
-      $("#upload-admin-user-id").val(student.user_id || "");
-      $("#upload-admin-student-name").text(student.nama_lengkap || "-");
-      $("#upload-admin-student-meta").text(
-        [student.nisn || "-", student.nama_kelas || "-"].join(" | "),
-      );
-      fillAdminUploadFileInfo(student.files || {});
-      $("#upload-admin-status").empty();
-    },
-    error: function () {
-      $("#upload-admin-status").html(
-        '<div class="alert alert-danger mb-0">Gagal memuat detail siswa.</div>',
-      );
-    },
-  });
-}
-
-function fillAdminUploadFileInfo(existingFiles) {
-  Object.keys(adminBerkasLabels).forEach(function (field) {
-    var info = "Belum ada file.";
-    if (existingFiles && existingFiles[field]) {
-      info = "File saat ini: " + existingFiles[field];
-    }
-    $('[data-file-info="' + field + '"]').text(info);
-  });
-}
-
-function validateAdminUploadFile(file, field) {
-  if (!file) {
-    return null;
-  }
-
-  var allowedTypes = [
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "application/pdf",
-  ];
-  if (allowedTypes.indexOf(file.type) === -1) {
-    return adminBerkasLabels[field] + " harus berupa JPG, PNG, atau PDF.";
-  }
-
-  var maxSize =
-    file.type === "application/pdf" ? 2 * 1024 * 1024 : 10 * 1024 * 1024;
-  if (file.size > maxSize) {
-    return (
-      adminBerkasLabels[field] +
-      " melebihi batas ukuran " +
-      (file.type === "application/pdf" ? "2MB" : "10MB") +
-      "."
-    );
-  }
-
-  return null;
-}
-
-// === Preview Berkas Modal dengan Zoom (gambar) ===
-$(document).on("click", ".btn-lihat-berkas", function () {
-  var filename = $(this).data("filename");
-  if (!filename) return;
-  var ext = filename.split(".").pop().toLowerCase();
-  var url = "../content/berkas/" + encodeURIComponent(filename);
-  var html = "";
-  if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].indexOf(ext) !== -1) {
-    html =
-      '<img id="img-preview-berkas" class="preview-zoomable" src="' +
-      url +
-      '" alt="Preview" style="max-width:100%;max-height:70vh;cursor:zoom-in;">';
-  } else if (ext === "pdf") {
-    html =
-      '<iframe src="' +
-      url +
-      '" style="width:100%;height:70vh;" frameborder="0"></iframe>';
-  } else {
-    // Download link removed per request — show placeholder text instead
-    html = '<div class="text-muted">File cannot be previewed.</div>';
-  }
-  $("#modalPreviewBerkasBody").html(html);
-  openBerkasModal("#modalPreviewBerkas");
-});
-
-// Event handler untuk zoom gambar di modal preview - menggunakan event delegation
-$(document).on("click", ".preview-zoomable", function () {
-  var imgElement = this;
-
-  // Hancurkan viewer yang mungkin sudah ada untuk elemen ini
-  if (imgElement._viewer) {
-    imgElement._viewer.destroy();
-    imgElement._viewer = null;
-  }
-
-  // Buat viewer baru setiap kali diklik
-  if (window.Viewer) {
-    imgElement._viewer = new Viewer(imgElement, {
-      inline: false,
-      navbar: false,
-      toolbar: {
-        zoomIn: 4,
-        zoomOut: 4,
-        oneToOne: 4,
-        reset: 4,
-        prev: 0,
-        play: 0,
-        next: 0,
-        rotateLeft: 4,
-        rotateRight: 4,
-        flipHorizontal: 4,
-        flipVertical: 4,
-      },
-      title: false,
-      movable: true,
-      zoomable: true,
-      rotatable: true,
-      scalable: true,
-      transition: true,
-      fullscreen: true,
-      keyboard: true,
-      // Event handler ketika viewer ditutup
-      hidden: function () {
-        // Destroy viewer setelah ditutup untuk mencegah konflik
-        setTimeout(function () {
-          if (imgElement._viewer) {
-            imgElement._viewer.destroy();
-            imgElement._viewer = null;
-          }
-        }, 100);
-      },
-    });
-
-    // Langsung tampilkan viewer
-    imgElement._viewer.show();
-  }
-});
-
-// Event handler untuk membersihkan viewer ketika modal preview ditutup
-$(document).on("hidden.bs.modal", "#modalPreviewBerkas", function () {
-  // Bersihkan viewer yang mungkin masih ada
-  $(this)
-    .find(".preview-zoomable")
-    .each(function () {
-      if (this._viewer) {
-        try {
-          this._viewer.destroy();
-          this._viewer = null;
-        } catch (e) {
-          console.log("Error destroying preview viewer:", e);
-        }
-      }
-    });
-
-  if (
-    !$("#modalPreviewBerkas").hasClass("show") &&
-    !$("#modalLihatSemuaBerkas").hasClass("show")
-  ) {
-    $("body")
-      .removeClass("modal-open")
-      .css({ "padding-right": "", overflow: "" });
-    $(".modal-backdrop").remove();
-  }
-});
-
-// === Lihat Semua Berkas Modal ===
+// === Lihat Semua Berkas Modal - Per-Document Validation ===
 $(document).on("click", ".btn-lihat-semua-berkas", function () {
   var berkasData = $(this).data("berkas");
   var namaSiswa = $(this).data("nama");
+  var nisnSiswa = $(this).data("nisn") || "";
   var userId = $(this).data("user");
   var validasi = $(this).data("validasi");
   if (!berkasData) return;
+
   var berkasLabels = {
     kk: "Kartu Keluarga",
     ijazah: "Ijazah",
@@ -388,241 +81,257 @@ $(document).on("click", ".btn-lihat-semua-berkas", function () {
     kks: "KKS/PKH/BPNT",
     kis: "KIS",
   };
-  var html = "";
-  var reasonGroups = [
-    {
-      title: "Tidak Valid",
-      options: [
-        "Perbedaan data KK dan Ijazah",
-        "Dokumen tidak sesuai",
-        "Data identitas tidak cocok",
-      ],
-    },
-    {
-      title: "Revisi",
-      options: [
-        "Dokumen kurang jelas",
-        "Dokumen terpotong",
-        "Dokumen tidak lengkap",
-        "Format dokumen tidak sesuai",
-      ],
-    },
+
+  var alasanOptions = [
+    "Dokumen tidak sesuai",
+    "Perbedaan data KK dan Ijazah",
+    "Data identitas tidak cocok",
+    "Dokumen kurang jelas",
+    "Dokumen terpotong",
+    "Dokumen tidak lengkap",
+    "Format dokumen tidak sesuai",
   ];
 
-  // Only render known berkas keys; skip any metadata like 'keterangan' or 'validasi_by'
+  function docStatusBadge(status) {
+    if (status === "valid")
+      return '<span class="badge badge-success">Valid</span>';
+    if (status === "tidak_valid")
+      return '<span class="badge badge-danger">Tidak Valid</span>';
+    if (status === "")
+      return '<span class="badge badge-secondary">Belum</span>';
+    return "";
+  }
+
+  // Build card for each document
   var allowedKeys = Object.keys(berkasLabels);
-  Object.keys(berkasData).forEach(function (jenis) {
-    if (allowedKeys.indexOf(jenis) === -1) return; // skip unknown fields
+  var cardsHtml = '<div class="row">';
+
+  allowedKeys.forEach(function (jenis) {
     var filename = berkasData[jenis];
+    if (!filename) return;
+
     var label = berkasLabels[jenis] || jenis.toUpperCase();
     var ext = filename.split(".").pop().toLowerCase();
     var url = "../content/berkas/" + encodeURIComponent(filename);
-    html += '<div class="mb-4 border-bottom pb-3">';
-    html += '<h5 class="text-center text-primary mb-3">' + label + "</h5>";
-    html += '<div class="text-center">';
+
+    var currentDocValid = berkasData[jenis + "_valid"] || "";
+    var currentDocKet = berkasData[jenis + "_keterangan"] || "";
+
+    cardsHtml += '<div class="col-12 col-md-6 mb-3">';
+    cardsHtml +=
+      '<div class="card doc-validation-card border shadow-sm h-100" data-jenis="' +
+      jenis +
+      '">';
+    cardsHtml +=
+      '<div class="card-header py-2 px-3 d-flex justify-content-between align-items-center">';
+    cardsHtml += '<h6 class="mb-0 font-weight-bold">' + label + "</h6>";
+    cardsHtml +=
+      '<div class="doc-status-badge">' +
+      docStatusBadge(currentDocValid) +
+      "</div>";
+    cardsHtml += "</div>";
+    cardsHtml += '<div class="card-body">';
+
+    // Preview + Download area
+    cardsHtml += '<div class="text-center mb-3 bg-light rounded p-2 p-md-3">';
     if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].indexOf(ext) !== -1) {
-      html +=
-        '<div class="berkas-preview-slot" data-url="' +
+      cardsHtml +=
+        '<div class="berkas-preview-slot mb-2" data-url="' +
         url +
         '" data-ext="' +
         ext +
         '" data-label="' +
         label +
-        '">' +
-        '<button type="button" class="btn btn-sm btn-outline-primary btn-load-berkas-preview" style="min-width:180px;">' +
-        '<i class="fas fa-eye mr-1"></i>Muat Preview</button>' +
-        "</div>";
+        '">';
+      cardsHtml +=
+        '<button type="button" class="btn btn-outline-primary btn-load-berkas-preview">';
+      cardsHtml += '<i class="fas fa-eye mr-1"></i>Muat Preview</button></div>';
+      // Download button
+      cardsHtml +=
+        '<a href="' +
+        url +
+        '" class="btn btn-outline-secondary" target="_blank" download><i class="fas fa-download mr-1"></i>Unduh</a>';
     } else if (ext === "pdf") {
-      html +=
-        '<div class="berkas-preview-slot" data-url="' +
+      cardsHtml +=
+        '<div class="berkas-preview-slot mb-2" data-url="' +
         url +
         '" data-ext="' +
         ext +
         '" data-label="' +
         label +
-        '">' +
-        '<button type="button" class="btn btn-sm btn-outline-primary btn-load-berkas-preview" style="min-width:180px;">' +
-        '<i class="fas fa-file-pdf mr-1"></i>Muat Preview PDF</button>' +
-        "</div>";
+        '">';
+      cardsHtml +=
+        '<button type="button" class="btn btn-outline-primary btn-load-berkas-preview">';
+      cardsHtml +=
+        '<i class="fas fa-file-pdf mr-1"></i>Muat Preview PDF</button></div>';
+      // Download button
+      cardsHtml +=
+        '<a href="' +
+        url +
+        '" class="btn btn-outline-secondary" target="_blank" download><i class="fas fa-download mr-1"></i>Unduh</a>';
     } else {
-      html +=
-        '<div class="p-4 border" style="box-shadow:0 4px 8px rgba(0,0,0,0.1);">';
-      html +=
-        '<i class="fas fa-file text-secondary" style="font-size:80px;"></i>';
-      html += "</div>";
-      html += '<div class="text-muted">File cannot be previewed.</div>';
+      cardsHtml +=
+        '<div class="p-4 border rounded" style="box-shadow:0 4px 8px rgba(0,0,0,0.1);">';
+      cardsHtml +=
+        '<i class="fas fa-file text-secondary" style="font-size:80px;"></i></div>';
+      cardsHtml +=
+        '<div class="text-muted mt-1">File tidak dapat dipreview.</div>';
     }
-    html += "</div>";
-    html += "</div>";
+    cardsHtml += "</div>";
+
+    // Per-document validation buttons
+    cardsHtml += '<div class="doc-validation-actions text-center">';
+    cardsHtml +=
+      '<div class="btn-group flex-wrap justify-content-center" role="group" aria-label="Status validasi ' +
+      label +
+      '">';
+
+    var docOpts = [
+      {
+        val: "valid",
+        label: "Valid",
+        btnClass: "btn-outline-success",
+        activeClass: "btn-success",
+        icon: "fas fa-check-circle",
+      },
+      {
+        val: "tidak_valid",
+        label: "Tidak Valid",
+        btnClass: "btn-outline-danger",
+        activeClass: "btn-danger",
+        icon: "fas fa-times-circle",
+      },
+    ];
+
+    docOpts.forEach(function (opt) {
+      var isActive = currentDocValid === opt.val;
+      var cls = isActive ? opt.activeClass : opt.btnClass;
+      cardsHtml +=
+        '<button type="button" class="btn ' +
+        cls +
+        " doc-validation-btn" +
+        (isActive ? " active" : "") +
+        '" ';
+      cardsHtml += 'data-jenis="' + jenis + '" data-status="' + opt.val + '">';
+      cardsHtml += '<i class="' + opt.icon + ' mr-1"></i>' + opt.label;
+      cardsHtml += "</button>";
+    });
+
+    // Reset button
+    cardsHtml +=
+      '<button type="button" class="btn btn-outline-secondary doc-validation-btn" ';
+    cardsHtml +=
+      'data-jenis="' +
+      jenis +
+      '" data-status="" title="Reset validasi dokumen ini">';
+    cardsHtml += '<i class="fas fa-undo mr-1"></i>Reset';
+    cardsHtml += "</button>";
+
+    cardsHtml += "</div>"; // btn-group
+    cardsHtml += "</div>"; // doc-validation-actions
+
+    // Per-document keterangan (alasan) section
+    cardsHtml +=
+      '<div class="doc-keterangan-wrapper mt-3 p-3 bg-light rounded" id="doc-ket-' +
+      jenis +
+      '" style="display:' +
+      (currentDocValid === "tidak_valid" ? "block" : "none") +
+      ';">';
+    cardsHtml +=
+      '<label class="mb-2"><strong>Alasan</strong> <span class="text-muted font-weight-normal">(boleh lebih dari 1)</span></label>';
+    cardsHtml += '<div class="doc-reason-checkboxes d-flex flex-wrap">';
+    alasanOptions.forEach(function (alasan, i) {
+      var checked = currentDocKet.indexOf(alasan) !== -1 ? "checked" : "";
+      cardsHtml += '<div class="custom-control custom-checkbox mr-3 mb-1">';
+      cardsHtml +=
+        '<input type="checkbox" class="custom-control-input doc-reason-checkbox" id="doc-reason-' +
+        jenis +
+        "-" +
+        i +
+        '" data-jenis="' +
+        jenis +
+        '" value="' +
+        alasan +
+        '" ' +
+        checked +
+        ">";
+      cardsHtml +=
+        '<label class="custom-control-label" for="doc-reason-' +
+        jenis +
+        "-" +
+        i +
+        '"><small>' +
+        alasan +
+        "</small></label>";
+      cardsHtml += "</div>";
+    });
+    cardsHtml += "</div>"; // reason-checkboxes
+    cardsHtml += "</div>"; // doc-keterangan-wrapper
+
+    cardsHtml += "</div>"; // card-body
+    cardsHtml += "</div>"; // card
+    cardsHtml += "</div>"; // col
   });
 
-  // Setup modal header sederhana
-  $("#modalLihatSemuaBerkasLabel").text(
-    "Review & Validasi Berkas - " + namaSiswa,
-  );
+  cardsHtml += "</div>"; // row
 
-  // Buat panel validasi modern sticky di atas
-  var validasi_opsi = {
-    "": {
-      text: "Belum Divalidasi",
-      class: "secondary",
-      icon: "fas fa-clock",
-      color: "#6c757d",
-    },
-    valid: {
-      text: "Valid",
-      class: "success",
-      icon: "fas fa-check-circle",
-      color: "#28a745",
-    },
-    tidak_valid: {
-      text: "Tidak Valid",
-      class: "danger",
-      icon: "fas fa-times-circle",
-      color: "#dc3545",
-    },
-    revisi: {
-      text: "Perlu Revisi",
-      class: "warning",
-      icon: "fas fa-exclamation-triangle",
-      color: "#ffc107",
-    },
-  };
-
-  var validasiPanel = "";
-  if (window.is_wali_kelas) {
-    // Read-only panel for wali kelas: show current status and any note, no action buttons
-    var st = validasi_opsi[validasi] || {
-      text: "Belum Divalidasi",
-      class: "secondary",
-      color: "#6c757d",
-    };
-    validasiPanel +=
-      '<div class="validation-panel bg-white border rounded shadow-sm mb-4" style="position:sticky;top:0;z-index:100;margin:-1rem -1rem 1rem -1rem;padding:1rem;">';
-    validasiPanel += '<div class="row align-items-center">';
-    validasiPanel += '<div class="col-12">';
-    validasiPanel +=
-      '<h6 class="mb-2 text-dark"><i class="fas fa-clipboard-check text-primary mr-2"></i>Status Validasi Berkas</h6>';
-    validasiPanel +=
-      '<div><span class="badge badge-' +
-      st.class +
-      '">' +
-      st.text +
-      "</span></div>";
-    var existingNote =
-      berkasData && berkasData["keterangan"] ? berkasData["keterangan"] : "";
-    if (existingNote) {
-      // escape text content
-      var esc = $("<div>").text(existingNote).html();
-      validasiPanel +=
-        '<div class="mt-3"><label class="mb-1"><strong>Catatan</strong></label><div class="p-2 bg-light border rounded small" style="white-space:pre-wrap;">' +
-        esc +
-        "</div></div>";
-    }
-    validasiPanel += "</div></div></div>";
-  } else {
-    // Full interactive panel for admins (original behavior)
-    validasiPanel =
-      '<div class="validation-panel bg-white border rounded shadow-sm mb-4" style="position:sticky;top:0;z-index:100;margin:-1rem -1rem 1rem -1rem;padding:1rem;">';
-    validasiPanel += '<div class="row align-items-center">';
-    validasiPanel += '<div class="col-md-4">';
-    validasiPanel +=
-      '<h6 class="mb-2 text-dark"><i class="fas fa-clipboard-check text-primary mr-2"></i>Status Validasi Berkas</h6>';
-    validasiPanel +=
-      '<small class="text-muted">Pilih status setelah mereview semua berkas</small>';
-    validasiPanel += "</div>";
-
-    validasiPanel += '<div class="col-md-8">';
-    validasiPanel +=
-      '<div class="validation-buttons d-flex flex-wrap gap-2" style="gap:0.5rem;">';
-
-    Object.keys(validasi_opsi).forEach(function (val, index) {
-      var opsi = validasi_opsi[val];
-      var isActive = val === validasi;
-      var activeClass = isActive ? "active shadow-sm" : "";
-      var borderColor = isActive ? opsi.color : "#dee2e6";
-      var bgColor = isActive ? opsi.color : "#ffffff";
-      var textColor = isActive ? "#ffffff" : "#495057";
-
-      validasiPanel +=
-        '<button type="button" class="validation-btn ' + activeClass + '" ';
-      validasiPanel += 'data-status="' + val + '" data-user="' + userId + '" ';
-      validasiPanel += 'style="';
-      validasiPanel += "border: 2px solid " + borderColor + ";";
-      validasiPanel += "background-color: " + bgColor + ";";
-      validasiPanel += "color: " + textColor + ";";
-      validasiPanel += "padding: 0.75rem 1rem;";
-      validasiPanel += "border-radius: 0.5rem;";
-      validasiPanel += "font-weight: 500;";
-      validasiPanel += "transition: all 0.3s ease;";
-      validasiPanel += "cursor: pointer;";
-      validasiPanel += "min-width: 140px;";
-      validasiPanel += "margin-right: 0.5rem;";
-      validasiPanel += "margin-bottom: 0.5rem;";
-      validasiPanel += '">';
-      validasiPanel += '<i class="' + opsi.icon + ' mr-2"></i>' + opsi.text;
-      validasiPanel += "</button>";
-    });
-
-    validasiPanel += "</div>";
-    var showNote = validasi === "tidak_valid" || validasi === "revisi";
-    validasiPanel +=
-      '<div class="mt-3" id="validation-keterangan-wrapper" ' +
-      (showNote ? "" : 'style="display:none;"') +
-      ">";
-    validasiPanel +=
-      '<label class="mb-1"><strong>Pilih Alasan</strong> <small class="text-muted">(boleh lebih dari 1 pilihan)</small></label>';
-    validasiPanel += '<div class="mb-2">';
-    var reasonIndex = 0;
-    reasonGroups.forEach(function (group) {
-      validasiPanel +=
-        '<div class="small text-muted font-weight-bold mt-2 mb-1">' +
-        group.title +
-        "</div>";
-      validasiPanel +=
-        '<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3">';
-      group.options.forEach(function (reason) {
-        var id = "validation-reason-" + reasonIndex++;
-        validasiPanel += '<div class="col mb-2">';
-        validasiPanel += '<div class="custom-control custom-checkbox">';
-        validasiPanel +=
-          '<input type="checkbox" class="custom-control-input validation-reason-checkbox" id="' +
-          id +
-          '" value="' +
-          reason +
-          '">';
-        validasiPanel +=
-          '<label class="custom-control-label" for="' +
-          id +
-          '">' +
-          reason +
-          "</label>";
-        validasiPanel += "</div>";
-        validasiPanel += "</div>";
-      });
-      validasiPanel += "</div>";
-    });
-    validasiPanel += "</div>";
-    validasiPanel += "</div>";
-    validasiPanel +=
-      '<div id="modal-validasi-berkas-status" class="mt-2"></div>';
-    validasiPanel += "</div>";
-    validasiPanel += "</div>";
-    validasiPanel += "</div>";
+  if (cardsHtml === '<div class="row"></div>' || !cardsHtml) {
+    cardsHtml =
+      '<div class="text-center py-5"><i class="fas fa-folder-open text-muted" style="font-size:64px;"></i><p class="mt-3 text-muted">Belum ada berkas yang diupload.</p></div>';
   }
 
-  // Gabungkan panel validasi dengan konten berkas
-  html = validasiPanel + html;
-  $("#modalLihatSemuaBerkasBody").html(html);
-  // Prefill keterangan if present in payload
-  try {
-    var existingNote =
-      berkasData && berkasData["keterangan"] ? berkasData["keterangan"] : "";
-    prefillValidationReasonsFromNote(existingNote);
-  } catch (e) {}
+  var totalDocs = $("<div>" + cardsHtml + "</div>").find(
+    ".doc-validation-card",
+  ).length;
+
+  // Summary bar
+  var summaryHtml = "";
+  summaryHtml +=
+    '<div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between bg-light rounded p-3 mb-3 border">';
+  summaryHtml += '<div class="d-flex align-items-center mb-2 mb-md-0">';
+  summaryHtml +=
+    '<div><i class="fas fa-file-alt text-primary mr-2" style="font-size:1.25rem;"></i></div>';
+  summaryHtml += "<div>";
+  summaryHtml +=
+    '<h6 class="mb-0 font-weight-bold">Review & Validasi Berkas</h6>';
+  summaryHtml +=
+    '<small class="text-muted">' +
+    (nisnSiswa ? nisnSiswa + " - " : "") +
+    namaSiswa +
+    " &middot; " +
+    totalDocs +
+    " dokumen</small>";
+  summaryHtml += "</div>";
+  summaryHtml += "</div>";
+  summaryHtml +=
+    '<div class="d-flex align-items-center flex-wrap" style="gap:8px;">';
+  summaryHtml +=
+    '<div class="d-flex align-items-center"><small class="text-muted mr-2">Status:</small>' +
+    '<span id="overall-validation-status">' +
+    docStatusBadge(validasi || "") +
+    "</span></div>";
+  if (!window.is_wali_kelas) {
+    summaryHtml +=
+      '<button type="button" class="btn btn-primary btn-sm" id="btn-save-all-doc-validation" data-user="' +
+      userId +
+      '">';
+    summaryHtml += '<i class="fas fa-save mr-1"></i> Simpan';
+    summaryHtml += "</button>";
+  } else {
+    summaryHtml += '<span class="badge badge-secondary">Mode Lihat Saja</span>';
+  }
+  summaryHtml += "</div>";
+  summaryHtml += "</div>";
+
+  // Set modal content
+  $("#modalLihatSemuaBerkasBody").html(summaryHtml + cardsHtml);
+  $("#modalLihatSemuaBerkasBody").append(
+    '<div id="modal-validasi-berkas-status" class="mt-2"></div>',
+  );
+
   openBerkasModal("#modalLihatSemuaBerkas");
 
-  // Muat satu preview pertama saja agar modal tetap ringan saat dibuka.
+  // Auto-load first preview
   var $firstLoader = $(
     "#modalLihatSemuaBerkasBody .btn-load-berkas-preview",
   ).first();
@@ -631,6 +340,7 @@ $(document).on("click", ".btn-lihat-semua-berkas", function () {
   }
 });
 
+// Preview handler for berkas images - loads image/PDF into preview slot
 $(document).on("click", ".btn-load-berkas-preview", function () {
   var $button = $(this);
   var $slot = $button.closest(".berkas-preview-slot");
@@ -665,342 +375,189 @@ $(document).on("click", ".btn-load-berkas-preview", function () {
   $slot.data("loaded", true);
 });
 
-$(document).on("click", ".btn-open-upload-berkas-modal", function () {
-  resetAdminUploadModal();
-  initAdminUploadStudentSelect();
-  loadAdminUploadStudents();
-  $("#modalUploadBerkasAdmin").modal("show");
+// Per-document validation button click
+$(document).on("click", ".doc-validation-btn", function () {
+  var btn = $(this);
+  var jenis = btn.data("jenis");
+  var status = btn.data("status");
+  var card = btn.closest(".doc-validation-card");
+
+  // Reset all buttons in this card to outline style
+  card
+    .find(".doc-validation-btn")
+    .removeClass(
+      "active btn-success btn-danger btn-outline-success btn-outline-danger",
+    )
+    .addClass("btn-outline-secondary");
+
+  if (status === "valid") {
+    btn
+      .removeClass("btn-outline-secondary btn-outline-success")
+      .addClass("active btn-success");
+  } else if (status === "tidak_valid") {
+    btn
+      .removeClass("btn-outline-secondary btn-outline-danger")
+      .addClass("active btn-danger");
+  }
+
+  // Toggle keterangan wrapper for this card (only for tidak_valid)
+  var ketWrapper = card.find(".doc-keterangan-wrapper");
+  if (status === "tidak_valid") {
+    ketWrapper.show();
+  } else {
+    ketWrapper.hide();
+  }
+
+  // Update individual badge in card header
+  var badgeHtml = "";
+  if (status === "valid")
+    badgeHtml = '<span class="badge badge-success">Valid</span>';
+  else if (status === "tidak_valid")
+    badgeHtml = '<span class="badge badge-danger">Tidak Valid</span>';
+  else badgeHtml = '<span class="badge badge-secondary">Belum</span>';
+  card.find(".doc-status-badge").html(badgeHtml);
+
+  // Recompute overall status
+  updateOverallValidationStatus();
 });
 
-$(document).on("change", "#upload-admin-student-select", function () {
-  loadAdminUploadStudentDetail($(this).val());
-});
-
-$(document).on("change", ".admin-berkas-file-input", function () {
-  var field = this.name;
-  var file = this.files && this.files[0] ? this.files[0] : null;
-  var validationError = validateAdminUploadFile(file, field);
-
-  if (validationError) {
-    swal({
-      title: "File tidak valid",
-      text: validationError,
-      icon: "error",
-      timer: 2500,
+// Helper to collect per-document data
+function collectAllDocValidations() {
+  var docs = [];
+  $(".doc-validation-card").each(function () {
+    var jenis = $(this).data("jenis");
+    var activeBtn = $(this).find(".doc-validation-btn.active").first();
+    var status = activeBtn.length ? activeBtn.data("status") : "";
+    var reasons = [];
+    $(this)
+      .find(".doc-reason-checkbox:checked")
+      .each(function () {
+        reasons.push($(this).val());
+      });
+    docs.push({
+      jenis: jenis,
+      status: status,
+      keterangan: reasons.join("; "),
     });
-    this.value = "";
+  });
+  return docs;
+}
+
+function updateOverallValidationStatus() {
+  var docs = collectAllDocValidations();
+  var statuses = docs.map(function (d) {
+    return d.status;
+  });
+
+  var overall = "";
+  if (statuses.indexOf("tidak_valid") !== -1) {
+    overall = "tidak_valid";
+  } else if (
+    statuses.length > 0 &&
+    statuses.indexOf("") === -1 &&
+    statuses.indexOf("tidak_valid") === -1
+  ) {
+    overall = "valid";
+  }
+
+  var badgeHtml = "";
+  if (overall === "valid")
+    badgeHtml = '<span class="badge badge-success">Valid</span>';
+  else if (overall === "tidak_valid")
+    badgeHtml = '<span class="badge badge-danger">Tidak Valid</span>';
+  else
+    badgeHtml = '<span class="badge badge-secondary">Belum Divalidasi</span>';
+
+  $("#overall-validation-status").html(badgeHtml);
+}
+
+// Save all per-document validations at once
+$(document).on("click", "#btn-save-all-doc-validation", function () {
+  var btn = $(this);
+  var user_id = btn.data("user");
+  var docs = collectAllDocValidations();
+
+  var docsToSave = docs.filter(function (d) {
+    return d.status !== "";
+  });
+
+  if (docsToSave.length === 0) {
+    $("#modal-validasi-berkas-status").html(
+      '<div class="alert alert-warning py-2 mb-0"><i class="fas fa-exclamation-circle mr-2"></i>Belum ada perubahan status validasi. Silakan pilih status untuk setiap dokumen.</div>',
+    );
     return;
   }
 
-  if (file) {
-    $('[data-file-info="' + field + '"]').text("Siap diupload: " + file.name);
-  }
-});
-
-$(document).on("submit", "#formUploadBerkasAdmin", function (e) {
-  e.preventDefault();
-
-  var form = this;
-  var hasFile = false;
-  var formData = new FormData(form);
-
-  Object.keys(adminBerkasLabels).forEach(function (field) {
-    var input = form.querySelector('[name="' + field + '"]');
-    if (input && input.files && input.files.length > 0) {
-      hasFile = true;
+  // Validate: if any doc has tidak_valid without reason, warn
+  var missingReason = false;
+  docsToSave.forEach(function (d) {
+    if (d.status === "tidak_valid" && d.keterangan.trim() === "") {
+      missingReason = true;
     }
   });
 
-  if (!hasFile) {
-    $("#upload-admin-status").html(
-      '<div class="alert alert-warning mb-0">Pilih minimal satu file untuk diupload.</div>',
-    );
-    return;
+  if (missingReason) {
+    var confirmText =
+      "Ada dokumen dengan status Tidak Valid tanpa alasan. Lanjutkan tetap menyimpan?";
+    if (!confirm(confirmText)) return;
   }
-
-  if (!$("#upload-admin-user-id").val()) {
-    $("#upload-admin-status").html(
-      '<div class="alert alert-warning mb-0">Pilih siswa terlebih dahulu.</div>',
-    );
-    return;
-  }
-
-  $("#btn-submit-upload-admin").prop("disabled", true);
-  $("#upload-admin-status").html(
-    '<div class="alert alert-info mb-0"><i class="fas fa-spinner fa-spin mr-2"></i>Sedang mengupload berkas...</div>',
-  );
-
-  $.ajax({
-    url: "./mod/berkas/proses.php?action=upload_admin_berkas",
-    type: "POST",
-    data: formData,
-    processData: false,
-    contentType: false,
-    dataType: "json",
-    success: function (response) {
-      if (response && response.success) {
-        $("#upload-admin-status").html(
-          '<div class="alert alert-success mb-0">' +
-            (response.message || "Berkas berhasil diupload.") +
-            "</div>",
-        );
-        setTimeout(function () {
-          $("#modalUploadBerkasAdmin").modal("hide");
-          reloadAfterAction();
-        }, 1000);
-      } else {
-        $("#upload-admin-status").html(
-          '<div class="alert alert-danger mb-0">' +
-            ((response && response.message) || "Upload gagal.") +
-            "</div>",
-        );
-      }
-    },
-    error: function (xhr) {
-      var message = "Terjadi kesalahan server saat upload berkas.";
-      if (xhr.responseJSON && xhr.responseJSON.message) {
-        message = xhr.responseJSON.message;
-      }
-      $("#upload-admin-status").html(
-        '<div class="alert alert-danger mb-0">' + message + "</div>",
-      );
-    },
-    complete: function () {
-      $("#btn-submit-upload-admin").prop("disabled", false);
-    },
-  });
-});
-
-$(document).on("hidden.bs.modal", "#modalUploadBerkasAdmin", function () {
-  resetAdminUploadModal();
-});
-
-$(document).on("change", ".filter-kelas", function () {
-  if ($("#modalUploadBerkasAdmin").hasClass("show")) {
-    resetAdminUploadModal();
-    initAdminUploadStudentSelect();
-    loadAdminUploadStudents();
-  }
-});
-
-// Handler validasi berkas dengan UI modern
-$(document).on("click", ".validation-btn", function () {
-  var button = $(this);
-  var user_id = button.data("user");
-  var status = button.data("status");
-
-  console.log("Validation clicked:", { user_id: user_id, status: status });
-
-  if (!user_id) {
-    console.error("Missing user_id");
-    $("#modal-validasi-berkas-status").html(
-      '<div class="alert alert-danger py-2 mb-0">' +
-        '<i class="fas fa-exclamation-circle mr-2"></i>' +
-        "Error: User ID tidak ditemukan. Silakan tutup modal dan coba lagi." +
-        "</div>",
-    );
-    return;
-  }
-
-  if (status === undefined || status === null) {
-    console.error("Missing status");
-    $("#modal-validasi-berkas-status").html(
-      '<div class="alert alert-danger py-2 mb-0">' +
-        '<i class="fas fa-exclamation-circle mr-2"></i>' +
-        "Error: Status tidak valid." +
-        "</div>",
-    );
-    return;
-  }
-
-  // Toggle visibility of keterangan field depending on selected status
-  if (status === "tidak_valid" || status === "revisi") {
-    $("#validation-keterangan-wrapper").show();
-  } else {
-    $("#validation-keterangan-wrapper").hide();
-  }
-
-  var keteranganPayload = buildValidationKeteranganPayload();
-
-  // For rejection/revisi require at least one selected reason.
-  if (
-    (status === "tidak_valid" || status === "revisi") &&
-    keteranganPayload.reasons.length === 0 &&
-    keteranganPayload.text === ""
-  ) {
-    $("#modal-validasi-berkas-status").html(
-      '<div class="alert alert-danger py-2 mb-0"><i class="fas fa-exclamation-circle mr-2"></i> Pilih minimal satu alasan untuk status Penolakan/Revisi.</div>',
-    );
-    return;
-  }
-
-  var validasiStatusMap = {
-    "": { color: "#6c757d", text: "Belum Divalidasi" },
-    valid: { color: "#28a745", text: "Valid" },
-    tidak_valid: { color: "#dc3545", text: "Tidak Valid" },
-    revisi: { color: "#ffc107", text: "Perlu Revisi" },
-  };
-
-  var summaryText =
-    status === "valid"
-      ? "Konfirmasi pengiriman status Valid ke murid?"
-      : "Konfirmasi pengiriman hasil validasi ke murid?";
 
   swal({
-    title: summaryText,
-    text: "",
+    title: "Simpan Semua Validasi?",
+    text:
+      "Status validasi untuk " + docsToSave.length + " dokumen akan disimpan.",
     icon: "warning",
     buttons: {
       cancel: "Batal",
-      confirm: {
-        text: "Kirim",
-        value: true,
-        visible: true,
-        closeModal: true,
-      },
+      confirm: { text: "Simpan", value: true, visible: true, closeModal: true },
     },
     dangerMode: false,
   }).then(function (confirmed) {
-    if (!confirmed) {
-      $(".validation-btn").prop("disabled", false).css("opacity", "1");
-      return;
-    }
+    if (!confirmed) return;
 
-    sendValidationResult(
-      button,
-      user_id,
-      status,
-      keteranganPayload.text,
-      validasiStatusMap,
-    );
-  });
+    btn
+      .prop("disabled", true)
+      .html('<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...');
 
-  return;
-
-  function sendValidationResult(
-    button,
-    user_id,
-    status,
-    keteranganText,
-    validasiStatusMap,
-  ) {
     $.ajax({
-      url: "./mod/berkas/proses.php?action=validasi_berkas",
+      url: "./mod/berkas/proses.php?action=validasi_dokumen",
       type: "POST",
       data: {
         user_id: user_id,
-        status: status,
-        keterangan:
-          status === "tidak_valid" || status === "revisi" ? keteranganText : "",
+        dokumen: docsToSave,
       },
       dataType: "text",
-      beforeSend: function () {
-        console.log("Sending AJAX request:", {
-          url: "./mod/berkas/proses.php?action=validasi_berkas",
-          data: {
-            user_id: user_id,
-            status: status,
-            keterangan:
-              status === "tidak_valid" || status === "revisi"
-                ? keteranganText
-                : "",
-          },
-        });
-      },
       success: function (response) {
-        console.log("Validasi response:", response);
         var res = response.trim();
         if (res === "success") {
-          // Reset semua tombol ke state inactive
-          $(".validation-btn").each(function () {
-            $(this).removeClass("active shadow-sm").css({
-              "background-color": "#ffffff",
-              color: "#495057",
-              "border-color": "#dee2e6",
-            });
-          });
-
-          // Set tombol yang dipilih ke state active
-          var selectedOpsi = validasiStatusMap[status];
-          button.addClass("active shadow-sm").css({
-            "background-color": selectedOpsi.color,
-            color: "#ffffff",
-            "border-color": selectedOpsi.color,
-          });
-
-          // Tampilkan pesan sukses dengan styling menarik
           $("#modal-validasi-berkas-status").html(
-            '<div class="alert alert-success py-2 mb-0">' +
-              '<i class="fas fa-check-circle mr-2"></i>' +
-              "Status berkas berhasil diperbarui menjadi: <strong>" +
-              selectedOpsi.text +
-              "</strong>" +
-              "</div>",
+            '<div class="alert alert-success py-2 mb-0"><i class="fas fa-check-circle mr-2"></i>Validasi per dokumen berhasil disimpan.</div>',
           );
-
-          // Auto reload datatable dan tutup modal setelah 2 detik
           setTimeout(function () {
             reloadAfterAction();
             $("#modalLihatSemuaBerkas").modal("hide");
-          }, 2000);
+          }, 1500);
         } else {
           $("#modal-validasi-berkas-status").html(
-            '<div class="alert alert-danger py-2 mb-0">' +
-              '<i class="fas fa-exclamation-circle mr-2"></i>' +
-              "Gagal menyimpan: " +
+            '<div class="alert alert-danger py-2 mb-0"><i class="fas fa-exclamation-circle mr-2"></i>Gagal: ' +
               res +
               "</div>",
           );
         }
       },
-      error: function (xhr, status, error) {
-        console.error("AJAX Error:", status, error);
+      error: function () {
         $("#modal-validasi-berkas-status").html(
-          '<div class="alert alert-danger py-2 mb-0">' +
-            '<i class="fas fa-exclamation-triangle mr-2"></i>' +
-            "Terjadi kesalahan server. Silakan coba lagi." +
-            "</div>",
+          '<div class="alert alert-danger py-2 mb-0"><i class="fas fa-exclamation-triangle mr-2"></i>Terjadi kesalahan server.</div>',
         );
       },
       complete: function () {
-        // Enable kembali semua tombol
-        $(".validation-btn").prop("disabled", false).css("opacity", "1");
-
-        // Clear status message setelah 5 detik jika gagal
-        setTimeout(function () {
-          if (!$("#modal-validasi-berkas-status").text().includes("berhasil")) {
-            $("#modal-validasi-berkas-status").empty();
-          }
-        }, 5000);
+        btn
+          .prop("disabled", false)
+          .html('<i class="fas fa-save mr-1"></i> Simpan');
       },
     });
-  }
-});
-
-// Hover effects untuk tombol validasi
-$(document)
-  .on("mouseenter", ".validation-btn:not(.active)", function () {
-    var status = $(this).data("status");
-    var validasi_opsi = {
-      "": { color: "#6c757d" },
-      valid: { color: "#28a745" },
-      tidak_valid: { color: "#dc3545" },
-      revisi: { color: "#ffc107" },
-    };
-
-    $(this).css({
-      "background-color": validasi_opsi[status].color + "20",
-      "border-color": validasi_opsi[status].color,
-      transform: "translateY(-1px)",
-    });
-  })
-  .on("mouseleave", ".validation-btn:not(.active)", function () {
-    $(this).css({
-      "background-color": "#ffffff",
-      "border-color": "#dee2e6",
-      transform: "translateY(0)",
-    });
   });
+});
 
 // Event handler untuk zoom gambar berkas - menggunakan event delegation
 $(document).on("click", ".berkas-zoomable", function () {
@@ -1082,150 +639,19 @@ $(document).on("hidden.bs.modal", "#modalLihatSemuaBerkas", function () {
   }
 });
 
-// Fungsi untuk preview berkas individual dari modal semua berkas
-window.previewSingleBerkas = function (filename) {
-  var ext = filename.split(".").pop().toLowerCase();
-  var url = "../content/berkas/" + encodeURIComponent(filename);
-  var html = "";
-
-  if (["jpg", "jpeg", "png", "gif", "bmp", "webp"].indexOf(ext) !== -1) {
-    html =
-      '<img id="img-preview-berkas" class="preview-zoomable" src="' +
-      url +
-      '" alt="Preview" style="max-width:100%;max-height:70vh;cursor:zoom-in;">';
-  } else if (ext === "pdf") {
-    html =
-      '<iframe src="' +
-      url +
-      '" style="width:100%;height:70vh;" frameborder="0"></iframe>';
-  } else {
-    // Download link removed per request — show placeholder text instead
-    html = '<div class="text-muted">File cannot be previewed.</div>';
-  }
-
-  $("#modalPreviewBerkasBody").html(html);
-  openBerkasModal("#modalPreviewBerkas");
-};
-
-// === Untuk ADMIN: Validasi Manual Berkas ===
+// === Untuk ADMIN: Reload DataTable ===
 
 function reloadAfterAction() {
   // Reload only the DataTable rows (no full page reload)
   try {
     if ($.fn.DataTable.isDataTable(".datatable-berkas")) {
-      var sel = $(".filter-kelas");
-      var prevKelas = sel.length ? sel.val() : null;
-      // persist the selected kelas so we can restore even if options are rebuilt
-      if (prevKelas !== null && sel.length) {
-        try {
-          localStorage.setItem("berkas_filter_kelas", prevKelas);
-        } catch (e) {}
-      }
       var tbl = $(".datatable-berkas").DataTable();
-      console.log(
-        "reloadAfterAction: reloading .datatable-berkas with filter",
-        prevKelas,
-      );
-      tbl.ajax.reload(function () {
-        // restore filter value (if DOM was changed by other code)
-        try {
-          var stored = null;
-          try {
-            stored = localStorage.getItem("berkas_filter_kelas");
-          } catch (e) {
-            stored = prevKelas;
-          }
-          if (stored === null) stored = prevKelas;
-          if (stored !== null && sel.length) {
-            // if option doesn't exist (options were rebuilt), re-add it so we can select it
-            if (sel.find('option[value="' + stored + '"]').length === 0) {
-              // Use stored value as text if label not available
-              sel.append($("<option>", { value: stored, text: stored }));
-            }
-            sel.val(stored);
-            // trigger change so any dependent handlers react
-            sel.trigger("change");
-          }
-        } catch (e) {
-          console.error("reloadAfterAction restore error", e);
-        }
-      }, false);
+      tbl.ajax.reload(null, false);
     }
   } catch (e) {
     console.error("reloadAfterAction error", e);
   }
 }
-
-$(document).on("change", ".select-validasi-berkas", function () {
-  const select = $(this);
-  const user_id = select.data("user");
-  const status = select.val();
-  select.prop("disabled", true);
-  // If status requires note, prompt admin for keterangan
-  var needsNote = status === "tidak_valid" || status === "revisi";
-  var keterangan = "";
-  if (needsNote) {
-    keterangan = prompt(
-      'Masukkan keterangan / alasan untuk status "' + status + '" (wajib):',
-      select.data("keterangan") || "",
-    );
-    if (keterangan === null) {
-      // user cancelled, revert select
-      select.prop("disabled", false);
-      // revert to previous value if available
-      if (select.data("current") !== undefined)
-        select.val(select.data("current"));
-      return;
-    }
-    keterangan = keterangan.trim();
-    if (!keterangan) {
-      alert(
-        "Keterangan diperlukan untuk penolakan atau revisi. Silakan coba lagi.",
-      );
-      select.prop("disabled", false);
-      if (select.data("current") !== undefined)
-        select.val(select.data("current"));
-      return;
-    }
-  }
-
-  $.ajax({
-    url: "./mod/berkas/proses.php?action=validasi_berkas",
-    type: "POST",
-    data: { user_id: user_id, status: status, keterangan: keterangan },
-    success: function (response) {
-      const res = response.trim();
-      if (res === "success") {
-        swal({
-          title: "Berhasil!",
-          text: "Status validasi berkas diperbarui.",
-          icon: "success",
-          timer: 1200,
-        });
-        // Immediately reload only the DataTable to reflect changes
-        reloadAfterAction();
-      } else {
-        swal({
-          title: "Gagal!",
-          text: res,
-          icon: "error",
-          timer: 2000,
-        });
-      }
-    },
-    error: function () {
-      swal({
-        title: "Error!",
-        text: "Terjadi kesalahan server.",
-        icon: "error",
-        timer: 2000,
-      });
-    },
-    complete: function () {
-      select.prop("disabled", false);
-    },
-  });
-});
 
 /* === Untuk ADMIN: Lihat Data Berkas Siswa === */
 
@@ -1256,6 +682,7 @@ function loadDataBerkas() {
       data: function (d) {
         if (!user_id) {
           d.kelas = $(".filter-kelas").val();
+          d.status = $(".filter-status").val();
         }
       },
       dataSrc: function (json) {
@@ -1265,7 +692,6 @@ function loadDataBerkas() {
             $("#berkas-stat-total").text(json.statusStat.total || 0);
             $("#berkas-stat-valid").text(json.statusStat.valid || 0);
             $("#berkas-stat-tidak").text(json.statusStat.tidak_valid || 0);
-            $("#berkas-stat-revisi").text(json.statusStat.revisi || 0);
             $("#berkas-stat-belum").text(json.statusStat.belum || 0);
           } catch (e) {
             console.error("Update stats failed", e);
@@ -1302,7 +728,7 @@ function loadDataBerkas() {
     initComplete: function () {
       // Jika user_id ada di URL, sembunyikan filter kelas dan search
       if (user_id) {
-        $(".filter-kelas").closest("div").hide();
+        $(".btn-open-filter-kelas").hide();
         // Ambil NISN dari backend, lalu set ke kolom search DataTable
         $.ajax({
           url: "./mod/berkas/get_nisn.php",
@@ -1371,27 +797,143 @@ $(document).ready(function () {
     } catch (e) {
       storedFilter = null;
     }
-    var sel = $(".filter-kelas");
-    if (storedFilter && sel.length) {
-      if (sel.find('option[value="' + storedFilter + '"]').length === 0) {
-        sel.append($("<option>", { value: storedFilter, text: storedFilter }));
-      }
-      sel.val(storedFilter);
+    if (storedFilter) {
+      $(".filter-kelas").val(storedFilter);
     }
   } catch (e) {
     console.error("restore filter error", e);
   }
+  // Restore status filter
+  try {
+    var storedStatus = localStorage.getItem("berkas_filter_status");
+    if (storedStatus) {
+      $(".filter-status").val(storedStatus);
+    }
+  } catch (e) {}
+
+  // Initial label
+  updateBerkasFilterLabel();
 
   loadDataBerkas();
-  // Event filter kelas
-  $(".filter-kelas").on("change", function () {
-    // persist selection so other flows can restore it after table reloads
+
+  // === Filter Modal Handlers (like user module) ===
+
+  // Open filter modal
+  $(document).on("click", ".btn-open-filter-kelas", function (e) {
+    e.preventDefault();
+    // Sync current values to modal
+    var currentKelas = $(".filter-kelas").val() || "";
+    var currentStatus = $(".filter-status").val() || "";
+    $(".modal-filter-kelas-select").val(currentKelas);
+    $(".modal-status-select").val(currentStatus);
+    $(".modal-filter-kelas").modal({
+      backdrop: false,
+      keyboard: true,
+      show: true,
+    });
+    setTimeout(function () {
+      $("body")
+        .removeClass("modal-open")
+        .css({ "padding-right": "", overflow: "" });
+      $(".modal-backdrop").remove();
+    }, 30);
+    return false;
+  });
+
+  // Terapkan filter
+  $(document).on("click", ".btn-apply-filter-kelas", function () {
+    var $modal = $(".modal-filter-kelas");
+    var selectedKelasVal =
+      $modal.find(".modal-filter-kelas-select").val() || "";
+    var selectedStatusVal = $modal.find(".modal-status-select").val() || "";
+
+    $(".filter-kelas").val(selectedKelasVal);
+    $(".filter-status").val(selectedStatusVal);
+
+    // Persist
     try {
-      localStorage.setItem("berkas_filter_kelas", $(this).val());
+      localStorage.setItem("berkas_filter_kelas", selectedKelasVal);
     } catch (e) {}
-    loadDataBerkas();
+    try {
+      localStorage.setItem("berkas_filter_status", selectedStatusVal);
+    } catch (e) {}
+
+    updateBerkasFilterLabel();
+    $modal.modal("hide");
+
+    setTimeout(function () {
+      loadDataBerkas();
+    }, 220);
+  });
+
+  // Reset filter
+  $(document).on("click", ".btn-reset-filter-kelas", function () {
+    var $modal = $(".modal-filter-kelas");
+    $modal.find(".modal-filter-kelas-select").val("");
+    $modal.find(".modal-status-select").val("");
+    $(".filter-kelas").val("");
+    $(".filter-status").val("");
+
+    try {
+      localStorage.setItem("berkas_filter_kelas", "");
+    } catch (e) {}
+    try {
+      localStorage.setItem("berkas_filter_status", "");
+    } catch (e) {}
+
+    updateBerkasFilterLabel();
+    $modal.modal("hide");
+
+    setTimeout(function () {
+      loadDataBerkas();
+    }, 220);
+  });
+
+  // Non-blocking modal: keep body unlocked while open
+  $(document).on("shown.bs.modal", ".modal-filter-kelas", function () {
+    $("body")
+      .removeClass("modal-open")
+      .css({ "padding-right": "", overflow: "" });
+    $(".modal-backdrop").remove();
+  });
+
+  // Cleanup on hide
+  $(document).on("hidden.bs.modal", ".modal-filter-kelas", function () {
+    if ($(".modal.show").length === 0) {
+      $("body")
+        .removeClass("modal-open")
+        .css({ "padding-right": "", overflow: "" });
+      $(".modal-backdrop").remove();
+    }
   });
 });
+
+function updateBerkasFilterLabel() {
+  // Icon-only filter button — no label needed. Updates button title for accessibility.
+  var kelasVal = $(".filter-kelas").val() || "";
+  var statusVal = $(".filter-status").val() || "";
+  var parts = ["Filter Kelas & Status"];
+  if (kelasVal) {
+    var $opt = $(".modal-filter-kelas-select option[value='" + kelasVal + "']");
+    parts.push("Kelas: " + ($opt.length ? $opt.text() : kelasVal));
+  }
+  if (statusVal) {
+    var statusLabel = "";
+    switch (statusVal) {
+      case "valid":
+        statusLabel = "Valid";
+        break;
+      case "tidak_valid":
+        statusLabel = "Tidak Valid";
+        break;
+      case "belum":
+        statusLabel = "Belum Divalidasi";
+        break;
+    }
+    if (statusLabel) parts.push("Status: " + statusLabel);
+  }
+  $(".btn-open-filter-kelas").attr("title", parts.join(" | "));
+}
 
 // === Untuk ADMIN: Hapus Berkas ===
 $(document).on("click", ".btn-hapus-berkas", function () {

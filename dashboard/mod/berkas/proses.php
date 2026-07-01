@@ -332,6 +332,13 @@ switch (@$_GET['action']) {
                         $update_parts[] = "validasi_berkas = ''";
                         $update_parts[] = "validasi_by = NULL";
                         $update_parts[] = "keterangan = ''";
+                        // Also reset per-document validation for the changed fields
+                        foreach (['kk', 'akte', 'ijazah', 'kip', 'kks', 'kis'] as $f) {
+                            if ($uploaded_files[$f]) {
+                                $update_parts[] = "{$f}_valid = ''";
+                                $update_parts[] = "{$f}_keterangan = ''";
+                            }
+                        }
                         $update_parts[] = "updated_at = NOW()";
                         $update_sql = "UPDATE berkas SET " . implode(', ', $update_parts) . " WHERE user_id = '" . mysqli_real_escape_string($connection, $user_id) . "'";
 
@@ -482,8 +489,8 @@ switch (@$_GET['action']) {
                     }
                 }
 
-                // Update DB: clear field and reset validasi_berkas, validasi_by and keterangan
-                $sql = "UPDATE berkas SET $field = '', validasi_berkas = '', validasi_by = NULL, keterangan = '' WHERE user_id = '" . mysqli_real_escape_string($connection, $user_id) . "'";
+                // Update DB: clear field and reset per-document validasi, overall validasi, validasi_by and keterangan
+                $sql = "UPDATE berkas SET $field = '', {$field}_valid = '', {$field}_keterangan = '', validasi_berkas = '', validasi_by = NULL, keterangan = '' WHERE user_id = '" . mysqli_real_escape_string($connection, $user_id) . "'";
                 if ($connection->query($sql)) {
                     echo 'success';
                 } else {

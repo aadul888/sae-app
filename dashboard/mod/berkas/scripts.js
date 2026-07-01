@@ -4,7 +4,7 @@ $(document).ready(function () {
   // Check if SweetAlert is available
   if (typeof swal === "undefined") {
     console.error(
-      "SweetAlert library is not loaded. Please check footer inclusion."
+      "SweetAlert library is not loaded. Please check footer inclusion.",
     );
     return;
   }

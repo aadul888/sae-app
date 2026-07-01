@@ -127,8 +127,31 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     }
   }
 
+  // Filter by status validasi (if provided)
+  if (isset($req['status']) && $req['status'] != '') {
+    $req_status = mysqli_real_escape_string($gaSql['link'], $req['status']);
+    $statusWhere = '';
+    if ($req_status === 'belum') {
+      $statusWhere = "(berkas.validasi_berkas IS NULL OR berkas.validasi_berkas = '' OR TRIM(berkas.validasi_berkas) = '')";
+    } else {
+      $statusWhere = "berkas.validasi_berkas = '" . $req_status . "'";
+    }
+    if ($sWhere == "") {
+      $sWhere = "WHERE " . $statusWhere;
+    } else {
+      $sWhere .= " AND " . $statusWhere;
+    }
+  }
+
+  // Per-document validation columns to select
+  $docValidCols = '';
+  foreach (['kk', 'ijazah', 'akte', 'kip', 'kks', 'kis'] as $f) {
+    $docValidCols .= ", berkas.{$f}_valid, berkas.{$f}_keterangan";
+  }
+
   $sQuery = "
     SELECT SQL_CALC_FOUND_ROWS berkas.*, user.nisn, user.nama_lengkap, kelas.nama_kelas, admin.fullname AS validasi_admin
+    $docValidCols
     FROM berkas
     LEFT JOIN user ON berkas.user_id = user.user_id
     LEFT JOIN kelas ON user.kelas = kelas.kelas_id
@@ -156,7 +179,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     'total' => 0,
     'valid' => 0,
     'tidak_valid' => 0,
-    'revisi' => 0,
     'belum' => 0
   ];
   // Query statistik harus join dan where sama dengan query utama agar filter kelas/search/user_id diterapkan
@@ -174,8 +196,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       $total += $cnt;
       if ($s === 'valid') $statusStat['valid'] = $cnt;
       elseif ($s === 'tidak_valid') $statusStat['tidak_valid'] = $cnt;
-      elseif ($s === 'revisi') $statusStat['revisi'] = $cnt;
-      else $statusStat['belum'] = $cnt; // empty/null/other
+      else $statusStat['belum'] += $cnt; // revisi, empty, null etc -> belum
     }
     $statusStat['total'] = $total;
   }
@@ -204,17 +225,27 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     $data[] = htmlspecialchars($row['nisn']);
     $data[] = '<b>' . htmlspecialchars($row['nama_lengkap']) . '</b>';
     $data[] = htmlspecialchars($row['nama_kelas']);
-    // Kolom dokumen - tampilkan ikon checklist/X saja
+    // Kolom dokumen - tampilkan ikon status validasi per dokumen
     $dokumen = [];
-    foreach (['kk', 'ijazah', 'akte', 'kip', 'kks', 'kis'] as $field) { // tambahkan 'kis'
+    foreach (['kk', 'ijazah', 'akte', 'kip', 'kks', 'kis'] as $field) {
       if (!empty($row[$field])) {
-        $data[] = '<div class="text-center">'
-          . '<i class="fas fa-check-circle text-success" style="font-size:18px;" title="Sudah upload"></i>'
+        $doc_valid = $row[$field . '_valid'] ?? '';
+        $icon = '';
+        if ($doc_valid === 'valid') {
+          $icon = '<i class="fas fa-check-circle text-success" style="font-size:18px;" title="Valid"></i>';
+        } elseif ($doc_valid === 'tidak_valid') {
+          $icon = '<i class="fas fa-times-circle text-danger" style="font-size:18px;" title="Tidak Valid"></i>';
+        } else {
+          // Belum divalidasi: X abu-abu
+          $icon = '<i class="fas fa-times-circle" style="font-size:18px;color:#adb5bd;" title="Belum divalidasi"></i>';
+        }
+        $data[] = '<div class="text-center" style="white-space:nowrap;">'
+          . $icon
           . '</div>';
         $dokumen[$field] = true;
       } else {
         $data[] = '<div class="text-center">'
-          . '<i class="fas fa-times-circle text-danger" style="font-size:18px;" title="Belum upload"></i>'
+          . '<span style="font-size:18px;color:#adb5bd;font-weight:300;">&ndash;</span>'
           . '</div>';
         $dokumen[$field] = false;
       }
@@ -228,9 +259,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         break;
       case 'tidak_valid':
         $badge = '<span class="badge badge-danger">Tidak Valid</span>';
-        break;
-      case 'revisi':
-        $badge = '<span class="badge badge-warning text-dark">Perlu Revisi</span>';
         break;
       default:
         $badge = '<span class="badge badge-secondary">Belum Divalidasi</span>';
@@ -298,10 +326,13 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       $berkas_data = [];
       foreach ($dokumen_tersedia as $field) {
         $berkas_data[$field] = $row[$field];
+        // Include per-document validation status and keterangan
+        $berkas_data[$field . '_valid'] = $row[$field . '_valid'] ?? '';
+        $berkas_data[$field . '_keterangan'] = $row[$field . '_keterangan'] ?? '';
       }
       // include existing keterangan so modal can prefill it
       $berkas_data['keterangan'] = $row['keterangan'] ?? '';
-      $aksi .= '<a href="javascript:void(0)" class="table-action table-action-info btn-lihat-semua-berkas btn-tooltip" data-berkas="' . htmlspecialchars(json_encode($berkas_data)) . '" data-nama="' . htmlspecialchars($row['nama_lengkap']) . '" data-user="' . htmlspecialchars($row['user_id']) . '" data-validasi="' . htmlspecialchars($row['validasi_berkas']) . '" data-toggle="tooltip" title="Lihat Semua Berkas"><i class="fas fa-eye"></i></a>';
+      $aksi .= '<a href="javascript:void(0)" class="table-action table-action-info btn-lihat-semua-berkas btn-tooltip" data-berkas="' . htmlspecialchars(json_encode($berkas_data)) . '" data-nama="' . htmlspecialchars($row['nama_lengkap']) . '" data-nisn="' . htmlspecialchars($row['nisn']) . '" data-user="' . htmlspecialchars($row['user_id']) . '" data-validasi="' . htmlspecialchars($row['validasi_berkas']) . '" data-toggle="tooltip" title="Lihat Semua Berkas"><i class="fas fa-eye"></i></a>';
     }
     // Tombol hapus (hanya untuk non-wali)
     if (!$is_wali) {
