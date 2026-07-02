@@ -60,7 +60,11 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         }
 
         echo '
-<!-- Header -->
+      <script>
+        document.body.classList.add("page-user-module");
+      </script>
+
+      <!-- Header -->
 <div class="header bg-primary pb-4 user-page-header-compact">
       <div class="container-fluid">
         <div class="header-body">
@@ -298,6 +302,8 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           </div>
         </div>';
         }
+
+        echo '</div> <!-- End container-fluid -->';
 
         break;
 

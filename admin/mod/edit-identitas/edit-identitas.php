@@ -10,7 +10,10 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     switch (@$_GET['op']) {
       default:
         echo '
-<script>window.BERKAS_PATH = "../../content/berkas/";</script>
+      <script>
+        window.BERKAS_PATH = "../../content/berkas/";
+        document.body.classList.add("page-user-module", "page-edit-identitas-module");
+      </script>
 
 <!-- Header -->
 <div class="header bg-primary pb-4 user-page-header-compact">
@@ -26,7 +29,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
   <div class="row">
     <div class="col-12">
-      <div class="card user-stats-panel mb-3">
+      <div class="card user-stats-panel module-stats-shell mb-3">
         <div class="card-body py-2 px-2 px-md-3">
           <div class="user-stats-wrap">
             <div class="user-stats" id="statistik-status-row">
@@ -72,7 +75,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     </div>
   </div>
 
-  <div class="card user-table-panel pb-2">
+  <div class="card user-table-panel module-table-card pb-2">
     <div class="card-header py-3 px-3 user-table-header">
       <div class="user-table-head-row" style="gap:10px;">
         <div>
@@ -206,6 +209,8 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
   </div>
 
 </div>
+
+</div> <!-- End container-fluid -->
 ';
 
         break;

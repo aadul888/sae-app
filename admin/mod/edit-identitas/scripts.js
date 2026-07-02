@@ -361,7 +361,7 @@ $(document).on("shown.bs.modal", "#modal-detail", function () {
   // Test clipboard availability
   console.log(
     "Clipboard API available:",
-    !!(navigator.clipboard && window.isSecureContext)
+    !!(navigator.clipboard && window.isSecureContext),
   );
   console.log("execCommand available:", !!document.execCommand);
 });
@@ -370,6 +370,37 @@ $(document).on("hidden.bs.modal", "#modal-detail", function () {
   // Clean up when modal is closed
   hideRejectForm();
 });
+
+$(document).ready(function () {
+  $("body").addClass("page-user-module page-edit-identitas-module");
+});
+
+function ensureDetailModalOnBody() {
+  var $detailModal = $("#modal-detail");
+  if ($detailModal.length && !$detailModal.parent().is("body")) {
+    $detailModal.appendTo("body");
+  }
+
+  var $catatanModal = $("#modal-edit-catatan");
+  if ($catatanModal.length && !$catatanModal.parent().is("body")) {
+    $catatanModal.appendTo("body");
+  }
+}
+
+function prepareDetailModalLayer() {
+  ensureDetailModalOnBody();
+  $("body").addClass("page-edit-identitas-module");
+
+  // Desktop/mobile safety: remove stale sidenav backdrops that can block clicks.
+  $(".backdrop.d-xl-none, .sidenav-backdrop").remove();
+
+  // Mobile: close sidenav when opening detail modal so modal is fully interactive.
+  if ($(window).width() < 1200) {
+    $("body")
+      .removeClass("g-sidenav-show g-sidenav-pinned")
+      .addClass("g-sidenav-hidden");
+  }
+}
 ("use strict");
 
 // ================================
@@ -427,7 +458,7 @@ function loadData() {
             $("#stat-proses").text(json.statusStat.proses || 0);
           } else {
             $(
-              "#stat-total,#stat-disetujui,#stat-ditolak,#stat-berhasil,#stat-proses"
+              "#stat-total,#stat-disetujui,#stat-ditolak,#stat-berhasil,#stat-proses",
             ).text(0);
           }
           return json.aaData;
@@ -454,12 +485,14 @@ function loadingButton(selector, text) {
   $(selector).prop("disabled", true);
   $(selector).html(
     '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ' +
-      text
+      text,
   );
 }
 
 $(document).on("click", ".btn-view-detail", function () {
   var id = $(this).data("id");
+
+  prepareDetailModalLayer();
 
   // Show loading state
   $("#detail-content").html(`
@@ -481,12 +514,12 @@ $(document).on("click", ".btn-view-detail", function () {
         if (typeof console !== "undefined")
           console.debug(
             "Detail response (len):",
-            (response || "").toString().length
+            (response || "").toString().length,
           );
         if (typeof console !== "undefined")
           console.debug(
             "Detail response preview:",
-            (response || "").toString().substring(0, 200)
+            (response || "").toString().substring(0, 200),
           );
       } catch (e) {}
 
@@ -508,7 +541,7 @@ $(document).on("click", ".btn-view-detail", function () {
         $("#detail-content").html(
           '<div class="alert alert-danger"><i class="fas fa-exclamation-triangle mr-2"></i>' +
             msg +
-            "</div>"
+            "</div>",
         );
         return;
       }
@@ -528,6 +561,8 @@ $(document).on("click", ".btn-view-detail", function () {
 });
 
 $(document).ready(function () {
+  prepareDetailModalLayer();
+
   // Toggle catatan panjang jika tombol "Lihat" diklik
   $(document).on("click", ".btn-show-full", function () {
     var $parent = $(this).closest("small");

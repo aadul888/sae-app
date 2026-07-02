@@ -6,7 +6,90 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 } else {
   require_once '../../../library/config.php';
   require_once '../../../library/function.php';
+  require_once '../../../library/wilayah_indonesia.php';
   require_once '../../login/user.php';
+
+  sae_ensure_user_region_columns($connection);
+
+  function sae_get_berkas_document_map()
+  {
+    return [
+      'kk' => 'Kartu Keluarga',
+      'akte' => 'Akta Kelahiran',
+      'ijazah' => 'Ijazah/SKHUN',
+      'kip' => 'KIP (Kartu Indonesia Pintar)',
+      'kks' => 'KKS (Kartu Keluarga Sejahtera)',
+      'kis' => 'KIS (Kartu Indonesia Sehat)'
+    ];
+  }
+
+  function sae_normalize_berkas_item_status($status)
+  {
+    $s = strtolower(trim((string)$status));
+    if ($s === 'valid' || $s === 'disetujui' || $s === 'approved' || $s === 'ok') {
+      return 'valid';
+    }
+    if ($s === 'revisi' || $s === 'invalid' || $s === 'tidak_valid' || $s === 'tidak valid' || $s === 'ditolak' || $s === 'reject' || $s === 'rejected') {
+      return 'tidak_valid';
+    }
+    return 'tidak_valid';
+  }
+
+  function sae_evaluate_berkas_validation($berkasRow)
+  {
+    $docMap = sae_get_berkas_document_map();
+    $requiredDocs = ['kk', 'ijazah'];
+    $hasPerItemColumns = false;
+    $items = [];
+    $counts = [
+      'valid' => 0,
+      'tidak_valid' => 0
+    ];
+
+    foreach ($docMap as $field => $label) {
+      $filename = trim((string)($berkasRow[$field] ?? ''));
+      $statusField = $field . '_valid';
+      $keteranganField = $field . '_keterangan';
+
+      if (array_key_exists($statusField, $berkasRow)) {
+        $hasPerItemColumns = true;
+      }
+
+      if ($filename === '') {
+        $status = 'tidak_valid';
+      } else {
+        $rawStatus = array_key_exists($statusField, $berkasRow)
+          ? ($berkasRow[$statusField] ?? '')
+          : ($berkasRow['validasi_berkas'] ?? '');
+        $status = sae_normalize_berkas_item_status($rawStatus);
+      }
+
+      $counts[$status]++;
+      $items[$field] = [
+        'field' => $field,
+        'label' => $label,
+        'filename' => $filename,
+        'status' => $status,
+        'keterangan' => trim((string)($berkasRow[$keteranganField] ?? ''))
+      ];
+    }
+
+    $overall = 'valid';
+    foreach ($requiredDocs as $requiredDoc) {
+      if (!isset($items[$requiredDoc]) || $items[$requiredDoc]['status'] !== 'valid') {
+        $overall = 'tidak_valid';
+        break;
+      }
+    }
+
+    return [
+      'has_per_item' => $hasPerItemColumns,
+      'items' => $items,
+      'counts' => $counts,
+      'required_docs' => $requiredDocs,
+      'overall' => $overall
+    ];
+  }
 
   switch (@$_GET['action']) {
     /* ----------- SETUJUI ----------- */
@@ -53,12 +136,34 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       if ($q->num_rows > 0) {
         $d = $q->fetch_assoc();
         $user_id = $d['user_id'];
-        // Cek validasi berkas siswa
-        $berkas = $connection->query("SELECT validasi_berkas FROM berkas WHERE user_id='$user_id'");
+        // Cek validasi berkas siswa (per-item with fallback global)
+        $berkas = $connection->query("SELECT * FROM berkas WHERE user_id='$user_id'");
         if ($berkas && $berkas->num_rows > 0) {
           $b = $berkas->fetch_assoc();
-          if (!isset($b['validasi_berkas']) || $b['validasi_berkas'] !== 'valid') {
-            echo "Berkas siswa belum valid. Silakan validasi berkas terlebih dahulu.";
+          $berkasEval = sae_evaluate_berkas_validation($b);
+
+          // Proses usulan admin hanya boleh lanjut jika dokumen wajib valid.
+          $requiredDocs = ['kk', 'ijazah'];
+          $invalidDocs = [];
+          foreach ($requiredDocs as $docKey) {
+            if (!isset($berkasEval['items'][$docKey])) {
+              $invalidDocs[] = strtoupper($docKey);
+              continue;
+            }
+
+            $item = $berkasEval['items'][$docKey];
+            if (trim((string)$item['filename']) === '') {
+              $invalidDocs[] = $item['label'];
+              continue;
+            }
+
+            if ($item['status'] !== 'valid') {
+              $invalidDocs[] = $item['label'];
+            }
+          }
+
+          if (!empty($invalidDocs)) {
+            echo "Usulan tidak dapat diproses. Dokumen wajib (KK dan Ijazah) harus valid. Dokumen bermasalah: " . implode(', ', $invalidDocs) . ".";
             exit;
           }
         } else {
@@ -84,7 +189,13 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           'alamat',
           'rt',
           'rw',
+          'provinsi_id',
+          'provinsi',
+          'kabupaten_kota_id',
+          'kabupaten_kota',
+          'kecamatan_id',
           'desa',
+          'desa_id',
           'kecamatan',
           'kodepos',
           'telp',
@@ -265,6 +376,19 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         }
         if (!is_array($keterangan)) $keterangan = [];
 
+        $display_status_pengajuan = $data['status_pengajuan'];
+        $status_lower = strtolower(trim((string)$display_status_pengajuan));
+        if ($status_lower !== 'disetujui' && $status_lower !== 'ditolak') {
+          $berkas_status_query = $connection->query("SELECT * FROM berkas WHERE user_id='" . $connection->real_escape_string($user_id) . "' LIMIT 1");
+          if ($berkas_status_query && $berkas_status_query->num_rows > 0) {
+            $berkas_status_row = $berkas_status_query->fetch_assoc();
+            $berkas_status_eval = sae_evaluate_berkas_validation($berkas_status_row);
+            $display_status_pengajuan = ($berkas_status_eval['overall'] === 'valid') ? 'Dalam Proses' : 'Berhasil Dikirim';
+          } else {
+            $display_status_pengajuan = 'Berhasil Dikirim';
+          }
+        }
+
         // Define field groups mapping (was missing) so detail.php can render all fields
         $fieldGroups = [
           'Identitas Siswa' => [
@@ -281,6 +405,8 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             'Alamat' => 'alamat',
             'RT' => 'rt',
             'RW' => 'rw',
+            'Provinsi' => 'provinsi',
+            'Kabupaten/Kota' => 'kabupaten_kota',
             'Desa/Kelurahan' => 'desa',
             'Kecamatan' => 'kecamatan',
             'Kode Pos' => 'kodepos',

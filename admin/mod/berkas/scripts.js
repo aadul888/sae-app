@@ -496,67 +496,94 @@ $(document).on("click", "#btn-save-all-doc-validation", function () {
     }
   });
 
-  if (missingReason) {
-    var confirmText =
-      "Ada dokumen dengan status Tidak Valid tanpa alasan. Lanjutkan tetap menyimpan?";
-    if (!confirm(confirmText)) return;
+  function showFinalSaveConfirm() {
+    swal({
+      title: "Simpan Semua Validasi?",
+      text:
+        "Status validasi untuk " +
+        docsToSave.length +
+        " dokumen akan disimpan.",
+      icon: "warning",
+      buttons: {
+        cancel: "Batal",
+        confirm: {
+          text: "Simpan",
+          value: true,
+          visible: true,
+          closeModal: true,
+        },
+      },
+      dangerMode: false,
+    }).then(function (confirmed) {
+      if (!confirmed) return;
+
+      btn
+        .prop("disabled", true)
+        .html('<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...');
+
+      $.ajax({
+        url: "./mod/berkas/proses.php?action=validasi_dokumen",
+        type: "POST",
+        data: {
+          user_id: user_id,
+          dokumen: docsToSave,
+        },
+        dataType: "text",
+        success: function (response) {
+          var res = response.trim();
+          if (res === "success") {
+            $("#modal-validasi-berkas-status").html(
+              '<div class="alert alert-success py-2 mb-0"><i class="fas fa-check-circle mr-2"></i>Validasi per dokumen berhasil disimpan.</div>',
+            );
+            setTimeout(function () {
+              reloadAfterAction();
+              $("#modalLihatSemuaBerkas").modal("hide");
+            }, 1500);
+          } else {
+            $("#modal-validasi-berkas-status").html(
+              '<div class="alert alert-danger py-2 mb-0"><i class="fas fa-exclamation-circle mr-2"></i>Gagal: ' +
+                res +
+                "</div>",
+            );
+          }
+        },
+        error: function () {
+          $("#modal-validasi-berkas-status").html(
+            '<div class="alert alert-danger py-2 mb-0"><i class="fas fa-exclamation-triangle mr-2"></i>Terjadi kesalahan server.</div>',
+          );
+        },
+        complete: function () {
+          btn
+            .prop("disabled", false)
+            .html('<i class="fas fa-save mr-1"></i> Simpan');
+        },
+      });
+    });
   }
 
-  swal({
-    title: "Simpan Semua Validasi?",
-    text:
-      "Status validasi untuk " + docsToSave.length + " dokumen akan disimpan.",
-    icon: "warning",
-    buttons: {
-      cancel: "Batal",
-      confirm: { text: "Simpan", value: true, visible: true, closeModal: true },
-    },
-    dangerMode: false,
-  }).then(function (confirmed) {
-    if (!confirmed) return;
-
-    btn
-      .prop("disabled", true)
-      .html('<i class="fas fa-spinner fa-spin mr-1"></i> Menyimpan...');
-
-    $.ajax({
-      url: "./mod/berkas/proses.php?action=validasi_dokumen",
-      type: "POST",
-      data: {
-        user_id: user_id,
-        dokumen: docsToSave,
+  if (missingReason) {
+    swal({
+      title: "Perhatian",
+      text: "Ada dokumen dengan status Tidak Valid tanpa alasan. Lanjutkan tetap menyimpan?",
+      icon: "warning",
+      buttons: {
+        cancel: "Batal",
+        confirm: {
+          text: "Lanjutkan",
+          value: true,
+          visible: true,
+          closeModal: true,
+        },
       },
-      dataType: "text",
-      success: function (response) {
-        var res = response.trim();
-        if (res === "success") {
-          $("#modal-validasi-berkas-status").html(
-            '<div class="alert alert-success py-2 mb-0"><i class="fas fa-check-circle mr-2"></i>Validasi per dokumen berhasil disimpan.</div>',
-          );
-          setTimeout(function () {
-            reloadAfterAction();
-            $("#modalLihatSemuaBerkas").modal("hide");
-          }, 1500);
-        } else {
-          $("#modal-validasi-berkas-status").html(
-            '<div class="alert alert-danger py-2 mb-0"><i class="fas fa-exclamation-circle mr-2"></i>Gagal: ' +
-              res +
-              "</div>",
-          );
-        }
-      },
-      error: function () {
-        $("#modal-validasi-berkas-status").html(
-          '<div class="alert alert-danger py-2 mb-0"><i class="fas fa-exclamation-triangle mr-2"></i>Terjadi kesalahan server.</div>',
-        );
-      },
-      complete: function () {
-        btn
-          .prop("disabled", false)
-          .html('<i class="fas fa-save mr-1"></i> Simpan');
-      },
+      dangerMode: true,
+    }).then(function (willContinue) {
+      if (!willContinue) return;
+      showFinalSaveConfirm();
     });
-  });
+    return;
+  }
+
+  showFinalSaveConfirm();
 });
 
 // Event handler untuk zoom gambar berkas - menggunakan event delegation
@@ -776,6 +803,7 @@ function loadDataBerkas() {
 
 // Jalankan saat halaman siap
 $(document).ready(function () {
+  $("body").addClass("page-user-module");
   ensureBerkasModalLayerStyle();
   prepareBerkasModals();
 

@@ -5,6 +5,56 @@ if (empty($connection)) {
     exit();
 } else {
     if (isset($_COOKIE['siswa'])) {
+        require_once __DIR__ . '/../../../library/wilayah_indonesia.php';
+        sae_ensure_user_region_columns($connection);
+
+        if (!function_exists('sae_norm_doc_status_dashboard')) {
+            function sae_norm_doc_status_dashboard($status)
+            {
+                $s = strtolower(trim((string)$status));
+                if (in_array($s, ['valid', 'disetujui', 'approved', 'ok'], true)) return 'valid';
+                if (in_array($s, ['revisi', 'invalid', 'tidak valid', 'ditolak', 'reject', 'rejected'], true)) return 'revisi';
+                return 'belum';
+            }
+        }
+
+        if (!function_exists('sae_eval_berkas_gate_dashboard')) {
+            function sae_eval_berkas_gate_dashboard($berkas)
+            {
+                // For student usulan, only KK and Ijazah are mandatory.
+                $fields = ['kk', 'ijazah'];
+                $hasPerItem = isset($berkas['kk_valid']);
+                $hasUpload = false;
+                $invalid = [];
+                $pending = [];
+
+                foreach ($fields as $f) {
+                    $filename = trim((string)($berkas[$f] ?? ''));
+                    if ($filename === '') {
+                        $pending[] = strtoupper($f);
+                        continue;
+                    }
+
+                    $hasUpload = true;
+                    $raw = $hasPerItem ? ($berkas[$f . '_valid'] ?? '') : ($berkas['validasi_berkas'] ?? '');
+                    $status = sae_norm_doc_status_dashboard($raw);
+                    if ($status === 'revisi') {
+                        $invalid[] = strtoupper($f);
+                    } elseif ($status !== 'valid') {
+                        $pending[] = strtoupper($f);
+                    }
+                }
+
+                $ok = $hasUpload && empty($invalid) && empty($pending);
+                return [
+                    'ok' => $ok,
+                    'invalid' => $invalid,
+                    'pending' => $pending,
+                    'has_per_item' => $hasPerItem
+                ];
+            }
+        }
+
         // Cek status konfirmasi user, hanya izinkan jika 'Belum Sesuai'
         if (!isset($data_user['konfirmasi']) || $data_user['konfirmasi'] !== 'Belum Sesuai') {
             echo '<div class="container mt-5"><div class="alert alert-danger text-center"><h4><i class="fas fa-ban"></i> Akses Ditolak</h4><p>Anda tidak diizinkan mengakses halaman ini.</p><a href="../dashboard/home" class="btn btn-primary"><i class="fas fa-home"></i> Kembali ke Dashboard</a></div></div>';
@@ -47,15 +97,35 @@ if (empty($connection)) {
         $progress_class = 'bg-secondary';
         $progress_icon = 'fas fa-hourglass-start';
 
-        // Cek status validasi berkas terakhir
+        // Cek status validasi berkas terakhir (strict gate: all item must be valid)
         $validasi_berkas = '';
+        $berkas_gate = ['ok' => false, 'invalid' => [], 'pending' => [], 'has_per_item' => false];
         if (!empty($user_id)) {
-            $stmt = $connection->prepare("SELECT validasi_berkas FROM berkas WHERE user_id = ? LIMIT 1");
+            $stmt = $connection->prepare("SELECT * FROM berkas WHERE user_id = ? LIMIT 1");
             $stmt->bind_param("s", $user_id);
             $stmt->execute();
-            $stmt->bind_result($validasi_berkas);
-            $stmt->fetch();
+            $berkas_result = $stmt->get_result();
+            $berkas_row = $berkas_result ? $berkas_result->fetch_assoc() : null;
+            if (is_array($berkas_row)) {
+                $validasi_berkas = (string)($berkas_row['validasi_berkas'] ?? '');
+                $berkas_gate = sae_eval_berkas_gate_dashboard($berkas_row);
+            }
             $stmt->close();
+        }
+
+        $berkas_gate_ok = !empty($berkas_gate['ok']);
+        $berkas_gate_message = '';
+        if (!$berkas_gate_ok) {
+            $parts = [];
+            if (!empty($berkas_gate['invalid'])) {
+                $parts[] = 'Perlu revisi: ' . implode(', ', $berkas_gate['invalid']);
+            }
+            if (!empty($berkas_gate['pending'])) {
+                $parts[] = 'Belum valid/lengkap: ' . implode(', ', $berkas_gate['pending']);
+            }
+            $berkas_gate_message = !empty($parts)
+                ? implode(' | ', $parts)
+                : 'Dokumen wajib (KK dan Ijazah) harus valid sebelum bisa mengajukan perubahan identitas.';
         }
 
         if ($last_status == 'Berhasil Dikirim') {
@@ -100,13 +170,13 @@ if (empty($connection)) {
         }
 ?>
         <!-- Header -->
-        <div class="header bg-primary pb-6">
+        <div class="header pb-6">
             <div class="container-fluid">
                 <div class="header-body">
                     <div class="row align-items-center py-4">
                         <div class="col-lg-6 col-12">
                             <nav aria-label="breadcrumb" class="d-none d-md-inline-block">
-                                <ol class="breadcrumb breadcrumb-links breadcrumb-dark">
+                                <ol class="breadcrumb breadcrumb-links">
                                     <li class="breadcrumb-item"><a href="./"><i class="fas fa-home"></i> Dashboard</a></li>
                                     <li class="breadcrumb-item active" aria-current="page">Usulan Perbaikan Identitas</li>
                                 </ol>
@@ -134,7 +204,11 @@ if (empty($connection)) {
                             }
                             ?>
                             <div class="text-center py-3">
-                                <?php if ($usulan_closed): ?>
+                                <?php if (!$berkas_gate_ok): ?>
+                                    <button class="btn btn-lg btn-secondary" disabled title="Berkas harus valid semua">
+                                        <i class="fas fa-lock me-2"></i> Tambah Usulan Terkunci
+                                    </button>
+                                <?php elseif ($usulan_closed): ?>
                                     <button class="btn btn-lg btn-danger" disabled><i class="fas fa-lock me-2"></i> Usulan Ditutup</button>
                                 <?php else: ?>
                                     <button class="btn btn-primary btn-lg" data-bs-toggle="modal" data-bs-target="#modalFormIdentitas">
@@ -144,6 +218,15 @@ if (empty($connection)) {
                             </div>
                         </div>
                         <div class="card-body px-4 py-4">
+                            <?php if (!$berkas_gate_ok): ?>
+                                <div class="alert alert-warning" role="alert">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Akses pengajuan edit identitas dikunci. Dokumen wajib: KK dan Ijazah harus valid.
+                                    <?php if ($berkas_gate_message !== ''): ?>
+                                        <div class="mt-1"><small><?php echo htmlspecialchars($berkas_gate_message); ?></small></div>
+                                    <?php endif; ?>
+                                </div>
+                            <?php endif; ?>
                             <!-- Status dan Progress Bar -->
                             <div class="text-center mb-4">
                                 <h5 class="mb-3 text-dark fw-bold">Status Pengajuan</h5>
@@ -629,19 +712,41 @@ if (empty($connection)) {
 
                                         <div class="col-12 col-md-6">
                                             <div class="mb-2">
-                                                <label for="desa" class="form-label">Desa/Kelurahan</label>
-                                                <input type="text" class="form-control" name="desa" id="desa"
-                                                    placeholder="Masukkan desa/kelurahan"
-                                                    value="<?php echo htmlspecialchars($user_data['desa'] ?? ''); ?>" required>
+                                                <label for="provinsi" class="form-label required-field">Provinsi</label>
+                                                <input type="hidden" name="provinsi_id" id="provinsi_id" value="<?php echo htmlspecialchars($user_data['provinsi_id'] ?? ''); ?>">
+                                                <select class="form-control" name="provinsi" id="provinsi" required data-id-target="provinsi_id">
+                                                    <option value="<?php echo htmlspecialchars($user_data['provinsi'] ?? ''); ?>" selected><?php echo !empty($user_data['provinsi']) ? htmlspecialchars($user_data['provinsi']) : 'Pilih provinsi'; ?></option>
+                                                </select>
                                             </div>
                                         </div>
 
                                         <div class="col-12 col-md-6">
                                             <div class="mb-2">
-                                                <label for="kecamatan" class="form-label">Kecamatan</label>
-                                                <input type="text" class="form-control" name="kecamatan" id="kecamatan"
-                                                    placeholder="Masukkan kecamatan"
-                                                    value="<?php echo htmlspecialchars($user_data['kecamatan'] ?? ''); ?>" required>
+                                                <label for="kabupaten_kota" class="form-label required-field">Kabupaten/Kota</label>
+                                                <input type="hidden" name="kabupaten_kota_id" id="kabupaten_kota_id" value="<?php echo htmlspecialchars($user_data['kabupaten_kota_id'] ?? ''); ?>">
+                                                <select class="form-control" name="kabupaten_kota" id="kabupaten_kota" required data-id-target="kabupaten_kota_id">
+                                                    <option value="<?php echo htmlspecialchars($user_data['kabupaten_kota'] ?? ''); ?>" selected><?php echo !empty($user_data['kabupaten_kota']) ? htmlspecialchars($user_data['kabupaten_kota']) : 'Pilih kabupaten/kota'; ?></option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <div class="mb-2">
+                                                <label for="kecamatan" class="form-label required-field">Kecamatan</label>
+                                                <input type="hidden" name="kecamatan_id" id="kecamatan_id" value="<?php echo htmlspecialchars($user_data['kecamatan_id'] ?? ''); ?>">
+                                                <select class="form-control" name="kecamatan" id="kecamatan" required data-id-target="kecamatan_id">
+                                                    <option value="<?php echo htmlspecialchars($user_data['kecamatan'] ?? ''); ?>" selected><?php echo !empty($user_data['kecamatan']) ? htmlspecialchars($user_data['kecamatan']) : 'Pilih kecamatan'; ?></option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12 col-md-6">
+                                            <div class="mb-2">
+                                                <label for="desa" class="form-label required-field">Desa/Kelurahan</label>
+                                                <input type="hidden" name="desa_id" id="desa_id" value="<?php echo htmlspecialchars($user_data['desa_id'] ?? ''); ?>">
+                                                <select class="form-control" name="desa" id="desa" required data-id-target="desa_id">
+                                                    <option value="<?php echo htmlspecialchars($user_data['desa'] ?? ''); ?>" selected><?php echo !empty($user_data['desa']) ? htmlspecialchars($user_data['desa']) : 'Pilih desa/kelurahan'; ?></option>
+                                                </select>
                                             </div>
                                         </div>
 

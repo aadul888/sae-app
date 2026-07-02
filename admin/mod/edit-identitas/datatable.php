@@ -7,6 +7,49 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
   require_once '../../../library/config.php';
   include('../../../library/function.php');
 
+  function sae_norm_doc_status($status)
+  {
+    $s = strtolower(trim((string)$status));
+    if (in_array($s, ['valid', 'disetujui', 'approved', 'ok'], true)) {
+      return 'valid';
+    }
+    if (in_array($s, ['revisi', 'invalid', 'tidak_valid', 'tidak valid', 'ditolak', 'reject', 'rejected'], true)) {
+      return 'tidak_valid';
+    }
+    return 'tidak_valid';
+  }
+
+  function sae_display_status_from_berkas($statusPengajuan, $row, $hasPerItem)
+  {
+    $finalStatus = strtolower(trim((string)$statusPengajuan));
+    if ($finalStatus === 'disetujui' || $finalStatus === 'ditolak') {
+      return $statusPengajuan;
+    }
+
+    // Status proses usulan mengikuti validasi dokumen wajib: KK dan Ijazah.
+    $docFields = ['kk', 'ijazah'];
+    $hasInvalid = false;
+
+    foreach ($docFields as $field) {
+      $filename = trim((string)($row[$field] ?? ''));
+      if ($filename === '') {
+        $hasInvalid = true;
+        continue;
+      }
+
+      $rawStatus = $hasPerItem ? ($row[$field . '_valid'] ?? '') : ($row['berkas_validasi'] ?? '');
+      $normalized = sae_norm_doc_status($rawStatus);
+      if ($normalized !== 'valid') {
+        $hasInvalid = true;
+      }
+    }
+
+    if ($hasInvalid) {
+      return 'Berhasil Dikirim';
+    }
+    return 'Dalam Proses';
+  }
+
   $aColumns = [
     'perubahan.id',
     'perubahan.user_id',
@@ -58,6 +101,12 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
   $gaSql['link'] = new mysqli(DB_HOST, DB_USER, DB_PASSWD, DB_NAME);
 
+  $hasPerItemValidation = false;
+  $checkColumns = $gaSql['link']->query("SHOW COLUMNS FROM berkas LIKE 'kk_valid'");
+  if ($checkColumns && $checkColumns->num_rows > 0) {
+    $hasPerItemValidation = true;
+  }
+
   // LIMIT (support both legacy iDisplayStart/iDisplayLength and modern start/length)
   $sLimit = "";
   $start = null;
@@ -99,6 +148,17 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
 
   // QUERY
+  $perItemSelect = '';
+  if ($hasPerItemValidation) {
+    $perItemSelect = ",
+      berkas.kk_valid,
+      berkas.ijazah_valid,
+      berkas.akte_valid,
+      berkas.kip_valid,
+      berkas.kks_valid,
+      berkas.kis_valid";
+  }
+
   $sQuery = "
     SELECT SQL_CALC_FOUND_ROWS 
       perubahan.id,
@@ -113,7 +173,14 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       perubahan.alasan_penolakan,
       perubahan.date_processed,
       perubahan.processed_by,
-      berkas.validasi_berkas AS berkas_validasi
+      berkas.validasi_berkas AS berkas_validasi,
+      berkas.kk,
+      berkas.akte,
+      berkas.ijazah,
+      berkas.kip,
+      berkas.kks,
+      berkas.kis
+      $perItemSelect
     FROM perubahan 
     LEFT JOIN user ON perubahan.user_id = user.user_id
     LEFT JOIN kelas ON user.kelas = kelas.kelas_id
@@ -129,7 +196,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
   $iFilteredTotal = $gaSql['link']->query("SELECT FOUND_ROWS()")->fetch_row()[0];
   $iTotal = $gaSql['link']->query("SELECT COUNT($sIndexColumn) FROM $sTable")->fetch_row()[0];
 
-  // Hitung statistik status
+  // Hitung statistik status berbasis validasi berkas total
   $statusStat = [
     'total' => 0,
     'disetujui' => 0,
@@ -137,15 +204,20 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     'berhasil' => 0,
     'proses' => 0
   ];
-  $statQuery = $gaSql['link']->query("SELECT status_pengajuan, COUNT(*) as jumlah FROM perubahan GROUP BY status_pengajuan");
+  $statusSelectExtra = '';
+  if ($hasPerItemValidation) {
+    $statusSelectExtra = ', berkas.kk_valid, berkas.ijazah_valid, berkas.akte_valid, berkas.kip_valid, berkas.kks_valid, berkas.kis_valid';
+  }
+  $statQuery = $gaSql['link']->query("SELECT perubahan.status_pengajuan, berkas.validasi_berkas, berkas.kk, berkas.akte, berkas.ijazah, berkas.kip, berkas.kks, berkas.kis $statusSelectExtra FROM perubahan LEFT JOIN berkas ON perubahan.user_id = berkas.user_id");
   if ($statQuery) {
     while ($row = $statQuery->fetch_assoc()) {
-      $status = strtolower($row['status_pengajuan']);
-      $statusStat['total'] += (int)$row['jumlah'];
-      if ($status == 'disetujui') $statusStat['disetujui'] = (int)$row['jumlah'];
-      elseif ($status == 'ditolak') $statusStat['ditolak'] = (int)$row['jumlah'];
-      elseif ($status == 'berhasil dikirim') $statusStat['berhasil'] = (int)$row['jumlah'];
-      elseif ($status == 'dalam proses') $statusStat['proses'] = (int)$row['jumlah'];
+      $display = sae_display_status_from_berkas($row['status_pengajuan'], $row, $hasPerItemValidation);
+      $status = strtolower(trim((string)$display));
+      $statusStat['total']++;
+      if ($status === 'disetujui') $statusStat['disetujui']++;
+      elseif ($status === 'ditolak') $statusStat['ditolak']++;
+      elseif ($status === 'berhasil dikirim') $statusStat['berhasil']++;
+      elseif ($status === 'dalam proses') $statusStat['proses']++;
     }
   }
 
@@ -158,21 +230,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
   $no = (isset($start) && is_numeric($start)) ? intval($start) + 1 : 1;
   while ($aRow = $rResult->fetch_assoc()) {
-    // Compute display status according to berkas validation rules:
-    // - If status_pengajuan is final (Disetujui or Ditolak), keep it.
-    // - Otherwise, map berkas.validasi_berkas as follows:
-    //     'valid'         => 'Dalam Proses'
-    //     any other value => 'Berhasil Dikirim' (includes null / 'tidak valid' / 'perlu revisi')
-    $display_status = $aRow['status_pengajuan'];
-    $status_lower = strtolower(trim((string)$aRow['status_pengajuan']));
-    if ($status_lower !== 'disetujui' && $status_lower !== 'ditolak') {
-      $berkas_val = isset($aRow['berkas_validasi']) ? strtolower(trim((string)$aRow['berkas_validasi'])) : '';
-      if ($berkas_val === 'valid') {
-        $display_status = 'Dalam Proses';
-      } else {
-        $display_status = 'Berhasil Dikirim';
-      }
-    }
+    $display_status = sae_display_status_from_berkas($aRow['status_pengajuan'], $aRow, $hasPerItemValidation);
 
     $badge = ($display_status == 'Disetujui') ? 'success' : (($display_status == 'Ditolak') ? 'danger' : (($display_status == 'Dalam Proses') ? 'primary' : 'warning'));
 

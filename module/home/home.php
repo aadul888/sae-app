@@ -241,7 +241,7 @@ if ($is_standalone) {
         $home_realtime_url    = $base_url . 'realtime';
         $home_absensi_url     = $base_url . 'absensi';
         $home_tentang_url     = $base_url . 'tentang';
-        $home_privasi_url     = $base_url . 'privasi-kebijakan';
+        $home_privasi_url     = $base_url . 'tentang?tab=privasi';
         $home_agenda_url      = $base_url . 'agenda';
         $home_kelulusan_url   = $base_url . 'kelulusan';
         $male_percent = $total_students > 0 ? round(($male_count / $total_students) * 100, 1) : 0;
@@ -918,7 +918,7 @@ if ($is_standalone) {
                 <i class="fas fa-info-circle" aria-hidden="true"></i>
                 <span>Tentang</span>
             </a>
-            <a href="<?php echo $base_url; ?>privasi-kebijakan"
+            <a href="<?php echo $base_url; ?>tentang?tab=privasi"
                 class="fab-item email-item"
                 role="menuitem"
                 title="Privasi dan kebijakan aplikasi"

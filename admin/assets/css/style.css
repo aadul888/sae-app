@@ -3795,9 +3795,33 @@ body.page-user-module .modal-backdrop {
   z-index: 2040 !important;
 }
 
+/* Edit-identitas modal stacking fix:
+   keep modal always above sidebar/backdrop layers. */
+body.page-edit-identitas-module .modal-detail,
+body.page-edit-identitas-module #modal-edit-catatan {
+  z-index: 2100 !important;
+}
+
+body.page-edit-identitas-module .modal-backdrop {
+  z-index: 2090 !important;
+}
+
 /* Guardrail: prevent DataTables width calculations from expanding page width. */
 body.page-user-module {
   overflow-x: hidden;
+}
+
+body.page-user-module .main-content,
+body.page-edit-identitas-module .main-content {
+  min-height: 100vh;
+}
+
+body.page-user-module .main-content > .container-fluid.user-module-page,
+body.page-edit-identitas-module
+  .main-content
+  > .container-fluid.user-module-page {
+  flex: 1 0 auto;
+  padding-bottom: 1.5rem;
 }
 /* --- END app.css --- */
 
@@ -7185,7 +7209,7 @@ textarea:focus {
 
 /* Modal Header */
 .modal-detail .modal-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #0f766e 0%, #10b981 100%);
   color: white;
   border: none;
   padding: 1.5rem 2rem;
@@ -8323,6 +8347,45 @@ select#add-tugas-select {
   overflow-x: hidden;
 }
 
+/* Crosscheck readability improvements for edit-identitas module */
+body.page-edit-identitas-module .modal-detail .modal-dialog {
+  max-width: min(1280px, 96vw);
+}
+
+body.page-edit-identitas-module .detail-sticky {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+body.page-edit-identitas-module .comparison-table .table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+body.page-edit-identitas-module .comparison-table .table tbody td:first-child,
+body.page-edit-identitas-module .comparison-table .table thead th:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: #f8fafc;
+  min-width: 200px;
+}
+
+body.page-edit-identitas-module .comparison-table .table thead th:first-child {
+  background: linear-gradient(135deg, #0f766e 0%, #10b981 100%);
+}
+
+body.page-edit-identitas-module .comparison-table .table tbody td {
+  padding: 0.85rem 0.95rem;
+}
+
+body.page-edit-identitas-module .comparison-table .table tbody td:nth-child(2),
+body.page-edit-identitas-module .comparison-table .table tbody td:nth-child(3) {
+  min-width: 320px;
+}
+
 /* Ensure all content respects modal boundaries */
 .modal-detail .modal-body * {
   max-width: 100%;
@@ -8388,7 +8451,7 @@ select#add-tugas-select {
 }
 
 .comparison-table .table thead {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  background: linear-gradient(135deg, #0f766e 0%, #10b981 100%);
 }
 
 .comparison-table .table thead th {

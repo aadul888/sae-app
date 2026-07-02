@@ -6,6 +6,8 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
   $modul_id = 3;
   include __DIR__ . '/../check_role.php';
   if ($has_access) {
+    require_once __DIR__ . '/../../../library/wilayah_indonesia.php';
+    sae_ensure_user_region_columns($connection);
 
     switch (@$_GET['op']) {
       default:
@@ -422,6 +424,15 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             }
 
             if ($data_role['modifikasi'] == 'Y') {
+              $provinsiId = htmlspecialchars((string)($data_user['provinsi_id'] ?? ''), ENT_QUOTES, 'UTF-8');
+              $provinsiName = htmlspecialchars((string)($data_user['provinsi'] ?? ''), ENT_QUOTES, 'UTF-8');
+              $kabupatenId = htmlspecialchars((string)($data_user['kabupaten_kota_id'] ?? ''), ENT_QUOTES, 'UTF-8');
+              $kabupatenName = htmlspecialchars((string)($data_user['kabupaten_kota'] ?? ''), ENT_QUOTES, 'UTF-8');
+              $kecamatanId = htmlspecialchars((string)($data_user['kecamatan_id'] ?? ''), ENT_QUOTES, 'UTF-8');
+              $kecamatanName = htmlspecialchars((string)($data_user['kecamatan'] ?? ''), ENT_QUOTES, 'UTF-8');
+              $desaId = htmlspecialchars((string)($data_user['desa_id'] ?? ''), ENT_QUOTES, 'UTF-8');
+              $desaName = htmlspecialchars((string)($data_user['desa'] ?? ''), ENT_QUOTES, 'UTF-8');
+
               echo '<form class="form-update" role="form" method="post" action="#" autocomplete="off">';
               echo '<input type="hidden" class="d-none" name="id" value="' . epm_encode($data_user['user_id']) . '" required readonly>';
 
@@ -456,8 +467,10 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
               echo '<div class="form-group"><label>Alamat (Jl/Kp)</label><input type="text" class="form-control" name="alamat" value="' . strip_tags($data_user['alamat']) . '" required></div>';
               echo '<div class="form-group"><label>RT</label><input type="text" class="form-control" name="rt" value="' . strip_tags($data_user['rt']) . '" required></div>';
               echo '<div class="form-group"><label>RW</label><input type="text" class="form-control" name="rw" value="' . strip_tags($data_user['rw']) . '" required></div>';
-              echo '<div class="form-group"><label>Desa/Kelurahan</label><input type="text" class="form-control" name="desa" value="' . strip_tags($data_user['desa']) . '" required></div>';
-              echo '<div class="form-group"><label>Kecamatan</label><input type="text" class="form-control" name="kecamatan" value="' . strip_tags($data_user['kecamatan']) . '" required></div>';
+              echo '<div class="form-group"><label>Provinsi</label><input type="hidden" name="provinsi_id" id="provinsi_id" value="' . $provinsiId . '"><select class="form-control" name="provinsi" id="provinsi" required data-id-target="provinsi_id"><option value="' . $provinsiName . '" selected>' . ($provinsiName !== '' ? $provinsiName : 'Pilih provinsi') . '</option></select></div>';
+              echo '<div class="form-group"><label>Kabupaten/Kota</label><input type="hidden" name="kabupaten_kota_id" id="kabupaten_kota_id" value="' . $kabupatenId . '"><select class="form-control" name="kabupaten_kota" id="kabupaten_kota" required data-id-target="kabupaten_kota_id"><option value="' . $kabupatenName . '" selected>' . ($kabupatenName !== '' ? $kabupatenName : 'Pilih kabupaten/kota') . '</option></select></div>';
+              echo '<div class="form-group"><label>Kecamatan</label><input type="hidden" name="kecamatan_id" id="kecamatan_id" value="' . $kecamatanId . '"><select class="form-control" name="kecamatan" id="kecamatan" required data-id-target="kecamatan_id"><option value="' . $kecamatanName . '" selected>' . ($kecamatanName !== '' ? $kecamatanName : 'Pilih kecamatan') . '</option></select></div>';
+              echo '<div class="form-group"><label>Desa/Kelurahan</label><input type="hidden" name="desa_id" id="desa_id" value="' . $desaId . '"><select class="form-control" name="desa" id="desa" required data-id-target="desa_id"><option value="' . $desaName . '" selected>' . ($desaName !== '' ? $desaName : 'Pilih desa/kelurahan') . '</option></select></div>';
               echo '<div class="form-group"><label>Kodepos</label><input type="text" class="form-control" name="kodepos" value="' . strip_tags($data_user['kodepos']) . '" required></div>';
               echo '<div class="form-group"><label>Telp/HP</label><input type="text" class="form-control" name="telp" value="' . strip_tags($data_user['telp']) . '" required></div>';
               echo '<div class="form-group"><label>Asal Sekolah</label><input type="text" class="form-control" name="sekolah_asal" value="' . strip_tags($data_user['sekolah_asal']) . '" required></div>';
@@ -602,6 +615,8 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
               if (!empty($data_user['rt'])) $alamat_parts[] = 'RT ' . trim(strip_tags($data_user['rt']));
               if (!empty($data_user['rw'])) $alamat_parts[] = 'RW ' . trim(strip_tags($data_user['rw']));
             }
+            if (!empty($data_user['provinsi'])) $alamat_parts[] = trim(strip_tags($data_user['provinsi']));
+            if (!empty($data_user['kabupaten_kota'])) $alamat_parts[] = trim(strip_tags($data_user['kabupaten_kota']));
             if (!empty($data_user['desa'])) $alamat_parts[] = trim(strip_tags($data_user['desa']));
             if (!empty($data_user['kecamatan'])) $alamat_parts[] = trim(strip_tags($data_user['kecamatan']));
             if (!empty($data_user['kodepos'])) $alamat_parts[] = trim(strip_tags($data_user['kodepos']));

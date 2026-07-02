@@ -101,6 +101,12 @@ if (!empty($_GET['mod'])) {
   $mod = 'home';
 }
 
+// Legacy route compatibility: merge old privacy module into tentang tab.
+if ($mod === 'privasi-kebijakan') {
+  $_GET['tab'] = $_GET['tab'] ?? 'privasi';
+  $mod = 'tentang';
+}
+
 $bootstrap_required = sae_sync_bootstrap_required($connection);
 $bootstrap_completed = sae_sync_bootstrap_completed($connection);
 if (!$bootstrap_completed && $mod !== 'registrasi') {

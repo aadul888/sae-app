@@ -275,8 +275,7 @@ $logo_path_url = @filemtime("../content/$logo_path") > 0 ? "../content/$logo_pat
                             if (can_see(41)) sidebar_link('./sync', 'fas fa-sync', 'Tarik Data Dapodik', 'text-success');
                         sidebar_group_close();
                     } ?>
-                    <li class="nav-item"><a class="nav-link" href="./tentang"><i class="fas fa-info-circle text-info"></i><span class="nav-link-text">Tentang</span></a></li>
-                    <li class="nav-item"><a class="nav-link" href="./privasi-kebijakan"><i class="fas fa-user-shield text-primary"></i><span class="nav-link-text">Privasi &amp; Kebijakan</span></a></li>
+                    <li class="nav-item"><a class="nav-link" href="./tentang"><i class="fas fa-info-circle text-info"></i><span class="nav-link-text">Tentang &amp; Privasi</span></a></li>
                     <li class="nav-item"><a class="nav-link" href="./logout"><i class="fas fa-sign-out-alt text-danger"></i><span class="nav-link-text">Keluar</span></a></li>
                 </ul>
             </div>

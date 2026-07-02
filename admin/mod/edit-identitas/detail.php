@@ -105,8 +105,12 @@ function resolveKeteranganPair($keterangan, $fieldKey, $userValue = '')
 // Sticky area: status badge + info header (placed above the form/tables)
 // Render a compact flex row with Status | Siswa (name + NISN) | Tanggal Pengajuan
 {
+    $display_status = isset($display_status_pengajuan) && $display_status_pengajuan !== ''
+        ? $display_status_pengajuan
+        : $data['status_pengajuan'];
+
     $statusClass = '';
-    switch ($data['status_pengajuan']) {
+    switch ($display_status) {
         case 'Disetujui':
             $statusClass = 'success';
             break;
@@ -124,7 +128,7 @@ function resolveKeteranganPair($keterangan, $fieldKey, $userValue = '')
     echo '<div class="detail-sticky mb-3" style="position:sticky;top:0;z-index:1050;">
         <div class="sticky-inner" style="display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1rem;background:#fff;border-radius:6px;box-shadow:0 6px 18px rgba(15,23,42,0.06);">
             <div style="display:flex;align-items:center;gap:1rem;flex:1;min-width:0;">
-                <span class="badge badge-' . $statusClass . ' badge-lg px-4 py-2" style="font-size:1rem;white-space:nowrap;">' . htmlspecialchars($data['status_pengajuan']) . '</span>
+                <span class="badge badge-' . $statusClass . ' badge-lg px-4 py-2" style="font-size:1rem;white-space:nowrap;">' . htmlspecialchars($display_status) . '</span>
                 <div style="min-width:0;">
                     <div class="text-muted" style="font-size:0.85rem;">Siswa</div>
                     <div style="font-weight:600;display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;min-width:0;">
@@ -207,7 +211,18 @@ echo '<div class="berkas-section">
 $berkas_query = $connection->query("SELECT * FROM berkas WHERE user_id='" . $data['user_id'] . "'");
 if ($berkas_query && $berkas_query->num_rows > 0) {
     $berkas_data = $berkas_query->fetch_assoc();
-    $validasi_status = $berkas_data['validasi_berkas'] ?? 'belum';
+    if (function_exists('sae_evaluate_berkas_validation')) {
+        $berkas_eval = sae_evaluate_berkas_validation($berkas_data);
+    } else {
+        $berkas_eval = [
+            'has_per_item' => false,
+            'uploaded_count' => 0,
+            'overall' => strtolower(trim((string)($berkas_data['validasi_berkas'] ?? 'belum'))),
+            'items' => []
+        ];
+    }
+
+    $validasi_status = $berkas_eval['overall'] ?? 'belum';
     $status_badge = '';
     $status_icon = '';
 
@@ -216,13 +231,9 @@ if ($berkas_query && $berkas_query->num_rows > 0) {
             $status_badge = '<span class="badge badge-success">Valid</span>';
             $status_icon = '<i class="fas fa-check-circle text-success"></i>';
             break;
-        case 'revisi':
-            $status_badge = '<span class="badge badge-warning">Perlu Revisi</span>';
-            $status_icon = '<i class="fas fa-exclamation-triangle text-warning"></i>';
-            break;
         default:
-            $status_badge = '<span class="badge badge-secondary">Belum Divalidasi</span>';
-            $status_icon = '<i class="fas fa-clock text-muted"></i>';
+            $status_badge = '<span class="badge badge-danger">Tidak Valid</span>';
+            $status_icon = '<i class="fas fa-exclamation-triangle text-danger"></i>';
             break;
     }
 
@@ -231,6 +242,7 @@ if ($berkas_query && $berkas_query->num_rows > 0) {
             <h6 class="mb-0">' . $status_icon . ' Status Validasi Berkas</h6>
             ' . $status_badge . '
         </div>
+        <small class="text-muted d-block mt-2">Mode validasi: ' . (($berkas_eval['has_per_item'] ?? false) ? 'Per item dokumen' : 'Global (legacy)') . '</small>
     </div>';
 
     $berkas_fields = [
@@ -246,26 +258,25 @@ if ($berkas_query && $berkas_query->num_rows > 0) {
 
     foreach ($berkas_fields as $label => $field) {
         $filename = $berkas_data[$field] ?? '';
+        $item_eval = $berkas_eval['items'][$field] ?? null;
+        $item_status = $item_eval['status'] ?? 'belum';
+        $item_note = trim((string)($item_eval['keterangan'] ?? ''));
         $status = '';
         $statusClass = '';
 
         if (empty($filename)) {
-            $status = 'Kosong';
-            $statusClass = 'status-empty';
+            $status = 'Tidak Valid';
+            $statusClass = 'status-invalid';
         } else {
             // Check if file exists using relative path like berkas module
             $filepath = '../../../content/berkas/' . $filename;
 
-            if (file_exists($filepath)) {
+            if (file_exists($filepath) && $item_status === 'valid') {
                 $status = 'Valid';
                 $statusClass = 'status-valid';
             } else {
-                $status = 'File Hilang';
+                $status = 'Tidak Valid';
                 $statusClass = 'status-invalid';
-                // Debug: Add console log for missing files
-                if (!empty($filename)) {
-                    echo '<script>console.log("Berkas NOT found:", "' . htmlspecialchars($filename) . '", "Path:", "' . htmlspecialchars($filepath) . '");</script>';
-                }
             }
         }
         echo '<div class="berkas-item">
@@ -285,15 +296,16 @@ if ($berkas_query && $berkas_query->num_rows > 0) {
                 }
             }
             echo $upload_info;
+            if ($item_note !== '') {
+                echo '<small class="text-muted d-block">Catatan validasi: ' . htmlspecialchars($item_note) . '</small>';
+            }
         }
 
-        if (!empty($filename) && file_exists($filepath)) {
+        // Only show file preview when status is truly valid.
+        if (!empty($filename) && isset($filepath) && file_exists($filepath) && $item_status === 'valid') {
             $extension = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
             // For URL in browser, use path relative to webroot
             $berkas_url = '../content/berkas/' . $filename;
-
-            // Debug: Add console log
-            echo '<script>console.log("Berkas found:", "' . htmlspecialchars($filename) . '", "URL:", "' . htmlspecialchars($berkas_url) . '");</script>';
             if (in_array($extension, ['jpg', 'jpeg', 'png', 'gif', 'webp'])) {
                 echo '<div class="image-container" onclick="openZoomModal(\'' . htmlspecialchars($berkas_url) . '\')">
                     <img src="' . htmlspecialchars($berkas_url) . '" alt="' . $label . '" loading="lazy">
@@ -314,7 +326,8 @@ if ($berkas_query && $berkas_query->num_rows > 0) {
             }
         } else {
             echo '<div class="image-container" style="background: #f1f5f9; color: #64748b;">
-                <i class="fas fa-image" style="font-size: 2rem; opacity: 0.5;"></i>
+                <i class="fas fa-lock" style="font-size: 2rem; opacity: 0.55;"></i>
+                <div class="mt-2" style="font-size:0.85rem; text-align:center;">Dokumen ditampilkan setelah status valid</div>
             </div>';
         }
 

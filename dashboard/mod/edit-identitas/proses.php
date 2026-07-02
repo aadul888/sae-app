@@ -5,7 +5,10 @@ if (!isset($_COOKIE['siswa'])) {
 } else {
   require_once '../../../library/config.php';
   require_once '../../../library/function.php';
+  require_once '../../../library/wilayah_indonesia.php';
   require_once '../../oauth/user.php';
+
+  sae_ensure_user_region_columns($connection);
 
   // Debug helpers removed to keep responses concise and avoid generating debug files
 
@@ -42,10 +45,88 @@ if (!isset($_COOKIE['siswa'])) {
     return mb_strtolower($v);
   }
 
+  function _normalize_doc_status($status)
+  {
+    $s = strtolower(trim((string)$status));
+    if (in_array($s, ['valid', 'disetujui', 'approved', 'ok'], true)) {
+      return 'valid';
+    }
+    if (in_array($s, ['revisi', 'invalid', 'tidak valid', 'ditolak', 'reject', 'rejected'], true)) {
+      return 'revisi';
+    }
+    return 'belum';
+  }
+
+  function _evaluate_berkas_gate($connection, $userId)
+  {
+    $result = [
+      'ok' => false,
+      'overall' => 'belum',
+      'invalid' => [],
+      'pending' => []
+    ];
+
+    $stmt = $connection->prepare("SELECT * FROM berkas WHERE user_id = ? LIMIT 1");
+    $stmt->bind_param('s', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $row = $res && $res->num_rows > 0 ? $res->fetch_assoc() : null;
+    $stmt->close();
+
+    if (!is_array($row)) {
+      return $result;
+    }
+
+    // For student usulan, only KK and Ijazah are mandatory.
+    $fields = ['kk', 'ijazah'];
+    $hasPerItem = isset($row['kk_valid']);
+    $hasUpload = false;
+
+    foreach ($fields as $field) {
+      $filename = trim((string)($row[$field] ?? ''));
+      if ($filename === '') {
+        $result['pending'][] = strtoupper($field);
+        continue;
+      }
+
+      $hasUpload = true;
+      $raw = $hasPerItem ? ($row[$field . '_valid'] ?? '') : ($row['validasi_berkas'] ?? '');
+      $status = _normalize_doc_status($raw);
+      if ($status === 'revisi') {
+        $result['invalid'][] = strtoupper($field);
+      } elseif ($status !== 'valid') {
+        $result['pending'][] = strtoupper($field);
+      }
+    }
+
+    if ($hasUpload && empty($result['invalid']) && empty($result['pending'])) {
+      $result['ok'] = true;
+      $result['overall'] = 'valid';
+    } elseif (!empty($result['invalid'])) {
+      $result['overall'] = 'revisi';
+    }
+
+    return $result;
+  }
+
   // Normalize action: treat orangtua and wali submissions as identitas (all use unified flow)
   $action = isset($_GET['action']) ? $_GET['action'] : '';
   if (in_array($action, ['usulan_orangtua', 'usulan_wali'])) {
     $action = 'usulan_identitas';
+  }
+
+  if ($action === 'usulan_identitas') {
+    $berkasGate = _evaluate_berkas_gate($connection, $data_user['user_id']);
+    if (empty($berkasGate['ok'])) {
+      $msgParts = ['Pengajuan dikunci. Dokumen wajib (KK dan Ijazah) harus valid terlebih dahulu.'];
+      if (!empty($berkasGate['invalid'])) {
+        $msgParts[] = 'Perlu revisi: ' . implode(', ', $berkasGate['invalid']) . '.';
+      }
+      if (!empty($berkasGate['pending'])) {
+        $msgParts[] = 'Belum valid/lengkap: ' . implode(', ', $berkasGate['pending']) . '.';
+      }
+      _respond('error', implode(' ', $msgParts));
+    }
   }
 
   switch ($action) {
@@ -86,7 +167,13 @@ if (!isset($_COOKIE['siswa'])) {
         'alamat',
         'rt',
         'rw',
+        'provinsi_id',
+        'provinsi',
+        'kabupaten_kota_id',
+        'kabupaten_kota',
+        'kecamatan_id',
         'desa',
+        'desa_id',
         'kecamatan',
         'kodepos',
         'telp',
@@ -150,6 +237,8 @@ if (!isset($_COOKIE['siswa'])) {
         'alamat',
         'rt',
         'rw',
+        'provinsi',
+        'kabupaten_kota',
         'desa',
         'kecamatan',
         'kodepos',
@@ -175,6 +264,8 @@ if (!isset($_COOKIE['siswa'])) {
         'alamat' => 'Alamat',
         'rt' => 'RT',
         'rw' => 'RW',
+        'provinsi' => 'Provinsi',
+        'kabupaten_kota' => 'Kabupaten/Kota',
         'desa' => 'Desa/Kelurahan',
         'kecamatan' => 'Kecamatan',
         'kodepos' => 'Kode Pos',
@@ -282,35 +373,15 @@ if (!isset($_COOKIE['siswa'])) {
         $error[] = 'Email wajib menggunakan domain @smk.belajar.id';
       }
 
-      // Validasi berkas wajib (KK dan Ijazah)
-      $q_berkas = $connection->prepare("SELECT kk, ijazah FROM berkas WHERE user_id = ? LIMIT 1");
-      $q_berkas->bind_param('s', $data_user['user_id']);
-      $q_berkas->execute();
-      $q_berkas->store_result();
-      $kk = $ijazah = '';
-      if ($q_berkas->num_rows > 0) {
-        $q_berkas->bind_result($kk, $ijazah);
-        $q_berkas->fetch();
-      }
-      $q_berkas->close();
-      if (empty($kk) || empty($ijazah)) {
-        $error[] = 'Berkas wajib (KK dan Ijazah) harus diupload terlebih dahulu.';
+      $berkasGate = _evaluate_berkas_gate($connection, $data_user['user_id']);
+      if (empty($berkasGate['ok'])) {
+        $error[] = 'Dokumen wajib (KK dan Ijazah) harus valid sebelum mengirim usulan perubahan data.';
       }
       if (empty($data_changes) || !$ada_perubahan) {
         $error[] = 'Tidak ada data yang diubah.';
       }
 
-      // Cek status validasi berkas
-      $q_validasi = $connection->prepare("SELECT validasi_berkas FROM berkas WHERE user_id = ? LIMIT 1");
-      $q_validasi->bind_param('s', $data_user['user_id']);
-      $q_validasi->execute();
-      $q_validasi->store_result();
-      $validasi_berkas = '';
-      if ($q_validasi->num_rows > 0) {
-        $q_validasi->bind_result($validasi_berkas);
-        $q_validasi->fetch();
-      }
-      $q_validasi->close();
+      $validasi_berkas = !empty($berkasGate['ok']) ? 'valid' : 'belum';
 
       // Determine if we should update an existing usulan or insert a new one
       $id_to_update = null;

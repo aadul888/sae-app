@@ -25,7 +25,7 @@
 
   // Check if current module is a full-page module (home, absensi, realtime)
   $module_root_footer = explode('/', (string)$mod)[0];
-  $is_fullpage_module = in_array($module_root_footer, ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'privasi-kebijakan', 'login', 'nisn', 'registrasi', 'tamu']);
+  $is_fullpage_module = in_array($module_root_footer, ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'login', 'nisn', 'registrasi', 'tamu']);
 
   $appSiteName = trim((string)($site_name ?? ''));
   if ($appSiteName === '') {
@@ -53,7 +53,7 @@
               <span>|</span>
               <a href="' . $base_url . 'tentang" class="text-primary">Tentang Aplikasi</a>
               <span>|</span>
-              <a href="' . $base_url . 'privasi-kebijakan" class="text-primary">Privasi &amp; Kebijakan</a>
+              <a href="' . $base_url . 'tentang?tab=privasi" class="text-primary">Privasi &amp; Kebijakan</a>
               <span>|</span>
               <span>Developed by <a href="https://s.id/smakpalapik" target="_blank" class="text-primary">SMAKPALAPIK</a></span>
             </span>

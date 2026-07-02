@@ -20,6 +20,11 @@ else{
     
 if(!empty($_GET['mod'])){$mod = mysqli_escape_string($connection,@$_GET['mod']);}else {$mod ='home';}
 
+if ($mod === 'privasi-kebijakan') {
+  $_GET['tab'] = $_GET['tab'] ?? 'privasi';
+  $mod = 'tentang';
+}
+
 
   include_once 'mod/header.php';
   if(file_exists('./mod/'.$mod.'/'.$mod.'.php')){

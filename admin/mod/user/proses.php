@@ -5,6 +5,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 }
 require_once '../../../library/config.php';
 include('../../../library/function.php');
+require_once '../../../library/wilayah_indonesia.php';
 require_once '../../login/user.php';
 require_once '../../assets/vendor/autoload.php';
 
@@ -155,6 +156,8 @@ function check_access($type)
     exit;
   }
 }
+
+sae_ensure_user_region_columns($connection);
 
 switch (@$_GET['action']) {
   /* ----------- Set Koordinator User ----------- */
@@ -315,7 +318,13 @@ switch (@$_GET['action']) {
       'diterima_tanggal',
       'rt',
       'rw',
+      'provinsi_id',
+      'provinsi',
+      'kabupaten_kota_id',
+      'kabupaten_kota',
+      'kecamatan_id',
       'desa',
+      'desa_id',
       'kecamatan',
       'kodepos',
       'email',
@@ -375,7 +384,7 @@ switch (@$_GET['action']) {
       $set_password = ", password='$password_hash'";
     }
     $update = "UPDATE user SET
-    no_kk='$no_kk', nik='$nik', nipd='$nipd', nisn='$nisn', nama_lengkap='$nama_lengkap', sekolah_asal='$sekolah_asal', tempat_lahir='$tempat_lahir', tanggal_lahir='$tanggal_lahir', agama='$agama', jenis_kelamin='$jenis_kelamin', status_keluarga='$status_keluarga', kelas='$kelas', diterima_dikelas='$diterima_dikelas', diterima_tanggal='$diterima_tanggal', rt='$rt', rw='$rw', desa='$desa', kecamatan='$kecamatan', kodepos='$kodepos', email='$email', telp='$telp', anak_ke='$anak_ke', alamat='$alamat', status='$status', nik_ayah='$nik_ayah', nama_ayah='$nama_ayah', pekerjaan_ayah='$pekerjaan_ayah', nik_ibu='$nik_ibu', nama_ibu='$nama_ibu', pekerjaan_ibu='$pekerjaan_ibu', nama_wali='$nama_wali', alamat_wali='$alamat_wali', telp_wali='$telp_wali', pekerjaan_wali='$pekerjaan_wali', konfirmasi='Belum Konfirmasi'" . $set_password . " WHERE user_id='$id'";
+    no_kk='$no_kk', nik='$nik', nipd='$nipd', nisn='$nisn', nama_lengkap='$nama_lengkap', sekolah_asal='$sekolah_asal', tempat_lahir='$tempat_lahir', tanggal_lahir='$tanggal_lahir', agama='$agama', jenis_kelamin='$jenis_kelamin', status_keluarga='$status_keluarga', kelas='$kelas', diterima_dikelas='$diterima_dikelas', diterima_tanggal='$diterima_tanggal', rt='$rt', rw='$rw', provinsi_id='$provinsi_id', provinsi='$provinsi', kabupaten_kota_id='$kabupaten_kota_id', kabupaten_kota='$kabupaten_kota', kecamatan_id='$kecamatan_id', desa='$desa', desa_id='$desa_id', kecamatan='$kecamatan', kodepos='$kodepos', email='$email', telp='$telp', anak_ke='$anak_ke', alamat='$alamat', status='$status', nik_ayah='$nik_ayah', nama_ayah='$nama_ayah', pekerjaan_ayah='$pekerjaan_ayah', nik_ibu='$nik_ibu', nama_ibu='$nama_ibu', pekerjaan_ibu='$pekerjaan_ibu', nama_wali='$nama_wali', alamat_wali='$alamat_wali', telp_wali='$telp_wali', pekerjaan_wali='$pekerjaan_wali', konfirmasi='Belum Konfirmasi'" . $set_password . " WHERE user_id='$id'";
     if ($connection->query($update)) {
       purgeKartuPelajarCacheByIdentity($id, $nisn);
       echo 'success';

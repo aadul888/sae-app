@@ -20,7 +20,7 @@ if (in_array($module_root_name, $landing_modules)) {
   $body_class .= ' module-home';
 }
 
-$public_fullpage_modules = ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'privasi-kebijakan', 'kelulusan', 'login', 'nisn', 'registrasi', 'tamu'];
+$public_fullpage_modules = ['home', 'absensi', 'realtime', 'agenda', 'tentang', 'kelulusan', 'login', 'nisn', 'registrasi', 'tamu'];
 
 $appSiteName = trim((string)($site_name ?? ''));
 if ($appSiteName === '') {
@@ -99,7 +99,7 @@ $appYear = defined('SAE_APP_YEAR') ? SAE_APP_YEAR : date('Y');
           'tentang'   => ['label' => 'Tentang',   'url' => $base_url . 'tentang/'],
         ];
       ?>
-      <?php if (in_array($module_root_name, ['home', 'absensi', 'agenda', 'realtime', 'tentang', 'privasi-kebijakan', 'kelulusan', 'login', 'nisn', 'tamu'])): ?>
+      <?php if (in_array($module_root_name, ['home', 'absensi', 'agenda', 'realtime', 'tentang', 'kelulusan', 'login', 'nisn', 'tamu'])): ?>
         <nav class="sae-home-nav" aria-label="Navigasi utama SAE">
           <div class="sae-home-nav-inner container-fluid">
             <a class="sae-home-brand" href="<?php echo $base_url; ?>home/" aria-label="Kembali ke beranda SAE">

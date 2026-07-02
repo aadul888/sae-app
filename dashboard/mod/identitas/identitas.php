@@ -43,13 +43,13 @@ if (empty($connection)) {
     }
     echo '
 <!-- Header -->
-<div class="header bg-primary pb-6">
+<div class="header pb-6">
   <div class="container-fluid">
     <div class="header-body">
       <div class="row align-items-center py-4">
         <div class="col-lg-6 col-12">
           <nav aria-label="breadcrumb" class="d-none d-md-inline-block">
-            <ol class="breadcrumb breadcrumb-links breadcrumb-dark">
+            <ol class="breadcrumb breadcrumb-links">
               <li class="breadcrumb-item"><a href="./"><i class="fas fa-home"></i> Dashboard</a></li>
               <li class="breadcrumb-item active" aria-current="page">Identitas Siswa</li>
             </ol>
@@ -112,6 +112,8 @@ if (empty($connection)) {
                     <tr><td class="identitas-label">Alamat (Jl/Kp)</td><td class="identitas-value"><b>' . $data['alamat'] . '</b></td></tr>
                     <tr><td class="identitas-label">RT</td><td class="identitas-value"><b>' . $data['rt'] . '</b></td></tr>
                     <tr><td class="identitas-label">RW</td><td class="identitas-value"><b>' . $data['rw'] . '</b></td></tr>
+                    <tr><td class="identitas-label">Provinsi</td><td class="identitas-value"><b>' . ($data['provinsi'] ?? '') . '</b></td></tr>
+                    <tr><td class="identitas-label">Kabupaten/Kota</td><td class="identitas-value"><b>' . ($data['kabupaten_kota'] ?? '') . '</b></td></tr>
                     <tr><td class="identitas-label">Desa/Kelurahan</td><td class="identitas-value"><b>' . $data['desa'] . '</b></td></tr>
                     <tr><td class="identitas-label">Kecamatan</td><td class="identitas-value"><b>' . $data['kecamatan'] . '</b></td></tr>
                     <tr><td class="identitas-label">Kodepos</td><td class="identitas-value"><b>' . $data['kodepos'] . '</b></td></tr>
@@ -226,6 +228,8 @@ if (empty($connection)) {
       'nama_ibu',
       'pekerjaan_ibu',
       'alamat',
+      'provinsi',
+      'kabupaten_kota',
       'email',
       'password',
       'telp',

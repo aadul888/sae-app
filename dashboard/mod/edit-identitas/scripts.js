@@ -7,13 +7,313 @@ window.moduleLoaded = false;
 function loading() {
   $(".btn-save").prop("disabled", true);
   $(".btn-save").html(
-    '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...'
+    '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...',
   );
 
   window.setTimeout(function () {
     $(".btn-save").prop("disabled", false);
     $(".btn-save").html('<i class="far fa-save"></i> Simpan Perubahan');
   }, 2000);
+}
+
+function getWilayahAppRoot() {
+  var pathname = window.location.pathname || "";
+  var normalized = pathname.replace(/\/+$/g, "");
+  var rootPath = normalized.replace(/\/(admin|dashboard|module)(\/.*)?$/i, "");
+
+  return (window.location.origin || "") + rootPath;
+}
+
+function getWilayahApiUrl(level, parentId) {
+  var url =
+    getWilayahAppRoot() + "/api/wilayah.php?level=" + encodeURIComponent(level);
+  if (parentId) {
+    url += "&parent_id=" + encodeURIComponent(parentId);
+  }
+  return url;
+}
+
+function setWilayahSelectState(select, placeholder, disabled) {
+  if (!select) {
+    return;
+  }
+
+  select.innerHTML = "";
+  var option = document.createElement("option");
+  option.value = "";
+  option.textContent = placeholder;
+  option.selected = true;
+  select.appendChild(option);
+  select.disabled = !!disabled;
+}
+
+function syncWilayahHidden(select) {
+  if (!select) {
+    return;
+  }
+
+  var hiddenId = select.getAttribute("data-id-target");
+  if (!hiddenId) {
+    return;
+  }
+
+  var hidden = document.getElementById(hiddenId);
+  if (!hidden) {
+    return;
+  }
+
+  var selectedOption = select.options[select.selectedIndex];
+  hidden.value =
+    selectedOption && selectedOption.dataset
+      ? selectedOption.dataset.id || ""
+      : "";
+}
+
+async function fetchWilayahOptions(level, parentId) {
+  var response = await fetch(getWilayahApiUrl(level, parentId), {
+    headers: { Accept: "application/json" },
+    credentials: "same-origin",
+  });
+
+  var payload = await response.json();
+  if (!response.ok || !payload || payload.status !== "success") {
+    throw new Error(
+      (payload && payload.message) || "Gagal memuat referensi wilayah.",
+    );
+  }
+
+  return payload.data || [];
+}
+
+function populateWilayahSelect(
+  select,
+  items,
+  selectedId,
+  selectedName,
+  placeholder,
+) {
+  if (!select) {
+    return;
+  }
+
+  select.innerHTML = "";
+
+  var defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = placeholder;
+  select.appendChild(defaultOption);
+
+  var matched = false;
+  (items || []).forEach(function (item) {
+    var option = document.createElement("option");
+    option.value = item.name || "";
+    option.textContent = item.name || "";
+    option.dataset.id = item.id || "";
+
+    var sameId = selectedId && String(item.id) === String(selectedId);
+    var sameName =
+      selectedName &&
+      String(item.name).toLowerCase() === String(selectedName).toLowerCase();
+    if (sameId || sameName) {
+      option.selected = true;
+      matched = true;
+    }
+
+    select.appendChild(option);
+  });
+
+  if (!matched && selectedName) {
+    var fallback = document.createElement("option");
+    fallback.value = selectedName;
+    fallback.textContent = selectedName;
+    fallback.dataset.id = selectedId || "";
+    fallback.selected = true;
+    select.appendChild(fallback);
+  }
+
+  select.disabled = false;
+  syncWilayahHidden(select);
+}
+
+function showWilayahWarning(message) {
+  if (typeof swal !== "undefined") {
+    swal({
+      title: "Referensi wilayah belum tersedia",
+      text: message,
+      icon: "warning",
+      timer: 3500,
+    });
+    return;
+  }
+
+  console.warn(message);
+}
+
+function initializeWilayahReference(form) {
+  if (!form || form.dataset.wilayahReady === "1") {
+    return;
+  }
+
+  var provinceSelect = form.querySelector("#provinsi");
+  var regencySelect = form.querySelector("#kabupaten_kota");
+  var districtSelect = form.querySelector("#kecamatan");
+  var villageSelect = form.querySelector("#desa");
+
+  if (!provinceSelect || !regencySelect || !districtSelect || !villageSelect) {
+    return;
+  }
+
+  form.dataset.wilayahReady = "1";
+
+  async function loadProvinces() {
+    setWilayahSelectState(provinceSelect, "Memuat provinsi...", true);
+    var items = await fetchWilayahOptions("provinces", "");
+    populateWilayahSelect(
+      provinceSelect,
+      items,
+      (document.getElementById("provinsi_id") || {}).value,
+      provinceSelect.value,
+      "Pilih provinsi",
+    );
+  }
+
+  async function loadRegencies() {
+    var provinceId = (document.getElementById("provinsi_id") || {}).value;
+    if (!provinceId) {
+      setWilayahSelectState(
+        regencySelect,
+        "Pilih provinsi terlebih dahulu",
+        true,
+      );
+      setWilayahSelectState(
+        districtSelect,
+        "Pilih kabupaten/kota terlebih dahulu",
+        true,
+      );
+      setWilayahSelectState(
+        villageSelect,
+        "Pilih kecamatan terlebih dahulu",
+        true,
+      );
+      return;
+    }
+
+    setWilayahSelectState(regencySelect, "Memuat kabupaten/kota...", true);
+    var items = await fetchWilayahOptions("regencies", provinceId);
+    populateWilayahSelect(
+      regencySelect,
+      items,
+      (document.getElementById("kabupaten_kota_id") || {}).value,
+      regencySelect.value,
+      "Pilih kabupaten/kota",
+    );
+  }
+
+  async function loadDistricts() {
+    var regencyId = (document.getElementById("kabupaten_kota_id") || {}).value;
+    if (!regencyId) {
+      setWilayahSelectState(
+        districtSelect,
+        "Pilih kabupaten/kota terlebih dahulu",
+        true,
+      );
+      setWilayahSelectState(
+        villageSelect,
+        "Pilih kecamatan terlebih dahulu",
+        true,
+      );
+      return;
+    }
+
+    setWilayahSelectState(districtSelect, "Memuat kecamatan...", true);
+    var items = await fetchWilayahOptions("districts", regencyId);
+    populateWilayahSelect(
+      districtSelect,
+      items,
+      (document.getElementById("kecamatan_id") || {}).value,
+      districtSelect.value,
+      "Pilih kecamatan",
+    );
+  }
+
+  async function loadVillages() {
+    var districtId = (document.getElementById("kecamatan_id") || {}).value;
+    if (!districtId) {
+      setWilayahSelectState(
+        villageSelect,
+        "Pilih kecamatan terlebih dahulu",
+        true,
+      );
+      return;
+    }
+
+    setWilayahSelectState(villageSelect, "Memuat desa/kelurahan...", true);
+    var items = await fetchWilayahOptions("villages", districtId);
+    populateWilayahSelect(
+      villageSelect,
+      items,
+      (document.getElementById("desa_id") || {}).value,
+      villageSelect.value,
+      "Pilih desa/kelurahan",
+    );
+  }
+
+  provinceSelect.addEventListener("change", function () {
+    syncWilayahHidden(provinceSelect);
+    document.getElementById("kabupaten_kota_id").value = "";
+    document.getElementById("kecamatan_id").value = "";
+    document.getElementById("desa_id").value = "";
+    setWilayahSelectState(regencySelect, "Memuat kabupaten/kota...", true);
+    setWilayahSelectState(
+      districtSelect,
+      "Pilih kabupaten/kota terlebih dahulu",
+      true,
+    );
+    setWilayahSelectState(
+      villageSelect,
+      "Pilih kecamatan terlebih dahulu",
+      true,
+    );
+    loadRegencies().catch(function (error) {
+      showWilayahWarning(error.message);
+    });
+  });
+
+  regencySelect.addEventListener("change", function () {
+    syncWilayahHidden(regencySelect);
+    document.getElementById("kecamatan_id").value = "";
+    document.getElementById("desa_id").value = "";
+    setWilayahSelectState(districtSelect, "Memuat kecamatan...", true);
+    setWilayahSelectState(
+      villageSelect,
+      "Pilih kecamatan terlebih dahulu",
+      true,
+    );
+    loadDistricts().catch(function (error) {
+      showWilayahWarning(error.message);
+    });
+  });
+
+  districtSelect.addEventListener("change", function () {
+    syncWilayahHidden(districtSelect);
+    document.getElementById("desa_id").value = "";
+    setWilayahSelectState(villageSelect, "Memuat desa/kelurahan...", true);
+    loadVillages().catch(function (error) {
+      showWilayahWarning(error.message);
+    });
+  });
+
+  villageSelect.addEventListener("change", function () {
+    syncWilayahHidden(villageSelect);
+  });
+
+  loadProvinces()
+    .then(loadRegencies)
+    .then(loadDistricts)
+    .then(loadVillages)
+    .catch(function (error) {
+      showWilayahWarning(error.message);
+    });
 }
 
 // Reset the save button inside a specific form (restore enabled state and text)
@@ -112,6 +412,7 @@ function initializeModals() {
 // Initialize forms
 function initializeForms() {
   // Form submission handlers
+  initializeWilayahReference(document.getElementById("formIdentitas"));
   initializeIdentitasForm();
   initializeOrangtuaForm();
   initializeWaliForm();
@@ -169,7 +470,7 @@ function initializeIdentitasForm() {
       if (typeof console !== "undefined" && Object.keys(changes).length)
         console.debug(
           "Submitting changes (identitas) - changed fields:",
-          changes
+          changes,
         );
 
       // Send full form data (all fields) so server can compute complete keterangan
@@ -282,7 +583,7 @@ function initializeIdentitasForm() {
               "Save identitas failed:",
               jqXHR.status,
               jqXHR.statusText,
-              body
+              body,
             );
             // Reset button immediately
             resetFormSaveButton(formIdentitas);
@@ -304,7 +605,7 @@ function initializeIdentitasForm() {
             "AJAX error (identitas):",
             status,
             error,
-            jqXHR.responseText
+            jqXHR.responseText,
           );
           resetFormSaveButton(formIdentitas);
           var msg = "Terjadi kesalahan koneksi.";
@@ -376,7 +677,7 @@ function initializeOrangtuaForm() {
       if (typeof console !== "undefined" && Object.keys(changes).length)
         console.debug(
           "Submitting changes (orangtua) - changed fields:",
-          changes
+          changes,
         );
 
       // Client-side validation for orangtua: NIK Ayah/Ibu must be 16 digits if provided
@@ -460,7 +761,7 @@ function initializeOrangtuaForm() {
               "Save orangtua failed:",
               jqXHR.status,
               jqXHR.statusText,
-              body
+              body,
             );
             resetFormSaveButton(formOrangtua);
             if (typeof swal !== "undefined") {
@@ -481,7 +782,7 @@ function initializeOrangtuaForm() {
             "AJAX error (orangtua):",
             status,
             error,
-            jqXHR.responseText
+            jqXHR.responseText,
           );
           resetFormSaveButton(formOrangtua);
           var msg = "Terjadi kesalahan koneksi.";
@@ -610,7 +911,7 @@ function initializeWaliForm() {
               "Save wali failed:",
               jqXHR.status,
               jqXHR.statusText,
-              body
+              body,
             );
             resetFormSaveButton(formWali);
             if (typeof swal !== "undefined") {
@@ -631,7 +932,7 @@ function initializeWaliForm() {
             "AJAX error (wali):",
             status,
             error,
-            jqXHR.responseText
+            jqXHR.responseText,
           );
           resetFormSaveButton(formWali);
           var msg = "Terjadi kesalahan koneksi.";
@@ -816,7 +1117,7 @@ function snapshotForm(form) {
   if (!form) return {};
   const map = {};
   const elements = form.querySelectorAll(
-    "input[name],select[name],textarea[name]"
+    "input[name],select[name],textarea[name]",
   );
   elements.forEach((el) => {
     if (!el.name) return;
@@ -838,7 +1139,7 @@ function getChangedFormData(form) {
   if (!form) return out;
   const originals = form._originalValues || snapshotForm(form);
   const elements = form.querySelectorAll(
-    "input[name],select[name],textarea[name]"
+    "input[name],select[name],textarea[name]",
   );
   elements.forEach((el) => {
     if (!el.name) return;
@@ -950,7 +1251,7 @@ function initializeHistoryActions() {
                 } else {
                   showAlert(
                     (resp && resp.message) || resp || "Gagal menghapus usulan",
-                    "danger"
+                    "danger",
                   );
                 }
               })
@@ -990,7 +1291,7 @@ function initializeHistoryActions() {
               } else {
                 showAlert(
                   (resp && resp.message) || resp || "Gagal menghapus usulan",
-                  "danger"
+                  "danger",
                 );
               }
             })
@@ -1168,7 +1469,7 @@ function initializeHistoryActions() {
       // Render ringkasan
       const ringkasan = labels.slice(0, 6).join(", ");
       $("#viewUsulanRingkasan").html(
-        ringkasan ? "<strong>" + ringkasan + "</strong>" : "Detail perubahan"
+        ringkasan ? "<strong>" + ringkasan + "</strong>" : "Detail perubahan",
       );
 
       // Render details table-like with visual diff highlighting
@@ -1260,7 +1561,7 @@ function showAlert(message, type = "info") {
     alertDiv.innerHTML = `
       <div class="d-flex">
         <div class="me-2 align-self-start"><i class="fas fa-${getAlertIcon(
-          type
+          type,
         )}"></i></div>
         <div style="flex:1;">
           <div>${body}</div>
@@ -1290,7 +1591,7 @@ function showAlert(message, type = "info") {
     // fallback to native alert if something unexpected happens
     try {
       window.alert(
-        typeof message === "string" ? message : JSON.stringify(message)
+        typeof message === "string" ? message : JSON.stringify(message),
       );
     } catch (ie) {}
   }

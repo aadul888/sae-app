@@ -25,7 +25,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         echo '
   <div class="row">
     <div class="col-12">
-      <div class="card user-stats-panel mb-3">
+      <div class="card user-stats-panel module-stats-shell mb-3">
         <div class="card-body py-2 px-2 px-md-3">
           <div class="user-stats-wrap">
             <div class="user-stats" id="berkas-stat-row">
@@ -68,8 +68,8 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     <div class="card-header py-3 px-3 user-table-header module-table-header">
       <div class="user-table-head-row module-header-row" style="gap:10px;">
         <div>
-          <h4 class="mb-1">Berkas Persyaratan Siswa</h4>
-          <small class="text-muted">Kelola dan validasi berkas persyaratan siswa.</small>
+          <h4 class="mb-1">Berkas Persyaratan Murid</h4>
+          <small class="text-muted">Kelola dan validasi berkas persyaratan murid.</small>
         </div>
         <div class="user-toolbar-actions user-toolbar-actions-table module-header-actions">
           ';
@@ -190,8 +190,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       } else {
         hak_akses();
       }
-      echo '</div> <!-- End container-fluid -->
-</div>';
+      echo '</div> <!-- End container-fluid -->';
       break;
   }
 }
