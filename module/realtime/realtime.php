@@ -344,7 +344,7 @@ if ($is_standalone) {
             <a href="<?php echo $is_standalone ? '../dashboard/' : './dashboard'; ?>"
                 class="fab-item dashboard-item"
                 role="menuitem"
-                title="Dashboard Siswa">
+                title="Dashboard Murid">
                 <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
                 <span>Dashboard</span>
             </a>

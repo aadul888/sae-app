@@ -280,7 +280,7 @@ if ($is_standalone) {
                                 <span class="sae-hero-accent">Education</span>
                             </h1>
                             <p class="sae-hero-subtitle">
-                                Platform digital terpadu untuk administrasi sekolah, absensi, monitoring data siswa, layanan publik, dan integrasi pendidikan modern.
+                                Platform digital terpadu untuk administrasi sekolah, absensi, monitoring data murid, layanan publik, dan integrasi pendidikan modern.
                             </p>
                             <div class="sae-hero-cta-grid">
                                 <a href="<?php echo $home_login_url; ?>" class="btn btn-primary">
@@ -316,7 +316,7 @@ if ($is_standalone) {
                                             <input type="number" class="module-home-form-control form-control" id="nisn-input" name="nisn" required placeholder="Contoh: 1234567890" maxlength="10">
                                         </div>
                                         <button class="btn btn-primary w-100" type="submit">
-                                            <i class="fas fa-search me-2"></i>Periksa Data Siswa
+                                            <i class="fas fa-search me-2"></i>Periksa Data Murid
                                         </button>
                                     </form>
                                     <div class="home-panel-note mt-2">
@@ -334,7 +334,7 @@ if ($is_standalone) {
                         <span class="sae-kpi-icon blue"><i class="fas fa-users"></i></span>
                         <div>
                             <div class="sae-kpi-value"><?php echo number_format($total_students); ?></div>
-                            <p class="sae-kpi-label">Siswa Aktif</p>
+                            <p class="sae-kpi-label">Murid Aktif</p>
                         </div>
                     </div>
                     <div class="sae-kpi-card">
@@ -412,7 +412,7 @@ if ($is_standalone) {
                             <div class="saf-icon-wrap"><i class="fas fa-layer-group"></i></div>
                             <h3 class="saf-title">Sistem Administrasi</h3>
                             <ul class="saf-list">
-                                <li>Pengelolaan data siswa &amp; guru</li>
+                                <li>Pengelolaan data murid &amp; guru</li>
                                 <li>Manajemen kelas &amp; dokumen</li>
                                 <li>Administrasi digital terintegrasi</li>
                             </ul>
@@ -437,8 +437,8 @@ if ($is_standalone) {
 
                 <section class="home-insight-board glass-card card" id="statGrafik">
                     <div class="home-insight-head">
-                        <h5><i class="fas fa-chart-bar me-2"></i>Statistik Data Siswa</h5>
-                        <p>Komposisi siswa berdasarkan jurusan, tingkat, dan jenis kelamin. Gunakan filter untuk menyaring data.</p>
+                        <h5><i class="fas fa-chart-bar me-2"></i>Statistik Data Murid</h5>
+                        <p>Komposisi murid berdasarkan jurusan, tingkat, dan jenis kelamin. Gunakan filter untuk menyaring data.</p>
                     </div>
 
                     <!-- Horizontal grouped bar (L/P per jurusan) -->
@@ -781,7 +781,7 @@ if ($is_standalone) {
                 <section class="sae-cta-bottom glass-card card">
                     <div class="sae-cta-copy">
                         <h5>Siap menggunakan SAE?</h5>
-                        <p>Masuk ke sistem atau jelajahi layanan yang tersedia untuk siswa, guru, dan orang tua.</p>
+                        <p>Masuk ke sistem atau jelajahi layanan yang tersedia untuk murid, guru, dan orang tua.</p>
                     </div>
                     <div class="sae-cta-actions">
                         <a href="<?php echo $home_login_url; ?>" class="btn btn-primary"><i class="fas fa-user-graduate me-2"></i>Login Murid</a>
@@ -817,13 +817,13 @@ if ($is_standalone) {
                         <section class="nisn-section">
                             <div class="nisn-section-title"><i class="fas fa-lightbulb me-1"></i> Pengertian NISN</div>
                             <div class="nisn-section-desc">
-                                NISN (<b>Nomor Induk Siswa Nasional</b>) adalah nomor identitas unik yang diberikan kepada setiap siswa di Indonesia oleh Kementerian Pendidikan dan Kebudayaan. NISN memudahkan sekolah dan pemerintah dalam mengelola data siswa secara nasional.
+                                NISN (<b>Nomor Induk Siswa Nasional</b>) adalah nomor identitas unik yang diberikan kepada setiap murid di Indonesia oleh Kementerian Pendidikan dan Kebudayaan. NISN memudahkan sekolah dan pemerintah dalam mengelola data murid secara nasional.
                             </div>
                         </section>
                         <section class="nisn-section">
                             <div class="nisn-section-title"><i class="fas fa-check-circle me-1"></i> Manfaat NISN</div>
                             <ul class="nisn-list">
-                                <li><span class="text-success fw-bold"><i class="fas fa-user-check me-1"></i> Identifikasi unik</span> setiap siswa</li>
+                                <li><span class="text-success fw-bold"><i class="fas fa-user-check me-1"></i> Identifikasi unik</span> setiap murid</li>
                                 <li><span class="text-success fw-bold"><i class="fas fa-shield-alt me-1"></i> Validasi</span> data resmi</li>
                                 <li><span class="text-primary fw-bold"><i class="fas fa-tasks me-1"></i> Administrasi</span> sekolah yang mudah</li>
                                 <li><span class="text-primary fw-bold"><i class="fas fa-search-location me-1"></i> Pelacakan</span> riwayat pendidikan</li>
@@ -836,7 +836,7 @@ if ($is_standalone) {
                             <ol class="nisn-list">
                                 <li>Masukkan <b>NISN</b> Anda (10 digit) pada form di sebelah kiri</li>
                                 <li>Klik <b>"Periksa"</b> untuk memvalidasi data NISN</li>
-                                <li>Lihat hasil validasi dan informasi lengkap profil siswa</li>
+                                <li>Lihat hasil validasi dan informasi lengkap profil murid</li>
                             </ol>
                         </section>
                         <section class="nisn-section">
@@ -937,8 +937,8 @@ if ($is_standalone) {
             <a href="<?php echo $base_url; ?>dashboard"
                 class="fab-item dashboard-item"
                 role="menuitem"
-                title="Dashboard Siswa"
-                aria-label="Akses dashboard siswa">
+                title="Dashboard Murid"
+                aria-label="Akses dashboard murid">
                 <i class="fas fa-tachometer-alt" aria-hidden="true"></i>
                 <span>Dashboard</span>
             </a>
