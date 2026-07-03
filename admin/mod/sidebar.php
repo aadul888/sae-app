@@ -265,7 +265,7 @@ $logo_path_url = @filemtime("../content/$logo_path") > 0 ? "../content/$logo_pat
                 <hr class="my-3">
 
                 <ul class="navbar-nav mb-md-3">
-                    <?php if (can_see_any(array(37,38,43,39,40,41))) {
+                    <?php if (can_see_any(array(37,38,43,39,40,41,133))) {
                         sidebar_group_open('navbar-pengaturan', 'ni ni-settings-gear-65', 'Pengaturan', 'text-pink');
                             if (can_see(37)) sidebar_link('./pengaturan', 'fas fa-cog', 'Pengaturan Web', 'text-pink');
                             if (can_see(38)) sidebar_link('./admin', 'fas fa-users-cog', 'Admin', 'text-primary');
@@ -273,6 +273,7 @@ $logo_path_url = @filemtime("../content/$logo_path") > 0 ? "../content/$logo_pat
                             if (can_see(39)) sidebar_link('./menu-siswa', 'fas fa-list', 'Menu/Fitur Murid', 'text-info');
                             if (can_see(40)) sidebar_link('./pembaharuan', 'fas fa-bullhorn', 'Pembaharuan', 'text-info');
                             if (can_see(41)) sidebar_link('./sync', 'fas fa-sync', 'Tarik Data Dapodik', 'text-success');
+                            if (can_see(133)) sidebar_link('./lisensi_pembaruan', 'fas fa-key', 'Lisensi & Pembaruan', 'text-warning');
                         sidebar_group_close();
                     } ?>
                     <li class="nav-item"><a class="nav-link" href="./tentang"><i class="fas fa-info-circle text-info"></i><span class="nav-link-text">Tentang &amp; Privasi</span></a></li>

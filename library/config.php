@@ -80,6 +80,11 @@ if (!empty($site_logo2) && $site_logo2 === 'logoweb1.png') {
 // Load version constants (SAE_VERSION, SAE_APP_YEAR, SAE_APP_NAME)
 require_once __DIR__ . '/version.php';
 
+// SAE Induk (master server) configuration
+// Laragon vhost: http://SmartAppsEducation.test
+if (!defined('SAE_INDUK_URL')) define('SAE_INDUK_URL', 'http://SmartAppsEducation.test');
+if (!defined('SAE_API_KEY'))  define('SAE_API_KEY',  'SAE_20260422090959_d6be672e5e92c802adeca5d8a4eccf0c');
+
 if (empty($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }

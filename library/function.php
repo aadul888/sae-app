@@ -802,3 +802,47 @@ function checkSystemMaintenance()
     exit;
   }
 }
+
+/**
+ * Call SAE Induk API
+ * Defined here so form.php can call it real-time on each tab load.
+ */
+if (!function_exists('indukApiCall')) {
+  function indukApiCall(string $endpoint, string $method = 'GET', ?array $body = null): array
+  {
+    $url = rtrim(SAE_INDUK_URL, '/') . '/api/' . ltrim($endpoint, '/');
+    $ch = curl_init();
+    curl_setopt_array($ch, [
+      CURLOPT_URL => $url,
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_TIMEOUT => 10,
+      CURLOPT_HTTPHEADER => [
+        'Accept: application/json',
+        'X-API-Key: ' . SAE_API_KEY,
+      ],
+    ]);
+
+    if ($method === 'POST') {
+      curl_setopt($ch, CURLOPT_POST, true);
+      if ($body) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query($body));
+      }
+    }
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    if ($error) {
+      return ['success' => false, 'message' => 'Koneksi ke server induk gagal: ' . $error];
+    }
+
+    $data = json_decode($response, true);
+    if (!$data || $httpCode >= 400) {
+      return ['success' => false, 'message' => 'Server induk merespon dengan kode ' . $httpCode . ' - ' . ($data['message'] ?? 'No message')];
+    }
+
+    return array_merge(['success' => true], $data);
+  }
+}
