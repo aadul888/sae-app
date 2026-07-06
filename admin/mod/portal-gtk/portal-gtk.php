@@ -11,15 +11,6 @@ if (!$has_access) {
   return;
 }
 
-// Cek update
-$gtk_upd_avail = false;
-if (isset($connection) && $connection && defined('SAE_VERSION')) {
-  $q_u = $connection->query("SELECT version FROM pembaharuan ORDER BY release_date DESC LIMIT 1");
-  if ($q_u && $r_u = $q_u->fetch_assoc()) {
-    $gtk_upd_avail = version_compare(SAE_VERSION, $r_u['version'], '<');
-  }
-}
-
 // Ambil data aplikasi
 $apps_query = "SELECT app_id, app_name, app_url, app_icon, custom_icon, app_description, app_category, sort_order, is_active FROM portal_apps ORDER BY sort_order ASC, app_name ASC";
 $apps_result = $connection->query($apps_query);
@@ -50,10 +41,6 @@ switch (@$_GET['op']) {
       <div class="row align-items-center py-4">
         <div class="col-lg-6 col-7"></div>
         <div class="col-lg-6 col-5 text-right">
-          <?php if ($gtk_upd_avail): ?>
-          <span class="badge badge-danger badge-lg mr-2">Pembaruan Tersedia</span>
-          <a href="javascript:void(0)" class="btn btn-sm btn-success btn-update-gtk" data-csrf="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>"><i class="fas fa-cloud-download-alt mr-1"></i> Update</a>
-          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -408,22 +395,6 @@ switch (@$_GET['op']) {
 
 <!-- Portal GTK JavaScript -->
 <script src="mod/portal-gtk/scripts.js"></script>
-<script>
-document.querySelector(".btn-update-gtk")?.addEventListener("click", function(e){
-  e.preventDefault();
-  var btn = this;
-  if (btn.disabled) return;
-  if (!confirm("Yakin ingin memperbarui aplikasi?")) return;
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Mengupdate...';
-  var csrf = btn.getAttribute("data-csrf");
-  fetch("./mod/lisensi_pembaruan/proses.php?action=deploy&csrf=" + encodeURIComponent(csrf))
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if(d.success) { location.reload(); }
-      else { alert("Gagal: " + (d.message||"Error")); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Update'; }
-    }).catch(function(){ alert("Gagal terhubung ke server."); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Update'; });
-});
-</script>
 <?php
         break;
     }
