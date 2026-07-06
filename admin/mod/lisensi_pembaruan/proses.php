@@ -120,24 +120,31 @@ switch (@$_GET['action']) {
       exit;
     }
 
+    // Baca token GitHub untuk fallback
+    $github_cfg = __DIR__ . '/../../../library/github-config.php';
+    if (file_exists($github_cfg)) require_once $github_cfg;
+
     $git_dir = realpath(__DIR__ . '/../../../');
     $output = [];
     $return_var = -1;
     $deployed = false;
     $err = '';
+    $git_bin = '/usr/bin/git';
 
     // Priority 1: git pull
-    if ($git_dir) {
+    if ($git_dir && file_exists($git_bin)) {
       chdir($git_dir);
-      exec('git pull origin main 2>&1', $output, $return_var);
+      exec("$git_bin pull origin main 2>&1", $output, $return_var);
       if ($return_var === 0) {
         $deployed = true;
       } else {
         $err = implode("\n", $output);
       }
+    } else {
+      $err = 'Git tidak tersedia.';
     }
 
-    // Priority 2: fallback download zip from GitHub (hosting tanpa git)
+    // Priority 2: fallback download zip from GitHub
     if (!$deployed) {
       $repo = 'aadul888/sae-app';
       $token = defined('GITHUB_TOKEN') ? GITHUB_TOKEN : (defined('SAE_API_KEY') ? SAE_API_KEY : '');

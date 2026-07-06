@@ -114,47 +114,64 @@ if ($userBackTitle !== '') {
     </nav>
 
     <?php
-    // Check for update availability from pembaharuan table
     $update_banner = '';
+    $csrf_token = defined('CSRF_TOKEN') ? CSRF_TOKEN : ($_SESSION['csrf_token'] ?? '');
+
     if (isset($connection) && $connection && defined('SAE_VERSION')) {
+      // Cek versi terbaru dari tabel pembaharuan (rilis resmi)
       $q_rel = $connection->query("SELECT version, pembaharuan FROM pembaharuan ORDER BY release_date DESC LIMIT 1");
+      $update_available = false;
+      $latest_ver = '';
+      $summary = '';
       if ($q_rel && $r_rel = $q_rel->fetch_assoc()) {
         if (version_compare(SAE_VERSION, $r_rel['version'], '<')) {
+          $update_available = true;
+          $latest_ver = $r_rel['version'];
           $summary = htmlspecialchars(substr($r_rel['pembaharuan'] ?? 'Pembaruan tersedia', 0, 100));
-          $update_banner = '
-    <div class="container-fluid" style="margin-top:0">
-      <div class="alert alert-info alert-dismissible fade show text-center mb-0 rounded-0" role="alert" style="border-radius:0 !important">
-        <i class="fas fa-download mr-1"></i> <strong>Pembaruan tersedia v' . htmlspecialchars($r_rel['version']) . '!</strong> ' . $summary . '
-        <a href="./lisensi_pembaruan" class="alert-link ml-2">Lihat &amp; Terapkan</a>
-        <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-      </div>
-    </div>';
         }
       }
-    }
 
-    // Notifikasi deploy otomatis dari webhook
-    $deploy_notif = '';
-    if (isset($connection) && $connection) {
-      $q_dep = $connection->query("SELECT last_deploy_at, last_deploy_commit FROM setting LIMIT 1");
+      // Cek juga dari deploy otomatis (webhook)
+      $q_dep = $connection->query("SELECT last_deploy_at FROM setting WHERE last_deploy_at IS NOT NULL LIMIT 1");
+      $deploy_available = false;
       if ($q_dep && $r_dep = $q_dep->fetch_assoc()) {
-        $last_deploy_at = $r_dep['last_deploy_at'] ?? '';
         $dismissed = $_COOKIE['dismiss_deploy'] ?? '';
-        if (!empty($last_deploy_at) && $dismissed !== $last_deploy_at) {
-          $deploy_notif = '
-    <div class="container-fluid" style="margin-top:0">
-      <div class="alert alert-success alert-dismissible fade show text-center mb-0 rounded-0" role="alert" style="border-radius:0 !important">
-        <i class="fas fa-check-circle mr-1"></i> <strong>Pembaruan otomatis!</strong> Aplikasi telah diperbarui ke versi terbaru.
-        <a href="./lisensi_pembaruan" class="alert-link ml-2">Lihat Riwayat</a>
-        <button type="button" class="close" data-dismiss="alert" aria-label="Close" onclick="document.cookie=\'dismiss_deploy=' . htmlspecialchars($last_deploy_at) . ';path=/\';this.closest(\'.alert\').remove()">&times;</button>
-      </div>
-    </div>';
+        if ($r_dep['last_deploy_at'] && $dismissed !== $r_dep['last_deploy_at']) {
+          $deploy_available = true;
         }
       }
-    }
 
+      if ($update_available || $deploy_available) {
+        $icon = $update_available ? 'fas fa-download' : 'fas fa-check-circle';
+        $color = $update_available ? 'alert-warning' : 'alert-success';
+        $msg = $update_available
+          ? '<strong>Pembaruan tersedia v' . htmlspecialchars($latest_ver) . '!</strong> ' . $summary
+          : '<strong>Pembaruan otomatis!</strong> Aplikasi telah diperbarui.';
+        $deploy_url = './mod/lisensi_pembaruan/proses.php?action=deploy&csrf=' . urlencode($csrf_token);
+        $update_banner = '
+    <div class="container-fluid" style="margin-top:0">
+      <div class="alert ' . $color . ' alert-dismissible fade show text-center mb-0 rounded-0 d-flex align-items-center justify-content-center" role="alert" style="border-radius:0 !important;flex-wrap:wrap">
+        <span><i class="' . $icon . ' mr-1"></i> ' . $msg . '</span>
+        <button type="button" class="btn btn-sm btn-' . ($update_available ? 'dark' : 'secondary') . ' ml-3 btn-deploy-header" data-url="' . htmlspecialchars($deploy_url) . '"><i class="fas fa-cloud-download-alt mr-1"></i> Update Sekarang</button>
+        <button type="button" class="close ml-3" data-dismiss="alert" aria-label="Close" onclick="document.cookie=\'dismiss_deploy=' . ($r_dep['last_deploy_at'] ?? '1') . ';path=/\'">&times;</button>
+      </div>
+    </div>
+    <script>
+    document.querySelector(".btn-deploy-header")?.addEventListener("click", function(e){
+      e.preventDefault();
+      var btn = this;
+      if (btn.disabled) return;
+      if (!confirm("Yakin ingin memperbarui aplikasi?")) return;
+      btn.disabled = true; btn.innerHTML = \'<span class="spinner-border spinner-border-sm mr-1"></span> Mengupdate...\';
+      fetch(btn.getAttribute("data-url")).then(function(r){ return r.json(); }).then(function(d){
+        if(d.success) { location.reload(); }
+        else { alert("Gagal: " + (d.message||"Error")); btn.disabled=false; btn.innerHTML=\'<i class="fas fa-cloud-download-alt mr-1"></i> Update Sekarang\'; }
+      }).catch(function(){ alert("Gagal terhubung ke server."); btn.disabled=false; btn.innerHTML=\'<i class="fas fa-cloud-download-alt mr-1"></i> Update Sekarang\'; });
+    });
+    </script>';
+      }
+    }
     echo $update_banner;
-    echo $deploy_notif;
     ?>
 
     <!-- Header -->

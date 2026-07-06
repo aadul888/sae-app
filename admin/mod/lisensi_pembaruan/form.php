@@ -185,32 +185,18 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                   <input type="text" class="form-control" value="<?php echo htmlspecialchars($current_version); ?>" readonly>
                 </div>
               </div>
-              <div class="form-group row">
-                <label class="col-md-3 col-form-label form-control-label font-weight-bold">Sinkronisasi Terakhir</label>
-                <div class="col-md-9">
-                  <input type="text" class="form-control" value="<?php echo !empty($last_sync_at) ? tgl_indo($last_sync_at) . ' ' . jam_indo($last_sync_at) : 'Belum pernah sinkron'; ?>" readonly>
-                </div>
-              </div>
-              <div class="form-group row">
-                <label class="col-md-3 col-form-label form-control-label font-weight-bold">Status Pembaruan</label>
-                <div class="col-md-9">
-                  <span class="badge <?php echo $update_status_class; ?> badge-lg"><?php echo $update_status_label; ?></span>
-                </div>
-              </div>
               <?php if ($update_available && $latest_release): ?>
-              <div class="alert alert-info mt-3" role="alert">
-                <h5 class="alert-heading"><i class="fas fa-download mr-1"></i> Versi Baru Tersedia: <?php echo htmlspecialchars($latest_release['version']); ?></h5>
-                <p class="mb-1">Rilis: <?php echo tgl_indo($latest_release['release_date']); ?></p>
-                <?php if (!empty($latest_release['pembaharuan'])): ?><p class="mb-1"><strong>Fitur Baru:</strong><br><?php echo nl2br(htmlspecialchars($latest_release['pembaharuan'])); ?></p><?php endif; ?>
-                <?php if (!empty($latest_release['perbaikan'])): ?><p class="mb-0"><strong>Perbaikan:</strong><br><?php echo nl2br(htmlspecialchars($latest_release['perbaikan'])); ?></p><?php endif; ?>
-                <?php if (!empty($latest_release['download_link'])): ?><a href="<?php echo htmlspecialchars($latest_release['download_link']); ?>" target="_blank" class="btn btn-sm btn-primary mt-2"><i class="fas fa-download mr-1"></i> Unduh Pembaruan</a><?php endif; ?>
+              <div class="form-group row">
+                <label class="col-md-3 col-form-label form-control-label font-weight-bold">Versi Tersedia</label>
+                <div class="col-md-9">
+                  <input type="text" class="form-control text-success font-weight-bold" value="<?php echo htmlspecialchars($latest_release['version']); ?>" readonly>
+                </div>
               </div>
               <?php endif; ?>
               <div class="form-group row">
-                <div class="col-md-9 offset-md-3">
-                  <button type="button" class="btn btn-info" onclick="checkUpdate(this)"><i class="fas fa-search mr-1"></i> Periksa Pembaruan</button>
-                  <?php if ($update_available): ?><a href="./mod/lisensi_pembaruan/proses.php?action=deploy&csrf=<?php echo $_SESSION['csrf_token']; ?>" class="btn btn-success btn-deploy"><i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan</a><?php endif; ?>
-                  <a href="./mod/lisensi_pembaruan/proses.php?action=deploy&csrf=<?php echo $_SESSION['csrf_token']; ?>" class="btn btn-outline-primary btn-deploy-force ml-1"><i class="fas fa-download mr-1"></i> Tarik Pembaruan</a>
+                <label class="col-md-3 col-form-label form-control-label font-weight-bold">Status</label>
+                <div class="col-md-9">
+                  <span class="badge <?php echo $update_status_class; ?> badge-lg"><?php echo $update_status_label; ?></span>
                 </div>
               </div>
             </div>
@@ -244,29 +230,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           </div>
         </div>
       </div>
-
-<script>
-document.querySelector(".btn-deploy")?.addEventListener("click", function(e){
-  e.preventDefault();
-  if (!confirm("Yakin ingin menerapkan pembaruan?")) return;
-  var btn = this;
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Menerapkan...';
-  fetch(this.href).then(function(r){ return r.json(); }).then(function(d){
-    if(d.success) { location.reload(); }
-    else { swal({title:"Gagal",text:d.message||"Gagal menerapkan pembaruan.",icon:"error"}); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan'; }
-  }).catch(function(){ swal({title:"Gagal",text:"Gagal terhubung ke server.",icon:"error"}); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan'; });
-});
-document.querySelector(".btn-deploy-force")?.addEventListener("click", function(e){
-  e.preventDefault();
-  if (!confirm("Tarik pembaruan terbaru dari GitHub?")) return;
-  var btn = this;
-  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Menarik...';
-  fetch(this.href).then(function(r){ return r.json(); }).then(function(d){
-    if(d.success) { location.reload(); }
-    else { swal({title:"Gagal",text:d.message||"Gagal menarik pembaruan.",icon:"error"}); btn.disabled=false; btn.innerHTML='<i class="fas fa-download mr-1"></i> Tarik Pembaruan'; }
-  }).catch(function(){ swal({title:"Gagal",text:"Gagal terhubung ke server.",icon:"error"}); btn.disabled=false; btn.innerHTML='<i class="fas fa-download mr-1"></i> Tarik Pembaruan'; });
-});
-</script>
 <?php
       break;
 
