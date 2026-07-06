@@ -5,6 +5,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 } else {
   require_once '../../../library/config.php';
   include('../../../library/function.php');
+  require_once '../../../library/commit_logger.php';
   require_once '../../login/user.php';
 
   // Load setting data
@@ -210,6 +211,33 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                   <button type="button" class="btn btn-info" onclick="checkUpdate(this)"><i class="fas fa-search mr-1"></i> Periksa Pembaruan</button>
                   ' . ($update_available ? '<a href="./mod/lisensi_pembaruan/proses.php?action=deploy&csrf=' . $_SESSION['csrf_token'] . '" class="btn btn-success btn-deploy"><i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan</a>' : '') . '
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Riwayat Commit -->
+      <div class="row mt-3">
+        <div class="col-12">
+          <div class="card shadow-sm">
+            <div class="card-header bg-white">
+              <h4 class="mb-0"><i class="fas fa-history mr-2 text-secondary"></i>Riwayat Pembaruan</h4>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                  <thead class="thead-light">
+                    <tr>
+                      <th style="width:80px">Versi</th>
+                      <th>Keterangan</th>
+                      <th style="width:160px">Tanggal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ' . get_commit_log_rows($connection) . '
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

@@ -192,6 +192,14 @@ if ($deployed) {
             if (!$conn->connect_error) {
                 require_once $mig_file;
                 $mig_result = run_pending_migrations($conn);
+
+                // Catat commit log
+                $log_file = __DIR__ . '/library/commit_logger.php';
+                if (file_exists($log_file)) {
+                    require_once $log_file;
+                    save_commit_log($conn, 3);
+                }
+
                 $conn->close();
                 $mig_msg = $mig_result['ran'] > 0 ? ' (' . $mig_result['ran'] . ' migrasi)' : '';
                 $mig_err = !$mig_result['success'] ? ' Error: ' . implode('; ', $mig_result['errors']) : '';

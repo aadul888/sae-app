@@ -224,6 +224,13 @@ switch (@$_GET['action']) {
       require_once __DIR__ . '/../../../library/migrate.php';
       $mig_result = run_pending_migrations($connection);
 
+      // Catat commit log
+      $log_file = __DIR__ . '/../../../library/commit_logger.php';
+      if (file_exists($log_file)) {
+        require_once $log_file;
+        save_commit_log($connection, 3);
+      }
+
       $msg = 'Pembaruan berhasil diterapkan.';
       if ($mig_result['ran'] > 0) {
         $msg .= ' ' . $mig_result['ran'] . ' migrasi database dijalankan.';
