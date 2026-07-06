@@ -15,8 +15,15 @@
  */
 
 // Bootstrap minimal — hanya konstanta yang dibutuhkan webhook
-if (!defined('GITHUB_TOKEN')) define('GITHUB_TOKEN', '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');
-if (!defined('GITHUB_WEBHOOK_SECRET')) define('GITHUB_WEBHOOK_SECRET', 'cd3c2eac42000a6bf8c4f2a1f3c60dd0');
+// Token disimpan di file terpisah, dilindungi .htaccess
+$githubConfig = __DIR__ . '/library/github-config.php';
+if (file_exists($githubConfig)) {
+    require_once $githubConfig;
+} else {
+    // Fallback inline (hanya jika file config belum ada)
+    if (!defined('GITHUB_TOKEN')) define('GITHUB_TOKEN', '');
+    if (!defined('GITHUB_WEBHOOK_SECRET')) define('GITHUB_WEBHOOK_SECRET', '');
+}
 
 header('Content-Type: application/json');
 

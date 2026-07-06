@@ -679,6 +679,44 @@ try {
                             </div>
                         </div>
                     </div>
+                    <div class="row align-items-center mt-2 pt-2 border-top border-light">
+                        <div class="col-sm-4 mb-2 mb-sm-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-sm font-weight-bold">Versi Aplikasi</span>
+                                <span class="text-sm text-muted"><?php echo defined('SAE_VERSION') ? htmlspecialchars(SAE_VERSION) : 'v5.0'; ?></span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4 mb-2 mb-sm-0">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-sm font-weight-bold">Sinkronisasi Terakhir</span>
+                                <span class="text-sm text-muted"><?php
+                                    $last_sync = '';
+                                    if (isset($connection) && $connection) {
+                                        $q_s = $connection->query("SELECT last_sync_at FROM setting LIMIT 1");
+                                        if ($q_s && $r_s = $q_s->fetch_assoc()) {
+                                            $last_sync = $r_s['last_sync_at'] ?? '';
+                                        }
+                                    }
+                                    echo !empty($last_sync) ? htmlspecialchars(tgl_indo($last_sync) . ' ' . jam_indo($last_sync)) : 'Belum sinkron';
+                                ?></span>
+                            </div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-sm font-weight-bold">Pembaruan</span>
+                                <span class="badge badge-<?php
+                                    $upd_avail = false;
+                                    if (isset($connection) && $connection && defined('SAE_VERSION')) {
+                                        $q_u = $connection->query("SELECT version FROM pembaharuan ORDER BY release_date DESC LIMIT 1");
+                                        if ($q_u && $r_u = $q_u->fetch_assoc()) {
+                                            $upd_avail = version_compare(SAE_VERSION, $r_u['version'], '<');
+                                        }
+                                    }
+                                    echo $upd_avail ? 'danger' : 'success';
+                                ?>"><?php echo $upd_avail ? 'Pembaruan Tersedia' : 'Terbaru'; ?></span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
