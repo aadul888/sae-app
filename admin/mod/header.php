@@ -132,7 +132,29 @@ if ($userBackTitle !== '') {
         }
       }
     }
+
+    // Notifikasi deploy otomatis dari webhook
+    $deploy_notif = '';
+    if (isset($connection) && $connection) {
+      $q_dep = $connection->query("SELECT last_deploy_at, last_deploy_commit FROM setting LIMIT 1");
+      if ($q_dep && $r_dep = $q_dep->fetch_assoc()) {
+        $last_deploy_at = $r_dep['last_deploy_at'] ?? '';
+        $dismissed = $_COOKIE['dismiss_deploy'] ?? '';
+        if (!empty($last_deploy_at) && $dismissed !== $last_deploy_at) {
+          $deploy_notif = '
+    <div class="container-fluid" style="margin-top:0">
+      <div class="alert alert-success alert-dismissible fade show text-center mb-0 rounded-0" role="alert" style="border-radius:0 !important">
+        <i class="fas fa-check-circle mr-1"></i> <strong>Pembaruan otomatis!</strong> Aplikasi telah diperbarui ke versi terbaru.
+        <a href="./lisensi_pembaruan" class="alert-link ml-2">Lihat Riwayat</a>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close" onclick="document.cookie=\'dismiss_deploy=' . htmlspecialchars($last_deploy_at) . ';path=/\';this.closest(\'.alert\').remove()">&times;</button>
+      </div>
+    </div>';
+        }
+      }
+    }
+
     echo $update_banner;
+    echo $deploy_notif;
     ?>
 
     <!-- Header -->

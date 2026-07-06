@@ -200,6 +200,14 @@ if ($deployed) {
                     save_commit_log($conn, 3);
                 }
 
+                // Simpan notifikasi deploy untuk alert dashboard
+                $last_hash = '';
+                $q_hash = $conn->query("SELECT commit_hash FROM commit_log ORDER BY created_at DESC LIMIT 1");
+                if ($q_hash && $r_hash = $q_hash->fetch_assoc()) {
+                    $last_hash = $conn->real_escape_string($r_hash['commit_hash']);
+                }
+                $conn->query("UPDATE setting SET last_deploy_at=NOW(), last_deploy_commit='$last_hash' WHERE site_id=1");
+
                 $conn->close();
                 $mig_msg = $mig_result['ran'] > 0 ? ' (' . $mig_result['ran'] . ' migrasi)' : '';
                 $mig_err = !$mig_result['success'] ? ' Error: ' . implode('; ', $mig_result['errors']) : '';
