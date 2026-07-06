@@ -220,8 +220,20 @@ switch (@$_GET['action']) {
     }
 
     if ($deployed) {
-      $_SESSION['deploy_result'] = ['success' => true, 'message' => 'Pembaruan berhasil diterapkan. Aplikasi sudah diperbarui ke versi terbaru.'];
-      echo json_encode(['success' => true, 'message' => 'Pembaruan berhasil diterapkan.']);
+      // Jalankan migrasi database yang tertunda
+      require_once __DIR__ . '/../../../library/migrate.php';
+      $mig_result = run_pending_migrations($connection);
+
+      $msg = 'Pembaruan berhasil diterapkan.';
+      if ($mig_result['ran'] > 0) {
+        $msg .= ' ' . $mig_result['ran'] . ' migrasi database dijalankan.';
+      }
+      if (!$mig_result['success']) {
+        $msg .= ' Ada error migrasi: ' . implode('; ', $mig_result['errors']);
+      }
+
+      $_SESSION['deploy_result'] = ['success' => true, 'message' => $msg];
+      echo json_encode(['success' => true, 'message' => $msg]);
     } else {
       if (empty($err)) $err = 'Gagal memperbarui aplikasi.';
       $_SESSION['deploy_result'] = ['success' => false, 'error' => htmlspecialchars($err)];
