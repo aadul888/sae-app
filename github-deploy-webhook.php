@@ -157,7 +157,22 @@ if (!$deployed) {
 }
 
 if ($deployed) {
-    echo json_encode(['success' => true, 'message' => 'Deploy berhasil.']);
+    // Auto-run pending DB migrations
+    $mig_file = __DIR__ . '/library/migrate.php';
+    if (file_exists($mig_file)) {
+        try {
+            require_once __DIR__ . '/library/config.php';
+            require_once $mig_file;
+            $mig_result = run_pending_migrations($connection);
+            $mig_msg = $mig_result['ran'] > 0 ? ' (' . $mig_result['ran'] . ' migrasi)' : '';
+            $mig_err = !$mig_result['success'] ? ' Error: ' . implode('; ', $mig_result['errors']) : '';
+            echo json_encode(['success' => true, 'message' => 'Deploy berhasil.' . $mig_msg . $mig_err]);
+        } catch (Throwable $e) {
+            echo json_encode(['success' => true, 'message' => 'Deploy berhasil. Migrasi DB gagal: ' . $e->getMessage()]);
+        }
+    } else {
+        echo json_encode(['success' => true, 'message' => 'Deploy berhasil.']);
+    }
 } else {
     $msg = empty($err) ? 'Gagal deploy' : $err;
     http_response_code(500);
