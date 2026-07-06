@@ -1,5 +1,18 @@
-# Database dump (not part of source)
-database/saev5.sql
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+storage/logs/
+api/logs/
+api/API_LOG_FILE
 
 # Cache & generated content
 content/cache/
@@ -14,10 +27,10 @@ content/usulan-pip/
 content/agenda/
 content/pelanggaran/
 
-# Runtime
-favicon.php
-maintenance.php
+# Database dump (not part of source)
+database/*.sql
+!database/saev5.sql
 
-# OS
-Thumbs.db
-.DS_Store
+# Google credentials (sensitive)
+content/google-credentials-*.json
+content/google-oauth-helper.json
