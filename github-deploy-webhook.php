@@ -9,9 +9,14 @@
  *    - Content type: application/json
  *    - Secret: isi GITHUB_WEBHOOK_SECRET di library/config.php
  *    - Events: Pushes
+ *
+ * Notes: File ini sengaja TIDAK require config.php karena webhook
+ * tidak butuh koneksi database. Dua konstanta di-bootstrap manual.
  */
 
-require_once __DIR__ . '/library/config.php';
+// Bootstrap minimal — hanya konstanta yang dibutuhkan webhook
+if (!defined('GITHUB_TOKEN')) define('GITHUB_TOKEN', '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');
+if (!defined('GITHUB_WEBHOOK_SECRET')) define('GITHUB_WEBHOOK_SECRET', 'cd3c2eac42000a6bf8c4f2a1f3c60dd0');
 
 header('Content-Type: application/json');
 
