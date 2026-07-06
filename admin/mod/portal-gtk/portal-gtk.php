@@ -51,13 +51,13 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                   <small class="text-muted">Kelola berbagai aplikasi untuk guru dan tenaga kependidikan.</small>
                 </div>
                 <div class="module-header-actions">
-                  ' . ($data_role['modifikasi'] == 'Y' ? '
+                  <?php if ($data_role['modifikasi'] == 'Y'): ?>
                   <button class="btn-mod btn-mod-add" data-toggle="modal" data-target="#modalAddApp" title="Tambah Aplikasi"><i class="fas fa-plus"></i></button>
-                  ' : '') . '
+                  <?php endif; ?>
                 </div>
               </div>
-            </div>';  
-            
+            </div>
+<?php
         // Semua level bisa melihat halaman ini dengan batasan fitur
         if ($data_role['lihat'] == 'Y') {
           // Admin/Superadmin melihat semua aplikasi, user biasa hanya yang aktif
@@ -208,10 +208,11 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         echo '
           </div>
         </div>
-      </div>
+      </div>';
+?>
       
       <!-- Modal Add/Edit App -->
-      ' . ($data_role['modifikasi'] == 'Y' ? '
+      <?php if ($data_role['modifikasi'] == 'Y'): ?>
       <div class="modal fade" id="modalAddApp" tabindex="-1" role="dialog">
         <div class="modal-dialog modal-lg" role="document">
           <div class="modal-content">
@@ -345,7 +346,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           </div>
         </div>
       </div>
-      ' : '') . '
+      <?php endif; ?>
     
     <!-- Modal Manage Credentials -->
     <div class="modal fade" id="modalCredential" tabindex="-1" role="dialog" aria-labelledby="modalCredentialLabel">
