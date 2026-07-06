@@ -157,16 +157,48 @@ if (!$deployed) {
 }
 
 if ($deployed) {
-    // Auto-run pending DB migrations
+    // Auto-run pending DB migrations — koneksi manual, tidak pakai config.php
     $mig_file = __DIR__ . '/library/migrate.php';
     if (file_exists($mig_file)) {
         try {
-            require_once __DIR__ . '/library/config.php';
-            require_once $mig_file;
-            $mig_result = run_pending_migrations($connection);
-            $mig_msg = $mig_result['ran'] > 0 ? ' (' . $mig_result['ran'] . ' migrasi)' : '';
-            $mig_err = !$mig_result['success'] ? ' Error: ' . implode('; ', $mig_result['errors']) : '';
-            echo json_encode(['success' => true, 'message' => 'Deploy berhasil.' . $mig_msg . $mig_err]);
+            // Baca kredensial DB dari config.php tanpa require penuh
+            $db_host = 'localhost';
+            $db_name = 'saev5';
+            $db_user = 'root';
+            $db_pass = '';
+            // Override dari define jika sudah ada
+            if (defined('DB_HOST')) $db_host = DB_HOST;
+            if (defined('DB_NAME')) $db_name = DB_NAME;
+            if (defined('DB_USER')) $db_user = DB_USER;
+            if (defined('DB_PASSWD')) $db_pass = DB_PASSWD;
+            // Atau dari file config kalau ada
+            $cfg = __DIR__ . '/library/config.php';
+            if (file_exists($cfg) && !defined('DB_HOST')) {
+                $cfg_content = file_get_contents($cfg);
+                $patterns = [
+                    '/\$DB_HOST\s*=\s*[\'"]([^\'"]+)[\'"]\s*;/',
+                    '/\$DB_NAME\s*=\s*[\'"]([^\'"]+)[\'"]\s*;/',
+                    '/\$DB_USER\s*=\s*[\'"]([^\'"]+)[\'"]\s*;/',
+                    '/\$DB_PASSWD\s*=\s*[\'"]([^\'"]*)[\'"]\s*;/',
+                ];
+                $vars = ['db_host', 'db_name', 'db_user', 'db_pass'];
+                foreach ($patterns as $i => $pat) {
+                    if (preg_match($pat, $cfg_content, $m)) ${$vars[$i]} = $m[1];
+                }
+            }
+
+            mysqli_report(MYSQLI_REPORT_OFF);
+            $conn = new mysqli($db_host, $db_user, $db_pass, $db_name);
+            if (!$conn->connect_error) {
+                require_once $mig_file;
+                $mig_result = run_pending_migrations($conn);
+                $conn->close();
+                $mig_msg = $mig_result['ran'] > 0 ? ' (' . $mig_result['ran'] . ' migrasi)' : '';
+                $mig_err = !$mig_result['success'] ? ' Error: ' . implode('; ', $mig_result['errors']) : '';
+                echo json_encode(['success' => true, 'message' => 'Deploy berhasil.' . $mig_msg . $mig_err]);
+            } else {
+                echo json_encode(['success' => true, 'message' => 'Deploy berhasil. (migrasi DB dilewati: koneksi gagal)']);
+            }
         } catch (Throwable $e) {
             echo json_encode(['success' => true, 'message' => 'Deploy berhasil. Migrasi DB gagal: ' . $e->getMessage()]);
         }
