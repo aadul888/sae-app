@@ -7,9 +7,18 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
   include __DIR__ . '/../check_role.php';
   if ($has_access) {
 
+    // Cek update
+    $gtk_upd_avail = false;
+    if (isset($connection) && $connection && defined('SAE_VERSION')) {
+      $q_u = $connection->query("SELECT version FROM pembaharuan ORDER BY release_date DESC LIMIT 1");
+      if ($q_u && $r_u = $q_u->fetch_assoc()) {
+        $gtk_upd_avail = version_compare(SAE_VERSION, $r_u['version'], '<');
+      }
+    }
+
     switch (@$_GET['op']) {
       default:
-        echo '
+        ?>
 <!-- Header -->
 <div class="header bg-gradient-primary pb-6">
       <div class="container-fluid">
@@ -18,6 +27,11 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
             <div class="col-lg-6 col-7">
             </div>
             <div class="col-lg-6 col-5 text-right">
+              <?php if ($gtk_upd_avail): ?>
+              <span class="badge badge-danger badge-lg mr-2">Pembaruan Tersedia</span>
+              <a href="javascript:void(0)" class="btn btn-sm btn-success btn-update-gtk" data-csrf="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>"><i class="fas fa-cloud-download-alt mr-1"></i> Update</a>
+              <?php endif; ?>
+            </div>
             </div>
           </div>
         </div>
@@ -397,7 +411,24 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     </div>
       
       <!-- Portal GTK JavaScript -->
-      <script src="mod/portal-gtk/scripts.js"></script>';
+      <script src="mod/portal-gtk/scripts.js"></script>
+      <script>
+      document.querySelector(".btn-update-gtk")?.addEventListener("click", function(e){
+        e.preventDefault();
+        var btn = this;
+        if (btn.disabled) return;
+        if (!confirm("Yakin ingin memperbarui aplikasi?")) return;
+        btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Mengupdate...';
+        var csrf = btn.getAttribute("data-csrf");
+        fetch("./mod/lisensi_pembaruan/proses.php?action=deploy&csrf=" + encodeURIComponent(csrf))
+          .then(function(r){ return r.json(); })
+          .then(function(d){
+            if(d.success) { location.reload(); }
+            else { alert("Gagal: " + (d.message||"Error")); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Update'; }
+          }).catch(function(){ alert("Gagal terhubung ke server."); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Update'; });
+      });
+      </script>
+<?php
         break;
     }
   } else {
