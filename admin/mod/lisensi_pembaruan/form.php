@@ -210,6 +210,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
                 <div class="col-md-9 offset-md-3">
                   <button type="button" class="btn btn-info" onclick="checkUpdate(this)"><i class="fas fa-search mr-1"></i> Periksa Pembaruan</button>
                   ' . ($update_available ? '<a href="./mod/lisensi_pembaruan/proses.php?action=deploy&csrf=' . $_SESSION['csrf_token'] . '" class="btn btn-success btn-deploy"><i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan</a>' : '') . '
+                  <a href="./mod/lisensi_pembaruan/proses.php?action=deploy&csrf=' . $_SESSION['csrf_token'] . '" class="btn btn-outline-primary btn-deploy-force ml-1"><i class="fas fa-download mr-1"></i> Tarik Pembaruan</a>
                 </div>
               </div>
             </div>
@@ -247,13 +248,23 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 <script>
 document.querySelector(".btn-deploy")?.addEventListener("click", function(e){
   e.preventDefault();
-  if (!confirm("Yakin ingin menarik pembaruan? Aplikasi akan diperbarui ke versi terbaru.")) return;
+  if (!confirm("Yakin ingin menerapkan pembaruan?")) return;
   var btn = this;
-  btn.disabled = true; btn.innerHTML = \'<span class="spinner-border spinner-border-sm mr-1"></span> Menerapkan...\';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Menerapkan...';
   fetch(this.href).then(function(r){ return r.json(); }).then(function(d){
     if(d.success) { location.reload(); }
-    else { swal({title:"Gagal",text:d.message||"Gagal menerapkan pembaruan.",icon:"error"}); btn.disabled=false; btn.innerHTML=\'<i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan\'; }
-  }).catch(function(){ swal({title:"Gagal",text:"Gagal terhubung ke server.",icon:"error"}); btn.disabled=false; btn.innerHTML=\'<i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan\'; });
+    else { swal({title:"Gagal",text:d.message||"Gagal menerapkan pembaruan.",icon:"error"}); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan'; }
+  }).catch(function(){ swal({title:"Gagal",text:"Gagal terhubung ke server.",icon:"error"}); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Terapkan Pembaruan'; });
+});
+document.querySelector(".btn-deploy-force")?.addEventListener("click", function(e){
+  e.preventDefault();
+  if (!confirm("Tarik pembaruan terbaru dari GitHub?")) return;
+  var btn = this;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Menarik...';
+  fetch(this.href).then(function(r){ return r.json(); }).then(function(d){
+    if(d.success) { location.reload(); }
+    else { swal({title:"Gagal",text:d.message||"Gagal menarik pembaruan.",icon:"error"}); btn.disabled=false; btn.innerHTML='<i class="fas fa-download mr-1"></i> Tarik Pembaruan'; }
+  }).catch(function(){ swal({title:"Gagal",text:"Gagal terhubung ke server.",icon:"error"}); btn.disabled=false; btn.innerHTML='<i class="fas fa-download mr-1"></i> Tarik Pembaruan'; });
 });
 </script>';
       break;
