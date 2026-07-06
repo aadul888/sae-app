@@ -1,0 +1,23 @@
+# Database dump (not part of source)
+database/saev5.sql
+
+# Cache & generated content
+content/cache/
+content/capture/
+content/qrcode/
+content/berkas/
+content/avatar/
+content/sound/
+content/tamu/
+content/surat-keluar/
+content/usulan-pip/
+content/agenda/
+content/pelanggaran/
+
+# Runtime
+favicon.php
+maintenance.php
+
+# OS
+Thumbs.db
+.DS_Store

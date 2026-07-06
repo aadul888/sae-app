@@ -1,0 +1,18 @@
+[2026-07-03 19:57:27]
+URL: http://SmartAppsEducation.test/api/license/validate
+METHOD: POST
+BODY: license_key=SAE-SC2E-ABW4-2VB8-NI8N
+HEADERS: Accept: application/json, X-API-Key: SAE_20260422090959_d6be672e5e92c802adeca5d8a4eccf0c
+HTTP_CODE: 200
+RAW_RESPONSE: {"valid":true,"message":"License is active","status":"active","school_name":"SMKN 1 Pagelaran","npsn":"20252031","expired_at":null}
+CURL_ERROR: 
+
+[2026-07-03 19:57:52]
+URL: http://SmartAppsEducation.test/api/license/validate
+METHOD: POST
+BODY: license_key=SAE-SC2E-ABW4-2VB8-NI8N
+HEADERS: Accept: application/json, X-API-Key: SAE_20260422090959_d6be672e5e92c802adeca5d8a4eccf0c
+HTTP_CODE: 200
+RAW_RESPONSE: {"valid":true,"message":"License is active","status":"active","school_name":"SMKN 1 Pagelaran","npsn":"20252031","expired_at":null}
+CURL_ERROR: 
+
