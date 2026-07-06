@@ -164,6 +164,10 @@ if (isset($_SERVER['HTTP_HOST'])) {
 	// Strip port from host for localhost detection (e.g. localhost:8080 → localhost)
 	$hostWithoutPort = preg_replace('/:\d+$/', '', $host);
 	$isLocalHost = in_array($hostWithoutPort, ['localhost', '127.0.0.1', '::1'], true);
+	// Laragon .test domain = lokal
+	if (!$isLocalHost && preg_match('/\.test$/', $hostWithoutPort)) {
+		$isLocalHost = true;
+	}
 	if (!$isLocalHost) {
 		$base_url = preg_replace('/^http:\/\//i', 'https://', (string)$base_url);
 	}

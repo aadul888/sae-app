@@ -47,6 +47,8 @@ RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?mod=$1 [L,QSA]
   SetEnvIf Host "^localhost(:[0-9]+)?$" IS_LOCAL=1
   SetEnvIf Host "^127\.0\.0\.1(:[0-9]+)?$" IS_LOCAL=1
   SetEnvIf Host "^::1(:[0-9]+)?$" IS_LOCAL=1
+  # Laragon .test domains are local
+  SetEnvIf Host "\.test(:[0-9]+)?$" IS_LOCAL=1
 
   # Prevent mixed-content when legacy links still use http:// (production only)
   Header always set Content-Security-Policy "upgrade-insecure-requests" env=!IS_LOCAL
