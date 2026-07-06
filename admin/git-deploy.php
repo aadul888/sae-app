@@ -3,6 +3,7 @@ $secret = $_GET['key'] ?? '';
 if ($secret !== 'sae-deploy-2025') { http_response_code(403); exit('Akses ditolak'); }
 header('Content-Type: text/plain');
 $dir = realpath(__DIR__ . '/../');
+putenv('HOME=/tmp');
 exec('git config --global --add safe.directory ' . escapeshellarg($dir) . ' 2>&1', $o, $rv);
 echo "safe.dir: exit=$rv\n" . implode("\n", $o) . "\n\n";
 chdir($dir);
