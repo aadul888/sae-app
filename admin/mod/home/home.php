@@ -714,6 +714,9 @@ try {
                                     }
                                     echo $upd_avail ? 'danger' : 'success';
                                 ?>"><?php echo $upd_avail ? 'Pembaruan Tersedia' : 'Terbaru'; ?></span>
+                                <?php if ($upd_avail): ?>
+                                <a href="javascript:void(0)" class="btn btn-sm btn-success ml-2 btn-update-home" data-csrf="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>"><i class="fas fa-cloud-download-alt mr-1"></i> Update</a>
+                                <?php endif; ?>
                             </div>
                         </div>
                     </div>
@@ -840,3 +843,20 @@ if (isset($connection) && $connection) {
         </div> <!-- /.modal-dialog -->
     </div> <!-- /.modal -->
 <?php endif; ?>
+
+<script>
+document.querySelector(".btn-update-home")?.addEventListener("click", function(e){
+  e.preventDefault();
+  var btn = this;
+  if (btn.disabled) return;
+  if (!confirm("Yakin ingin memperbarui aplikasi ke versi terbaru?")) return;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm mr-1"></span> Mengupdate...';
+  var csrf = btn.getAttribute("data-csrf");
+  fetch("./mod/lisensi_pembaruan/proses.php?action=deploy&csrf=" + encodeURIComponent(csrf))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(d.success) { location.reload(); }
+      else { alert("Gagal: " + (d.message||"Error")); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Update'; }
+    }).catch(function(){ alert("Gagal terhubung ke server."); btn.disabled=false; btn.innerHTML='<i class="fas fa-cloud-download-alt mr-1"></i> Update'; });
+});
+</script>
