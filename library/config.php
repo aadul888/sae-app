@@ -89,7 +89,7 @@ if (!defined('SAE_API_KEY'))  define('SAE_API_KEY',  'SAE_20260422090959_d6be672
 if (!defined('GITHUB_WEBHOOK_SECRET')) define('GITHUB_WEBHOOK_SECRET', '');
 
 // GitHub Personal Access Token — diperlukan karena repo private
-if (!defined('GITHUB_TOKEN')) define('GITHUB_TOKEN', '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');
+if (!defined('GITHUB_TOKEN')) define('GITHUB_TOKEN', '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');
 
 if (empty($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
