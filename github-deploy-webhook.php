@@ -54,13 +54,16 @@ $output = [];
 $return_var = -1;
 $deployed = false;
 $err = '';
+$git_bin = '/usr/bin/git';
 
 // Priority 1: git pull
-if ($git_dir) {
+if ($git_dir && file_exists($git_bin)) {
     chdir($git_dir);
-    exec('git fetch origin main 2>&1', $output, $return_var);
+    $cmd_fetch = "$git_bin fetch origin main 2>&1";
+    exec($cmd_fetch, $output, $return_var);
     if ($return_var === 0) {
-        exec('git reset --hard origin/main 2>&1', $output, $return_var);
+        $cmd_reset = "$git_bin reset --hard origin/main 2>&1";
+        exec($cmd_reset, $output, $return_var);
         if ($return_var === 0) {
             $deployed = true;
         } else {
