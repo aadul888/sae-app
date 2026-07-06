@@ -115,6 +115,7 @@ if ($userBackTitle !== '') {
     </nav>
 
     <?php
+    include_once __DIR__ . '/_debug_update.php';
     $csrf_token = defined('CSRF_TOKEN') ? CSRF_TOKEN : ($_SESSION['csrf_token'] ?? '');
 
     if (isset($connection) && $connection && defined('SAE_VERSION')) {
