@@ -145,7 +145,7 @@ if ($userBackTitle !== '') {
         $icon = $update_available ? 'fas fa-download' : 'fas fa-check-circle';
         $color = $update_available ? 'alert-warning' : 'alert-success';
         $msg = $update_available
-          ? '<strong>Pembaruan tersedia v' . htmlspecialchars($latest_ver) . '!</strong> ' . $summary
+          ? '<strong>Pembaruan tersedia ' . htmlspecialchars($latest_ver) . '!</strong> ' . $summary
           : '<strong>Pembaruan otomatis!</strong> Aplikasi telah diperbarui.';
         $deploy_url = './mod/lisensi_pembaruan/proses.php?action=deploy&csrf=' . urlencode($csrf_token);
         $update_banner = '
