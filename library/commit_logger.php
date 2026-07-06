@@ -142,6 +142,20 @@ function save_commit_log(mysqli $conn, int $limit = 3): array {
  * Ambil riwayat commit log dari DB untuk ditampilkan sebagai baris tabel.
  */
 function get_commit_log_rows(mysqli $conn): string {
+    // Pastikan tabel commit_log ada (migration mungkin belum jalan)
+    $conn->query("CREATE TABLE IF NOT EXISTS `commit_log` (
+      `id` int unsigned NOT NULL AUTO_INCREMENT,
+      `commit_hash` varchar(40) NOT NULL DEFAULT '',
+      `commit_message` text,
+      `commit_message_bahasa` text,
+      `author` varchar(100) NOT NULL DEFAULT '',
+      `committed_at` datetime DEFAULT NULL,
+      `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (`id`),
+      KEY `commit_hash` (`commit_hash`),
+      KEY `created_at` (`created_at`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+
     $rows = '';
     // Gabung commit_log + pembaharuan, urut DESC
     $sql = "SELECT 'commit' AS source, commit_message_bahasa AS keterangan, committed_at AS tanggal, '' AS versi
