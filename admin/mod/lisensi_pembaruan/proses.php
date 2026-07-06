@@ -120,20 +120,110 @@ switch (@$_GET['action']) {
       exit;
     }
 
-    // Try git pull (works on local + hosting with git)
     $git_dir = realpath(__DIR__ . '/../../../');
     $output = [];
     $return_var = -1;
+    $deployed = false;
+    $err = '';
+
+    // Priority 1: git pull
     if ($git_dir) {
       chdir($git_dir);
       exec('git pull origin main 2>&1', $output, $return_var);
+      if ($return_var === 0) {
+        $deployed = true;
+      } else {
+        $err = implode("\n", $output);
+      }
     }
 
-    if ($return_var === 0) {
+    // Priority 2: fallback download zip from GitHub (hosting tanpa git)
+    if (!$deployed) {
+      $repo = 'aadul888/sae-app';
+      $token = defined('GITHUB_TOKEN') ? GITHUB_TOKEN : (defined('SAE_API_KEY') ? SAE_API_KEY : '');
+      $branch = 'main';
+      $zip_url = "https://api.github.com/repos/$repo/zipball/$branch";
+
+      $ch = curl_init();
+      curl_setopt_array($ch, [
+        CURLOPT_URL => $zip_url,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_FOLLOWLOCATION => true,
+        CURLOPT_TIMEOUT => 120,
+        CURLOPT_HTTPHEADER => [
+          'Accept: application/vnd.github+json',
+          'User-Agent: SAE-Deploy/1.0',
+          $token ? "Authorization: Bearer $token" : '',
+        ],
+      ]);
+      $zip_data = curl_exec($ch);
+      $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+      $curl_err = curl_error($ch);
+      curl_close($ch);
+
+      if ($curl_err || $http_code >= 400) {
+        $err = 'Git tidak tersedia dan download ZIP gagal: ' . ($curl_err ?: "HTTP $http_code");
+      } else {
+        $tmp_zip = sys_get_temp_dir() . '/sae-deploy-' . uniqid() . '.zip';
+        file_put_contents($tmp_zip, $zip_data);
+
+        $zip = new ZipArchive;
+        if ($zip->open($tmp_zip) === true) {
+          // GitHub zip has a root folder like aadul888-sae-app-<sha>/ — extract to temp
+          $tmp_extract = sys_get_temp_dir() . '/sae-extract-' . uniqid();
+          $zip->extractTo($tmp_extract);
+          $zip->close();
+
+          // Find the inner folder
+          $items = scandir($tmp_extract);
+          $inner = null;
+          foreach ($items as $item) {
+            if ($item !== '.' && $item !== '..' && is_dir("$tmp_extract/$item")) {
+              $inner = "$tmp_extract/$item";
+              break;
+            }
+          }
+
+          if ($inner) {
+            $target = realpath(__DIR__ . '/../../../');
+            // Use recursive copy
+            $iterator = new RecursiveIteratorIterator(
+              new RecursiveDirectoryIterator($inner, RecursiveDirectoryIterator::SKIP_DOTS),
+              RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($iterator as $item) {
+              $dest = $target . '/' . $iterator->getSubPathname();
+              if ($item->isDir()) {
+                if (!is_dir($dest)) mkdir($dest, 0755, true);
+              } else {
+                copy($item, $dest);
+              }
+            }
+            $deployed = true;
+
+            // Bersihkan temp
+            $rmdir = function($dir) use (&$rmdir) {
+              foreach (scandir($dir) as $f) {
+                if ($f === '.' || $f === '..') continue;
+                $p = "$dir/$f";
+                is_dir($p) ? $rmdir($p) : unlink($p);
+              }
+              rmdir($dir);
+            };
+            $rmdir($tmp_extract);
+          }
+          unlink($tmp_zip);
+        } else {
+          $err = 'Gagal membuka file ZIP.';
+        }
+      }
+    }
+
+    if ($deployed) {
       $_SESSION['deploy_result'] = ['success' => true, 'message' => 'Pembaruan berhasil diterapkan. Aplikasi sudah diperbarui ke versi terbaru.'];
       echo json_encode(['success' => true, 'message' => 'Pembaruan berhasil diterapkan.']);
     } else {
-      $err = $return_var === -1 ? 'Direktori git tidak ditemukan.' : implode("\n", $output);
+      if (empty($err)) $err = 'Gagal memperbarui aplikasi.';
       $_SESSION['deploy_result'] = ['success' => false, 'error' => htmlspecialchars($err)];
       echo json_encode(['success' => false, 'message' => $err]);
     }

@@ -85,6 +85,12 @@ require_once __DIR__ . '/version.php';
 if (!defined('SAE_INDUK_URL')) define('SAE_INDUK_URL', 'http://SmartAppsEducation.test');
 if (!defined('SAE_API_KEY'))  define('SAE_API_KEY',  'SAE_20260422090959_d6be672e5e92c802adeca5d8a4eccf0c');
 
+// GitHub Webhook secret — isi string random, lalu set di repo GitHub → Settings → Webhooks
+if (!defined('GITHUB_WEBHOOK_SECRET')) define('GITHUB_WEBHOOK_SECRET', '');
+
+// GitHub Personal Access Token — diperlukan karena repo private
+if (!defined('GITHUB_TOKEN')) define('GITHUB_TOKEN', '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');
+
 if (empty($_SESSION['csrf_token'])) {
 	$_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
