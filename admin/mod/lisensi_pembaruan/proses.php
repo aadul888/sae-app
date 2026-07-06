@@ -131,14 +131,20 @@ switch (@$_GET['action']) {
     $err = '';
     $git_bin = '/usr/bin/git';
 
-    // Priority 1: git pull
+    // Priority 1: git force sync (discard all local changes)
     if ($git_dir && file_exists($git_bin)) {
       chdir($git_dir);
-      exec("$git_bin pull origin main 2>&1", $output, $return_var);
+      exec("$git_bin fetch origin 2>&1", $output, $return_var);
       if ($return_var === 0) {
-        $deployed = true;
+        exec("$git_bin reset --hard origin/main 2>&1", $output, $return_var);
+        if ($return_var === 0) {
+          exec("$git_bin clean -fd 2>&1", $output, $return_var);
+          $deployed = true;
+        } else {
+          $err = 'git reset gagal: ' . implode("\n", $output);
+        }
       } else {
-        $err = implode("\n", $output);
+        $err = 'git fetch gagal: ' . implode("\n", $output);
       }
     } else {
       $err = 'Git tidak tersedia.';
