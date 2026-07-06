@@ -44,6 +44,7 @@ if ($userBackTitle !== '') {
     <link rel="stylesheet" href="assets/css/argon.css?v=<?php echo asset_ver('assets/css/argon.css'); ?>" type="text/css">
     <link rel="stylesheet" href="assets/css/style.css?v=<?php echo asset_ver('assets/css/style.css'); ?>" type="text/css">
     <link rel="stylesheet" href="assets/vendor/viewerjs/viewer.min.css?v=<?php echo asset_ver('assets/vendor/viewerjs/viewer.min.css'); ?>">
+    <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
 <?php include_once 'sidebar.php'; ?>
@@ -114,7 +115,6 @@ if ($userBackTitle !== '') {
     </nav>
 
     <?php
-    $update_banner = '';
     $csrf_token = defined('CSRF_TOKEN') ? CSRF_TOKEN : ($_SESSION['csrf_token'] ?? '');
 
     if (isset($connection) && $connection && defined('SAE_VERSION')) {
@@ -142,36 +142,34 @@ if ($userBackTitle !== '') {
       }
 
       if ($update_available || $deploy_available) {
-        $icon = $update_available ? 'fas fa-download' : 'fas fa-check-circle';
-        $color = $update_available ? 'alert-warning' : 'alert-success';
-        $msg = $update_available
-          ? '<strong>Pembaruan tersedia ' . htmlspecialchars($latest_ver) . '!</strong> ' . $summary
-          : '<strong>Pembaruan otomatis!</strong> Aplikasi telah diperbarui.';
         $deploy_url = './mod/lisensi_pembaruan/proses.php?action=deploy&csrf=' . urlencode($csrf_token);
-        $update_banner = '
-    <div class="container-fluid" style="margin-top:0">
-      <div class="alert ' . $color . ' alert-dismissible fade show text-center mb-0 rounded-0 d-flex align-items-center justify-content-center" role="alert" style="border-radius:0 !important;flex-wrap:wrap">
-        <span><i class="' . $icon . ' mr-1"></i> ' . $msg . '</span>
-        <button type="button" class="btn btn-sm btn-' . ($update_available ? 'dark' : 'secondary') . ' ml-3 btn-deploy-header" data-url="' . htmlspecialchars($deploy_url) . '"><i class="fas fa-cloud-download-alt mr-1"></i> Update Sekarang</button>
-        <button type="button" class="close ml-3" data-dismiss="alert" aria-label="Close" onclick="document.cookie=\'dismiss_deploy=' . ($r_dep['last_deploy_at'] ?? '1') . ';path=/\'">&times;</button>
-      </div>
-    </div>
-    <script>
-    document.querySelector(".btn-deploy-header")?.addEventListener("click", function(e){
-      e.preventDefault();
-      var btn = this;
-      if (btn.disabled) return;
-      if (!confirm("Yakin ingin memperbarui aplikasi?")) return;
-      btn.disabled = true; btn.innerHTML = \'<span class="spinner-border spinner-border-sm mr-1"></span> Mengupdate...\';
-      fetch(btn.getAttribute("data-url")).then(function(r){ return r.json(); }).then(function(d){
-        if(d.success) { location.reload(); }
-        else { alert("Gagal: " + (d.message||"Error")); btn.disabled=false; btn.innerHTML=\'<i class="fas fa-cloud-download-alt mr-1"></i> Update Sekarang\'; }
-      }).catch(function(){ alert("Gagal terhubung ke server."); btn.disabled=false; btn.innerHTML=\'<i class="fas fa-cloud-download-alt mr-1"></i> Update Sekarang\'; });
-    });
-    </script>';
+        $swal_title = $update_available ? 'Pembaruan Tersedia' : 'Pembaruan Otomatis';
+        $swal_text = $update_available
+          ? htmlspecialchars($latest_ver) . "\n" . $summary
+          : 'Aplikasi telah diperbarui.';
+        $swal_icon = $update_available ? 'warning' : 'success';
+        echo '<script>
+document.addEventListener("DOMContentLoaded",function(){
+  Swal.fire({
+    title:' . json_encode($swal_title) . ',
+    text:' . json_encode($swal_text) . ',
+    icon:' . json_encode($swal_icon) . ',
+    showCancelButton:true,
+    confirmButtonText:"<i class=\'fas fa-cloud-download-alt\'></i> Update Sekarang",
+    cancelButtonText:"Nanti",
+    reverseButtons:true
+  }).then(function(r){
+    if(r.isConfirmed){
+      fetch(' . json_encode($deploy_url) . ').then(function(res){return res.json();}).then(function(d){
+        if(d.success){location.reload();}
+        else{Swal.fire("Gagal",d.message||"Error","error");}
+      }).catch(function(){Swal.fire("Gagal","Tidak terhubung ke server.","error");});
+    }
+  });
+});
+</script>';
       }
     }
-    echo $update_banner;
     ?>
 
     <!-- Header -->

@@ -53,19 +53,13 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           </div>
         </div>
 
-        <!-- Navigation Tabs -->
+        <!-- Navigation Tabs (single tab) -->
         <div class="card-body pb-0">
           <ul class="nav nav-pills nav-fill flex-column flex-md-row tab-responsive" id="tabs-icons-text" role="tablist">
             <li class="nav-item">
               <a class="nav-link mb-sm-3 mb-md-0 active" href="#tabs-license" onclick="loadTab(1);" role="tab" aria-controls="tabs-license" aria-selected="true">
                 <i class="fas fa-key mr-2"></i>
                 Informasi Lisensi
-              </a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link mb-sm-3 mb-md-0" href="#tabs-updates" onclick="loadTab(2);" role="tab" aria-controls="tabs-updates" aria-selected="false">
-                <i class="fas fa-sync-alt mr-2"></i>
-                Status Pembaruan
               </a>
             </li>
           </ul>

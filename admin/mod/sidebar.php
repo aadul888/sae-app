@@ -271,9 +271,9 @@ $logo_path_url = @filemtime("../content/$logo_path") > 0 ? "../content/$logo_pat
                             if (can_see(38)) sidebar_link('./admin', 'fas fa-users-cog', 'Admin', 'text-primary');
                             if (can_see(43)) sidebar_link('./hak-akses', 'fas fa-user-lock', 'Hak Akses', 'text-warning');
                             if (can_see(39)) sidebar_link('./menu-siswa', 'fas fa-list', 'Menu/Fitur Murid', 'text-info');
-                            if (can_see(40)) sidebar_link('./pembaharuan', 'fas fa-bullhorn', 'Pembaharuan', 'text-info');
                             if (can_see(41)) sidebar_link('./sync', 'fas fa-sync', 'Tarik Data Dapodik', 'text-success');
-                            if (can_see(133)) sidebar_link('./lisensi_pembaruan', 'fas fa-key', 'Lisensi & Pembaruan', 'text-warning');
+                            if (can_see(133)) sidebar_link('./lisensi_pembaruan', 'fas fa-key', 'Lisensi', 'text-warning');
+                            if (can_see(40)) sidebar_link('./pembaharuan', 'fas fa-cloud-download-alt', 'Pembaruan', 'text-info');
                         sidebar_group_close();
                     } ?>
                     <li class="nav-item"><a class="nav-link" href="./tentang"><i class="fas fa-info-circle text-info"></i><span class="nav-link-text">Tentang &amp; Privasi</span></a></li>

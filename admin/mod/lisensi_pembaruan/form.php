@@ -5,7 +5,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 } else {
   require_once '../../../library/config.php';
   include('../../../library/function.php');
-  require_once '../../../library/commit_logger.php';
   require_once '../../login/user.php';
 
   // Load setting data
@@ -41,25 +40,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       $db_school_name = $set_data['license_school_name'] ?? '';
       $db_npsn = $set_data['license_npsn'] ?? '';
       $db_expired_at = $set_data['license_expired_at'] ?? '';
-    }
-  }
-
-  // Latest release from pembaharuan
-  $latest_release = null;
-  $q_rel = $connection->query("SELECT version, release_date, mandatory, download_link, pembaharuan, perbaikan FROM pembaharuan ORDER BY release_date DESC LIMIT 1");
-  if ($q_rel && $q_rel->num_rows > 0) {
-    $latest_release = $q_rel->fetch_assoc();
-  }
-
-  $current_version = defined('SAE_VERSION') ? SAE_VERSION : $app_version;
-  $update_available = false;
-  $update_status_label = 'Terbaru';
-  $update_status_class = 'badge-success';
-  if ($latest_release) {
-    if (version_compare($current_version, $latest_release['version'], '<')) {
-      $update_available = true;
-      $update_status_label = 'Pembaruan Tersedia';
-      $update_status_class = 'badge-danger';
     }
   }
 
@@ -168,77 +148,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           </div>
         </div>
       </form>';
-      break;
-
-    case 2: // Status Pembaruan
-      ?>
-      <div class="row">
-        <div class="col-12">
-          <div class="card shadow-sm">
-            <div class="card-header bg-white">
-              <h4 class="mb-0"><i class="fas fa-sync-alt mr-2 text-info"></i>Status Pembaruan</h4>
-            </div>
-            <div class="card-body">
-              <div class="form-group row">
-                <label class="col-md-3 col-form-label form-control-label font-weight-bold">Versi Saat Ini</label>
-                <div class="col-md-9">
-                  <input type="text" class="form-control" value="<?php echo htmlspecialchars($current_version); ?>" readonly>
-                </div>
-              </div>
-              <?php if ($update_available && $latest_release): ?>
-              <div class="form-group row">
-                <label class="col-md-3 col-form-label form-control-label font-weight-bold">Versi Tersedia</label>
-                <div class="col-md-9">
-                  <input type="text" class="form-control text-success font-weight-bold" value="<?php echo htmlspecialchars($latest_release['version']); ?>" readonly>
-                </div>
-              </div>
-              <?php endif; ?>
-              <div class="form-group row">
-                <label class="col-md-3 col-form-label form-control-label font-weight-bold">Status</label>
-                <div class="col-md-9">
-                  <span class="badge <?php echo $update_status_class; ?> badge-lg"><?php echo $update_status_label; ?></span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Riwayat Commit -->
-      <div class="row mt-3">
-        <div class="col-12">
-          <div class="card shadow-sm">
-            <div class="card-header bg-white">
-              <h4 class="mb-0"><i class="fas fa-history mr-2 text-secondary"></i>Riwayat Pembaruan</h4>
-            </div>
-            <div class="card-body p-0">
-              <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                  <thead class="thead-light">
-                    <tr>
-                      <th style="width:80px">Versi</th>
-                      <th>Keterangan</th>
-                      <th style="width:160px">Tanggal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <?php echo get_commit_log_rows($connection); ?>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-<?php
-      break;
-
-    case 3: // Notifikasi — migrated to header global banner
-      echo '<div class="text-center py-5 text-muted"><i class="fas fa-bell-slash fa-2x mb-2"></i><p>Notifikasi pembaruan kini ditampilkan di seluruh halaman admin.</p></div>';
-      break;
-
-    default:
-      echo '<div class="alert alert-danger">Tab tidak dikenal.</div>';
       break;
   }
 }
