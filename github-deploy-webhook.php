@@ -64,6 +64,15 @@ $err = '';
 $git_bin = '/usr/bin/git';
 $git_safe = "$git_bin -c safe.directory='*'";
 
+// Backup config files — jangan timpa
+$backup_configs = [];
+foreach (['library/config.php', 'library/github-config.php'] as $rel) {
+    $abs = realpath($git_dir . '/' . $rel);
+    if ($abs && file_exists($abs)) {
+        $backup_configs[$rel] = file_get_contents($abs);
+    }
+}
+
 // Priority 1: git pull
 if ($git_dir && file_exists($git_bin)) {
     chdir($git_dir);
@@ -74,6 +83,10 @@ if ($git_dir && file_exists($git_bin)) {
         $cmd_reset = "$git_safe reset --hard origin/main 2>&1";
         exec($cmd_reset, $output, $return_var);
         if ($return_var === 0) {
+            // Restore config files
+            foreach ($backup_configs as $rel => $content) {
+                file_put_contents($git_dir . '/' . $rel, $content);
+            }
             $deployed = true;
         } else {
             $err = implode("\n", $output);

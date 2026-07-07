@@ -9,6 +9,16 @@ if ($secret !== 'sae-deploy-2025' && !in_array($_SERVER['REMOTE_ADDR'] ?? '', $a
 header('Content-Type: text/plain');
 chdir(__DIR__);
 putenv('GIT_TERMINAL_PROMPT=0');
+
+// Backup config files — jangan timpa
+$backup_configs = [];
+foreach (['library/config.php', 'library/github-config.php'] as $rel) {
+    $abs = __DIR__ . '/' . $rel;
+    if (file_exists($abs)) {
+        $backup_configs[$rel] = file_get_contents($abs);
+    }
+}
+
 $out = [];
 $rv = -1;
 echo "=== Deploy start ===\n";
@@ -22,6 +32,13 @@ if ($rv !== 0) exit;
 $out = [];
 exec('git -c safe.directory=\'*\' clean -fd 2>&1', $out, $rv);
 echo "clean: " . implode("\n", $out) . " (exit=$rv)\n";
+
+// Restore config files
+foreach ($backup_configs as $rel => $content) {
+    file_put_contents(__DIR__ . '/' . $rel, $content);
+    echo "restored: $rel\n";
+}
+
 echo "=== Deploy done ===\n";
 
 // Auto-insert pembaharuan record so dashboard shows notification

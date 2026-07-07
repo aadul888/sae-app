@@ -132,16 +132,28 @@ switch (@$_GET['action']) {
     $git_bin = '/usr/bin/git';
     $git_safe = "$git_bin -c safe.directory='*'";
 
-    // Priority 1: git force sync (discard all local changes)
+    // Backup config files — jangan timpa
+    $backup_configs = [];
+    foreach (['library/config.php', 'library/github-config.php'] as $rel) {
+      $abs = realpath($git_dir . '/' . $rel);
+      if ($abs && file_exists($abs)) {
+        $backup_configs[$rel] = file_get_contents($abs);
+      }
+    }
+
+    // Priority 1: git force sync
     if ($git_dir && file_exists($git_bin)) {
       chdir($git_dir);
-      // GIT_TERMINAL_PROMPT=0 prevents hang if git prompts for credentials
       putenv('GIT_TERMINAL_PROMPT=0');
       exec("$git_safe fetch origin 2>&1", $output, $return_var);
       if ($return_var === 0) {
         exec("$git_safe reset --hard origin/main 2>&1", $output, $return_var);
         if ($return_var === 0) {
           exec("$git_safe clean -fd 2>&1", $output, $return_var);
+          // Restore config files
+          foreach ($backup_configs as $rel => $content) {
+            file_put_contents($git_dir . '/' . $rel, $content);
+          }
           $deployed = true;
         } else {
           $err = 'git reset gagal: ' . implode("\n", $output);
