@@ -241,11 +241,11 @@ if (file_exists($qrcode_file_fs)) {
             @mkdir($tempdir_fs, 0755, true);
         }
         $namafile = $nisn . '.jpg';
-        $quality = 'QR_ECLEVEL_Q';
+        $quality = QR_ECLEVEL_Q;
         $ukuran = 10;
         $padding = 1;
         try {
-            QRCode::png($codeContents, $tempdir_fs . $namafile, $quality, $ukuran, $padding);
+            QRcode::png($codeContents, $tempdir_fs . $namafile, $quality, $ukuran, $padding);
             if (file_exists($tempdir_fs . $namafile)) {
                 $paths_fs['qrcode'] = $tempdir_fs . $namafile;
                 $paths_web['qrcode'] = $web_root . '/content/qrcode/' . $namafile . '?t=' . time();
