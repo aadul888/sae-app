@@ -13,6 +13,7 @@ jobs:
           persist-credentials: false
 
       - name: Deploy via FTP
+        if: ${{ secrets.FTP_HOST != '' && secrets.FTP_USER != '' && secrets.FTP_PASS != '' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
