@@ -130,15 +130,18 @@ switch (@$_GET['action']) {
     $deployed = false;
     $err = '';
     $git_bin = '/usr/bin/git';
+    $git_safe = "$git_bin -c safe.directory='*'";
 
     // Priority 1: git force sync (discard all local changes)
     if ($git_dir && file_exists($git_bin)) {
       chdir($git_dir);
-      exec("$git_bin fetch origin 2>&1", $output, $return_var);
+      // GIT_TERMINAL_PROMPT=0 prevents hang if git prompts for credentials
+      putenv('GIT_TERMINAL_PROMPT=0');
+      exec("$git_safe fetch origin 2>&1", $output, $return_var);
       if ($return_var === 0) {
-        exec("$git_bin reset --hard origin/main 2>&1", $output, $return_var);
+        exec("$git_safe reset --hard origin/main 2>&1", $output, $return_var);
         if ($return_var === 0) {
-          exec("$git_bin clean -fd 2>&1", $output, $return_var);
+          exec("$git_safe clean -fd 2>&1", $output, $return_var);
           $deployed = true;
         } else {
           $err = 'git reset gagal: ' . implode("\n", $output);

@@ -3,115 +3,148 @@
 var tableGuru;
 
 function cleanupGuruModal() {
-  var hasVisible = $('.modal.show:visible').length > 0;
+  var hasVisible = $(".modal.show:visible").length > 0;
   if (!hasVisible) {
-    $('body').removeClass('modal-open').css({ 'padding-right': '', overflow: '' });
-    $('.modal-backdrop').remove();
+    $("body")
+      .removeClass("modal-open")
+      .css({ "padding-right": "", overflow: "" });
+    $(".modal-backdrop").remove();
   }
-  if ($(window).width() >= 1200) $('.backdrop.d-xl-none').remove();
+  if ($(window).width() >= 1200) $(".backdrop.d-xl-none").remove();
 }
 
 function hardUnlockGuruIfStuck() {
-  if (!$('.modal.show:visible').length && !$('.swal-overlay:visible').length) {
-    $('body').removeClass('modal-open').css({ 'padding-right': '', overflow: '' });
-    $('.modal-backdrop').remove();
+  if (!$(".modal.show:visible").length && !$(".swal-overlay:visible").length) {
+    $("body")
+      .removeClass("modal-open")
+      .css({ "padding-right": "", overflow: "" });
+    $(".modal-backdrop").remove();
   }
 }
 
 function openGuruFilterModal() {
-  var $modal = $('.modal-filter-guru');
+  var $modal = $(".modal-filter-guru");
   if (!$modal.length) return;
 
   cleanupGuruModal();
   $modal.modal({ backdrop: false, keyboard: true, show: true });
   setTimeout(function () {
-    $('body').removeClass('modal-open').css({ 'padding-right': '', overflow: '' });
-    $('.modal-backdrop').remove();
+    $("body")
+      .removeClass("modal-open")
+      .css({ "padding-right": "", overflow: "" });
+    $(".modal-backdrop").remove();
   }, 30);
 }
 
 $(document).ready(function () {
   loadGuruTable();
 
-  $(document).off('.guruModalFix');
+  $(document).off(".guruModalFix");
 
   // Tombol filter
-  $(document).on('click.guruModalFix', '.btn-open-filter-guru', function (e) {
+  $(document).on("click.guruModalFix", ".btn-open-filter-guru", function (e) {
     e.preventDefault();
     openGuruFilterModal();
   });
 
   // Sinkron nilai filter saat modal terbuka
-  $('.modal-filter-guru').on('shown.bs.modal.guruModalFix', function () {
-    $('body').removeClass('modal-open').css({ 'padding-right': '', overflow: '' });
-    $('.modal-backdrop').remove();
+  $(".modal-filter-guru").on("shown.bs.modal.guruModalFix", function () {
+    $("body")
+      .removeClass("modal-open")
+      .css({ "padding-right": "", overflow: "" });
+    $(".modal-backdrop").remove();
   });
 
   // Terapkan filter
-  $(document).on('click.guruModalFix', '.btn-apply-filter-guru', function () {
-    $('.modal-filter-guru').modal('hide');
-    setTimeout(function () { if (tableGuru) tableGuru.ajax.reload(); }, 220);
+  $(document).on("click.guruModalFix", ".btn-apply-filter-guru", function () {
+    $(".modal-filter-guru").modal("hide");
+    setTimeout(function () {
+      if (tableGuru) tableGuru.ajax.reload();
+    }, 220);
   });
 
   // Reset filter
-  $(document).on('click.guruModalFix', '.btn-reset-filter-guru', function () {
-    $('.filter-jenis-ptk').val('');
-    $('.filter-status-kepegawaian').val('');
-    $('.filter-jabatan-ptk').val('');
-    $('.modal-filter-guru').modal('hide');
-    setTimeout(function () { if (tableGuru) tableGuru.ajax.reload(); }, 220);
+  $(document).on("click.guruModalFix", ".btn-reset-filter-guru", function () {
+    $(".filter-jenis-ptk").val("");
+    $(".filter-status-kepegawaian").val("");
+    $(".filter-jabatan-ptk").val("");
+    $(".modal-filter-guru").modal("hide");
+    setTimeout(function () {
+      if (tableGuru) tableGuru.ajax.reload();
+    }, 220);
   });
 
   // Cleanup saat modal tertutup
-  $(document).on('hidden.bs.modal.guruModalFix', '.modal', function () {
+  $(document).on("hidden.bs.modal.guruModalFix", ".modal", function () {
     cleanupGuruModal();
     hardUnlockGuruIfStuck();
   });
 
-  $(document).on('click.guruModalFix', '.modal .close, .modal [data-dismiss="modal"]', function () {
-    $(this).closest('.modal').modal('hide');
-  });
+  $(document).on(
+    "click.guruModalFix",
+    '.modal .close, .modal [data-dismiss="modal"]',
+    function () {
+      $(this).closest(".modal").modal("hide");
+    },
+  );
 
   // --- Edit Gelar ---
-  $(document).on('click', '.btn-edit-gelar', function () {
+  $(document).on("click", ".btn-edit-gelar", function () {
     var $btn = $(this);
-    $('#edit-gelar-admin-id').val($btn.data('admin-id'));
-    $('#edit-gelar-depan').val($btn.data('gelar-depan'));
-    $('#edit-gelar-belakang').val($btn.data('gelar-belakang'));
-    $('.modal-edit-gelar').modal('show');
+    $("#edit-gelar-admin-id").val($btn.data("admin-id"));
+    $("#edit-gelar-depan").val($btn.data("gelar-depan"));
+    $("#edit-gelar-belakang").val($btn.data("gelar-belakang"));
+    $(".modal-edit-gelar").modal("show");
   });
 
-  $(document).on('submit', '.form-edit-gelar', function (e) {
+  $(document).on("submit", ".form-edit-gelar", function (e) {
     e.preventDefault();
     var $form = $(this);
-    var $btn = $form.find('.btn-save-gelar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Menyimpan...');
+    var $btn = $form
+      .find(".btn-save-gelar")
+      .prop("disabled", true)
+      .html('<i class="fas fa-spinner fa-spin"></i> Menyimpan...');
 
     $.ajax({
-      url: './mod/guru/proses.php',
-      method: 'POST',
+      url: "./mod/guru/proses.php",
+      method: "POST",
       data: $form.serialize(),
-      dataType: 'json',
+      dataType: "json",
       success: function (res) {
-        if (res.status === 'success') {
-          if (typeof swal === 'function') {
-            swal({ title: 'Berhasil', text: res.message, icon: 'success', timer: 1200, buttons: false });
+        try {
+          if (res.status === "success") {
+            if (typeof Swal !== "undefined") {
+              Swal.fire({
+                title: "Berhasil",
+                text: res.message,
+                icon: "success",
+                timer: 1200,
+                showConfirmButton: false,
+              });
+            }
+            $(".modal-edit-gelar").modal("hide");
+            if (tableGuru) tableGuru.ajax.reload(null, false);
+          } else {
+            if (typeof Swal !== "undefined") {
+              Swal.fire({ title: "Gagal", text: res.message, icon: "error" });
+            }
           }
-          $('.modal-edit-gelar').modal('hide');
-          if (tableGuru) tableGuru.ajax.reload(null, false);
-        } else {
-          if (typeof swal === 'function') {
-            swal({ title: 'Gagal', text: res.message, icon: 'error' });
-          }
-        }
+        } catch (e) { console.error(e); }
       },
       error: function () {
-        if (typeof swal === 'function') {
-          swal({ title: 'Error', text: 'Terjadi kesalahan server.', icon: 'error' });
-        }
+        try {
+          if (typeof Swal !== "undefined") {
+            Swal.fire({
+              title: "Error",
+              text: "Terjadi kesalahan server.",
+              icon: "error",
+            });
+          }
+        } catch (e) { console.error(e); }
       },
       complete: function () {
-        $btn.prop('disabled', false).text('Simpan');
-      }
+        $btn.prop("disabled", false).text("Simpan");
+      },
     });
   });
 });
@@ -127,12 +160,15 @@ function loadGuruTable() {
     iDisplayLength: 25,
     scrollX: true,
     order: [],
-    aLengthMenu: [[25, 50, 100, -1], [25, 50, 100, "All"]],
+    aLengthMenu: [
+      [25, 50, 100, -1],
+      [25, 50, 100, "All"],
+    ],
     language: {
       paginate: {
         previous: "<i class='fas fa-angle-left'>",
-        next: "<i class='fas fa-angle-right'>"
-      }
+        next: "<i class='fas fa-angle-right'>",
+      },
     },
     ajax: {
       url: "./mod/guru/datatable.php",
@@ -141,52 +177,55 @@ function loadGuruTable() {
         d.jenis_ptk = $(".filter-jenis-ptk").val();
         d.status_kepegawaian = $(".filter-status-kepegawaian").val();
         d.jabatan_ptk = $(".filter-jabatan-ptk").val();
-      }
+      },
     },
-    columnDefs: [
-      { targets: [0], className: "text-center", orderable: false }
-    ]
+    columnDefs: [{ targets: [0], className: "text-center", orderable: false }],
   });
 
-  $('.datatable-guru').on('xhr.dt', function (e, settings, json) {
+  $(".datatable-guru").on("xhr.dt", function (e, settings, json) {
     if (!json || !json.stats) return;
-    $('#guru-card-total').text(json.stats.total || 0);
-    $('#guru-card-jenis').text(json.stats.jenis || 0);
-    $('#guru-card-kepegawaian').text(json.stats.kepegawaian || 0);
+    $("#guru-card-total").text(json.stats.total || 0);
+    $("#guru-card-jenis").text(json.stats.jenis || 0);
+    $("#guru-card-kepegawaian").text(json.stats.kepegawaian || 0);
   });
 }
 
-$(document).off('click.guruCopyId').on('click.guruCopyId', '.datatable-guru .copy-id-value', function (e) {
-  e.preventDefault();
-  var value = String($(this).data('copy') || '').trim();
-  if (!value) return;
+$(document)
+  .off("click.guruCopyId")
+  .on("click.guruCopyId", ".datatable-guru .copy-id-value", function (e) {
+    e.preventDefault();
+    var value = String($(this).data("copy") || "").trim();
+    if (!value) return;
 
-  var onSuccess = function () {
-    if (typeof swal === 'function') {
-      swal({
-        title: 'Berhasil',
-        text: 'ID berhasil dicopy ke clipboard',
-        icon: 'success',
-        timer: 1200,
-        buttons: false
-      });
+    var onSuccess = function () {
+      if (typeof Swal !== "undefined") {
+        Swal.fire({
+          title: "Berhasil",
+          text: "ID berhasil dicopy ke clipboard",
+          icon: "success",
+          timer: 1200,
+          showConfirmButton: false,
+        });
+      }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard
+        .writeText(value)
+        .then(onSuccess)
+        .catch(function () {
+          var $tmp = $('<input type="text" />').val(value).appendTo("body");
+          $tmp[0].select();
+          document.execCommand("copy");
+          $tmp.remove();
+          onSuccess();
+        });
+      return;
     }
-  };
 
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(value).then(onSuccess).catch(function () {
-      var $tmp = $('<input type="text" />').val(value).appendTo('body');
-      $tmp[0].select();
-      document.execCommand('copy');
-      $tmp.remove();
-      onSuccess();
-    });
-    return;
-  }
-
-  var $tmp = $('<input type="text" />').val(value).appendTo('body');
-  $tmp[0].select();
-  document.execCommand('copy');
-  $tmp.remove();
-  onSuccess();
-});
+    var $tmp = $('<input type="text" />').val(value).appendTo("body");
+    $tmp[0].select();
+    document.execCommand("copy");
+    $tmp.remove();
+    onSuccess();
+  });

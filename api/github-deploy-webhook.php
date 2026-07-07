@@ -55,9 +55,10 @@ $err = '';
 // Priority 1: git pull
 if ($git_dir) {
     chdir($git_dir);
-    exec('git fetch origin main 2>&1', $output, $return_var);
+    putenv('GIT_TERMINAL_PROMPT=0');
+    exec('git -c safe.directory=\'*\' fetch origin main 2>&1', $output, $return_var);
     if ($return_var === 0) {
-        exec('git reset --hard origin/main 2>&1', $output, $return_var);
+        exec('git -c safe.directory=\'*\' reset --hard origin/main 2>&1', $output, $return_var);
         if ($return_var === 0) {
             $deployed = true;
         } else {

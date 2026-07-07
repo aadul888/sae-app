@@ -62,14 +62,16 @@ $return_var = -1;
 $deployed = false;
 $err = '';
 $git_bin = '/usr/bin/git';
+$git_safe = "$git_bin -c safe.directory='*'";
 
 // Priority 1: git pull
 if ($git_dir && file_exists($git_bin)) {
     chdir($git_dir);
-    $cmd_fetch = "$git_bin fetch origin main 2>&1";
+    putenv('GIT_TERMINAL_PROMPT=0');
+    $cmd_fetch = "$git_safe fetch origin main 2>&1";
     exec($cmd_fetch, $output, $return_var);
     if ($return_var === 0) {
-        $cmd_reset = "$git_bin reset --hard origin/main 2>&1";
+        $cmd_reset = "$git_safe reset --hard origin/main 2>&1";
         exec($cmd_reset, $output, $return_var);
         if ($return_var === 0) {
             $deployed = true;
@@ -79,6 +81,8 @@ if ($git_dir && file_exists($git_bin)) {
     } else {
         $err = implode("\n", $output);
     }
+} else {
+    // git_bin not found, fallback ke ZIP
 }
 
 // Priority 2: download zip dari GitHub
