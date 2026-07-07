@@ -1,0 +1,20 @@
+RewriteEngine On
+Options -Indexes
+
+# Login routes
+RewriteRule ^login/?$ login/index.php [L]
+RewriteRule ^login/forgot\.html$ login/forgot.php [L]
+
+# Logout
+RewriteRule ^logout$ login/logout.php [L]
+
+# Allow existing files (assets, css, js, images)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Allow existing directories
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Module routing (supports hyphenated names like e-izin, hak-akses)
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?mod=$1 [L,QSA]

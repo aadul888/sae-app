@@ -1,0 +1,43 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+storage/logs/
+api/logs/
+api/API_LOG_FILE
+
+# Cache & generated content
+content/cache/
+content/capture/
+content/qrcode/
+content/berkas/
+content/avatar/
+content/sound/
+content/tamu/
+content/surat-keluar/
+content/usulan-pip/
+content/agenda/
+content/pelanggaran/
+
+# Database dump (not part of source)
+
+# Local config files — each environment has its own
+library/config.php
+library/github-config.php
+
+# IDE project config
+.phpactor.json
+database/*.sql
+!database/saev5.sql
+
+# Google credentials (sensitive)
+content/google-credentials-*.json
+content/google-oauth-helper.json

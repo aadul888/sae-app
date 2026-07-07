@@ -1,0 +1,11 @@
+# Deny direct access to sensitive PHP files
+
+<FilesMatch "\.(php|inc)$">
+Require all denied
+</FilesMatch>
+
+# But allow Composer autoloader
+
+<FilesMatch "autoload\.php$">
+Require all granted
+</FilesMatch>

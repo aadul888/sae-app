@@ -1,0 +1,65 @@
+RewriteEngine On
+RewriteRule ^\.well-known(?:/.*)?$ - [L,NC]
+
+# IMPORTANT:
+# Do not force HTTPS here. On VPS behind reverse proxy/CDN this can cause redirect loops.
+# Force HTTPS at webserver/vhost (or CDN) level instead.
+
+Options -Indexes
+
+# Allow access to admin, dashboard, api, content, library, google, sso, database, module assets
+RewriteRule ^admin(/.*)?$ - [L]
+RewriteRule ^dashboard(/.*)?$ - [L]
+RewriteRule ^api(/.*)?$ - [L]
+RewriteRule ^content(/.*)?$ - [L]
+RewriteRule ^library(/.*)?$ - [L]
+RewriteRule ^google(/.*)?$ - [L]
+RewriteRule ^sso(/.*)?$ - [L]
+RewriteRule ^database(/.*)?$ - [L]
+
+# Maintenance page - redirect to maintenance.php
+RewriteRule ^maintenance/?$ maintenance.php [L]
+
+# NISN routes
+RewriteRule ^nisn/([^/]*)?$ index.php?mod=nisn&nisn=$1 [L,QSA]
+
+# Logout
+RewriteRule ^logout$ dashboard/oauth/logout.php [L]
+
+# Numeric NISN direct access
+RewriteRule ^([0-9]{8,})$ index.php?mod=nisn&nisn=$1 [L,QSA]
+
+# Tamu subpages: form, checkout, survey, qr, proses (also handles ?page=... within module)
+RewriteRule ^tamu/(form|checkout|survey|qr|proses)/?$ index.php?mod=tamu&page=$1 [L,QSA]
+RewriteRule ^tamu/?$ index.php?mod=tamu [L,QSA]
+
+# Module routing - skip existing files and directories
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?mod=$1 [L,QSA]
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/css application/javascript application/json
+</IfModule>
+
+<IfModule mod_headers.c>
+  # Detect localhost (including with non-standard ports like :8080)
+  SetEnvIf Host "^localhost(:[0-9]+)?$" IS_LOCAL=1
+  SetEnvIf Host "^127\.0\.0\.1(:[0-9]+)?$" IS_LOCAL=1
+  SetEnvIf Host "^::1(:[0-9]+)?$" IS_LOCAL=1
+  # Laragon .test domains are local
+  SetEnvIf Host "\.test(:[0-9]+)?$" IS_LOCAL=1
+
+  # Prevent mixed-content when legacy links still use http:// (production only)
+  Header always set Content-Security-Policy "upgrade-insecure-requests" env=!IS_LOCAL
+  Header always set X-Content-Type-Options "nosniff"
+  # HSTS: only for production (not localhost)
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" env=!IS_LOCAL
+
+  <FilesMatch "\.(html?|php)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+

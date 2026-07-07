@@ -1,0 +1,225 @@
+/* Kartu Pelajar Digital Portrait - SAE (Optimized) */
+
+/* Base Layout */
+.kartu-pelajar-portrait-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.kartu-pelajar-portrait {
+  width: 340px;
+  height: 540px;
+  position: relative;
+  border-radius: 18px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+  background: #fff;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+/* Background Image */
+.kartu-bg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+/* Content Container */
+.kartu-content {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Logo Jurusan (Background Watermark) */
+.kartu-jurusan-row {
+  position: absolute;
+  top: 120px;
+  left: -50px;
+  width: 200px;
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.15;
+  z-index: 2;
+}
+
+.kartu-logo-jurusan {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+}
+
+/* Foto Siswa */
+.kartu-foto-row {
+  position: absolute;
+  left: 50%;
+  top: 70px;
+  transform: translateX(-50%);
+  width: 340px;
+  height: 470px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+}
+
+.kartu-foto-siswa {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0;
+  border: none;
+  filter: drop-shadow(0 6px 18px rgba(0,0,0,0.25)) drop-shadow(0 1px 4px rgba(0,0,0,0.80));
+}
+
+/* Nama Siswa */
+.kartu-nama-row {
+  position: absolute;
+  left: 24px;
+  bottom: 20px;
+  width: 170px;
+  height: 120px;
+  font-weight: 900;
+  color: #000;
+  text-align: left;
+  margin: 0;
+  letter-spacing: 0.5px;
+  line-height: 1.05;
+  z-index: 5;
+  text-transform: uppercase;
+  word-break: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  box-sizing: border-box;
+  text-shadow: 0 2px 8px rgba(255,255,255,1), 0 0 2px #fff, 0 0 8px #fff, 0 0 12px #fff;
+  filter: drop-shadow(0 8px 24px #fff) drop-shadow(0 2px 8px #fff);
+}
+
+/* Font Size Classes for Names */
+.kartu-nama-row.short { font-size: 1.8em; }
+.kartu-nama-row.medium { font-size: 1.4em; }
+.kartu-nama-row.long { font-size: 1.0em; }
+
+/* NISN */
+.kartu-nisn-row {
+  position: absolute;
+  right: 25px;
+  bottom: 140px;
+  font-size: 0.9em;
+  color: #000;
+  text-align: right;
+  font-weight: 700;
+  letter-spacing: 1px;
+  z-index: 5;
+  text-shadow: 0 2px 8px rgba(255,255,255,1), 0 0 2px #fff, 0 0 8px #fff, 0 0 12px #fff;
+  filter: drop-shadow(0 8px 24px #fff) drop-shadow(0 2px 8px #fff);
+}
+
+/* QR Code Area */
+.kartu-bottom-row {
+  position: absolute;
+  right: 24px;
+  bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  z-index: 5;
+}
+
+.kartu-qrcode {
+  width: 120px;
+  height: 120px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 400px) {
+  .kartu-pelajar-portrait {
+    width: 98vw;
+    height: calc(98vw * 1.59);
+    min-width: 220px;
+    min-height: 350px;
+  }
+  /* Pastikan elemen dalam kartu tetap sama ukurannya */
+  .kartu-qrcode {
+    width: 520px;
+    height: 520px;
+  }
+  .kartu-nama-row {
+    width: 170px;
+    font-size: inherit !important;
+    padding: 8px 12px;
+  }
+  .kartu-foto-row {
+    width: 375px;
+    height: 540px;
+    top: 60px;
+  }
+  .kartu-nisn-row {
+    font-size: 0.9em;
+    padding: 6px 10px;
+  }
+  .kartu-bottom-row {
+    bottom: 18px;
+    right: 24px;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .kartu-pelajar-portrait {
+    box-shadow: none;
+    page-break-inside: avoid;
+  }
+  
+  .kartu-pelajar-portrait-wrapper {
+    gap: 0;
+  }
+  
+  button {
+    display: none !important;
+  }
+}
+
+/* Performance Optimizations */
+.kartu-bg,
+.kartu-foto-siswa,
+.kartu-logo-jurusan,
+.kartu-qrcode {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* Accessibility */
+.kartu-content img {
+  alt: attr(alt);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kartu-content * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
