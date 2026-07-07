@@ -7,12 +7,19 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      FTP_HOST: ${{ secrets.FTP_HOST }}
     steps:
       - uses: actions/checkout@v4
         with:
           persist-credentials: false
 
+      - name: Warn if FTP credentials are not configured
+        if: env.FTP_HOST == ''
+        run: echo "::warning::FTP_HOST secret is not set — skipping FTP deployment. Configure FTP_HOST, FTP_USER, FTP_PASS, and FTP_TARGET_DIR secrets to enable deployment."
+
       - name: Deploy via FTP
+        if: env.FTP_HOST != ''
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_HOST }}
