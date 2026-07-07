@@ -153,7 +153,7 @@ $admin_forgot_mode = $admin_login_mode === 'forgot';
     <script src="../assets/js/argon.js?v=1.1.0"></script>
     <!-- Demo JS - remove this in your project -->
     <script src="../assets/js/demo.js"></script>
-    <script src="./script.js"></script>
+    <script src="./script.js?v=<?= filemtime('script.js') ?>"></script>
 </body>
 
 </html>
