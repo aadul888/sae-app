@@ -1,7 +1,7 @@
 <?php
 /**
  * GitHub Deploy Webhook
- * Terima notifikasi push dari GitHub, lalu jalankan deploy.
+ * Terima notifikasi push dari GitHub, lalu jalankan deploy + migrasi DB.
  *
  * Cara pakai:
  * 1. Set webhook di repo GitHub → Settings → Webhooks → Add webhook
@@ -13,6 +13,7 @@
  */
 
 require_once __DIR__ . '/../library/config.php';
+require_once __DIR__ . '/../library/migrate.php';
 
 header('Content-Type: application/json');
 
@@ -143,7 +144,16 @@ if (!$deployed) {
 }
 
 if ($deployed) {
-    echo json_encode(['success' => true, 'message' => 'Deploy berhasil.']);
+    // Jalankan migrasi database yang tertunda
+    $mig_result = run_pending_migrations($connection);
+    $msg = 'Deploy berhasil.';
+    if ($mig_result['ran'] > 0) {
+        $msg .= ' ' . $mig_result['ran'] . ' migrasi database dijalankan.';
+    }
+    if (!$mig_result['success']) {
+        $msg .= ' Ada error migrasi: ' . implode('; ', $mig_result['errors']);
+    }
+    echo json_encode(['success' => true, 'message' => $msg]);
 } else {
     $msg = empty($err) ? 'Gagal deploy' : $err;
     http_response_code(500);
