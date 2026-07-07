@@ -236,6 +236,28 @@ switch (@$_GET['action']) {
     }
 
     if ($deployed) {
+      // Auto-insert pembaharuan record so next dashboard load shows notification
+      $next_ver = '';
+      $q_v = $connection->query("SELECT version FROM pembaharuan ORDER BY release_date DESC LIMIT 1");
+      if ($q_v && $r_v = $q_v->fetch_assoc()) {
+        // increment minor version
+        $parts = explode('.', $r_v['version']);
+        $rev = (int)end($parts) + 1;
+        $parts[count($parts)-1] = $rev;
+        $next_ver = implode('.', $parts);
+      } else {
+        // no existing record, derive from SAE_VERSION
+        $next_ver = defined('SAE_VERSION') ? SAE_VERSION : 'v20252.2';
+      }
+      if ($next_ver) {
+        $desc = 'Pembaruan otomatis: ' . date('Y-m-d H:i');
+        $conn_ins = $connection;
+        $check = $conn_ins->query("SELECT id FROM pembaharuan WHERE version='" . $conn_ins->real_escape_string($next_ver) . "' LIMIT 1");
+        if ($check && $check->num_rows === 0) {
+          $conn_ins->query("INSERT INTO pembaharuan (version, pembaharuan, release_date, created_at) VALUES ('" . $conn_ins->real_escape_string($next_ver) . "', '$desc', NOW(), NOW())");
+        }
+      }
+
       // Jalankan migrasi database yang tertunda
       require_once __DIR__ . '/../../../library/migrate.php';
       $mig_result = run_pending_migrations($connection);

@@ -8,18 +8,35 @@ if ($secret !== 'sae-deploy-2025' && !in_array($_SERVER['REMOTE_ADDR'] ?? '', $a
 }
 header('Content-Type: text/plain');
 chdir(__DIR__);
-exec('git config --global --add safe.directory ' . __DIR__ . ' 2>&1');
+putenv('GIT_TERMINAL_PROMPT=0');
 $out = [];
 $rv = -1;
 echo "=== Deploy start ===\n";
-exec('git fetch origin 2>&1', $out, $rv);
+exec('git -c safe.directory=\'*\' fetch origin 2>&1', $out, $rv);
 echo "fetch: " . implode("\n", $out) . " (exit=$rv)\n";
 if ($rv !== 0) exit;
 $out = [];
-exec('git reset --hard origin/main 2>&1', $out, $rv);
+exec('git -c safe.directory=\'*\' reset --hard origin/main 2>&1', $out, $rv);
 echo "reset: " . implode("\n", $out) . " (exit=$rv)\n";
 if ($rv !== 0) exit;
 $out = [];
-exec('git clean -fd 2>&1', $out, $rv);
+exec('git -c safe.directory=\'*\' clean -fd 2>&1', $out, $rv);
 echo "clean: " . implode("\n", $out) . " (exit=$rv)\n";
 echo "=== Deploy done ===\n";
+
+// Auto-insert pembaharuan record so dashboard shows notification
+$cfg = __DIR__ . '/library/config.php';
+if (file_exists($cfg)) {
+  require_once $cfg;
+  $version = defined('SAE_VERSION') ? SAE_VERSION : 'v20252.2';
+  $desc = 'Pembaruan otomatis: git safe.directory + perbaikan JS.';
+  $conn = new mysqli(DB_HOST, DB_USER, DB_PASSWD, DB_NAME);
+  if (!$conn->connect_error) {
+    $check = $conn->query("SELECT id FROM pembaharuan WHERE version='$version' LIMIT 1");
+    if ($check && $check->num_rows === 0) {
+      $conn->query("INSERT INTO pembaharuan (version, pembaharuan, release_date, created_at) VALUES ('$version', '$desc', NOW(), NOW())");
+      echo "Pembaharuan $version inserted.\n";
+    }
+    $conn->close();
+  }
+}

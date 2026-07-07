@@ -129,7 +129,9 @@ $(document).ready(function () {
               Swal.fire({ title: "Gagal", text: res.message, icon: "error" });
             }
           }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+          console.error(e);
+        }
       },
       error: function () {
         try {
@@ -140,7 +142,9 @@ $(document).ready(function () {
               icon: "error",
             });
           }
-        } catch (e) { console.error(e); }
+        } catch (e) {
+          console.error(e);
+        }
       },
       complete: function () {
         $btn.prop("disabled", false).text("Simpan");
