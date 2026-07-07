@@ -71,6 +71,49 @@ $(document).ready(function () {
   $(document).on('click.guruModalFix', '.modal .close, .modal [data-dismiss="modal"]', function () {
     $(this).closest('.modal').modal('hide');
   });
+
+  // --- Edit Gelar ---
+  $(document).on('click', '.btn-edit-gelar', function () {
+    var $btn = $(this);
+    $('#edit-gelar-admin-id').val($btn.data('admin-id'));
+    $('#edit-gelar-depan').val($btn.data('gelar-depan'));
+    $('#edit-gelar-belakang').val($btn.data('gelar-belakang'));
+    $('.modal-edit-gelar').modal('show');
+  });
+
+  $(document).on('submit', '.form-edit-gelar', function (e) {
+    e.preventDefault();
+    var $form = $(this);
+    var $btn = $form.find('.btn-save-gelar').prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Menyimpan...');
+
+    $.ajax({
+      url: './mod/guru/proses.php',
+      method: 'POST',
+      data: $form.serialize(),
+      dataType: 'json',
+      success: function (res) {
+        if (res.status === 'success') {
+          if (typeof swal === 'function') {
+            swal({ title: 'Berhasil', text: res.message, icon: 'success', timer: 1200, buttons: false });
+          }
+          $('.modal-edit-gelar').modal('hide');
+          if (tableGuru) tableGuru.ajax.reload(null, false);
+        } else {
+          if (typeof swal === 'function') {
+            swal({ title: 'Gagal', text: res.message, icon: 'error' });
+          }
+        }
+      },
+      error: function () {
+        if (typeof swal === 'function') {
+          swal({ title: 'Error', text: 'Terjadi kesalahan server.', icon: 'error' });
+        }
+      },
+      complete: function () {
+        $btn.prop('disabled', false).text('Simpan');
+      }
+    });
+  });
 });
 
 function loadGuruTable() {

@@ -46,7 +46,7 @@ if (isset($_GET['search']) && is_array($_GET['search']) && isset($_GET['search']
 
 if ($sSearch !== '') {
   $s = $gaSql['link']->real_escape_string($sSearch);
-  $where .= " AND (g.nama LIKE '%$s%' OR g.jenis_ptk_id_str LIKE '%$s%' OR g.status_kepegawaian_id_str LIKE '%$s%' OR g.jabatan_ptk_id_str LIKE '%$s%' OR g.nuptk LIKE '%$s%' OR g.nik LIKE '%$s%' OR g.nip LIKE '%$s%')";
+  $where .= " AND (g.nama LIKE '%$s%' OR a.gelar_depan LIKE '%$s%' OR a.gelar_belakang LIKE '%$s%' OR g.jenis_ptk_id_str LIKE '%$s%' OR g.status_kepegawaian_id_str LIKE '%$s%' OR g.jabatan_ptk_id_str LIKE '%$s%' OR g.nuptk LIKE '%$s%' OR g.nik LIKE '%$s%' OR g.nip LIKE '%$s%')";
 }
 
 if (!empty($_GET['jenis_ptk'])) {
@@ -76,8 +76,12 @@ $query = "
     g.nip,
     g.nuptk,
     g.nik,
-    g.updated_at
+    g.updated_at,
+    a.admin_id,
+    a.gelar_depan,
+    a.gelar_belakang
   FROM sync_gtk g
+  LEFT JOIN admin a ON TRIM(COALESCE(a.ptk_id, '')) = TRIM(COALESCE(g.ptk_id, ''))
   $where
   ORDER BY g.nama ASC
   $limit
@@ -142,10 +146,20 @@ while ($r = $result->fetch_assoc()) {
   if (empty($id_parts)) $id_parts[] = '<span class="text-muted">-</span>';
   $id_col = '<div class="guru-id-stack">' . implode('', $id_parts) . '</div>';
 
+  // Build nama with gelar
+  $gelar_d = trim($r['gelar_depan'] ?? '');
+  $gelar_b = trim($r['gelar_belakang'] ?? '');
+  $nama_display = htmlspecialchars($r['nama']);
+  if ($gelar_d) $nama_display = htmlspecialchars($gelar_d) . ' ' . $nama_display;
+  if ($gelar_b) $nama_display .= ', ' . htmlspecialchars($gelar_b);
+
+  $admin_id = intval($r['admin_id'] ?? 0);
+  $edit_btn = $admin_id ? '<button class="btn btn-sm btn-outline-primary btn-edit-gelar ml-2" data-admin-id="' . $admin_id . '" data-gelar-depan="' . htmlspecialchars($gelar_d) . '" data-gelar-belakang="' . htmlspecialchars($gelar_b) . '" title="Edit gelar"><i class="fas fa-edit"></i></button>' : '';
+
   $row = array(
     '<div class="text-center">' . $no . '</div>',
     $id_col,
-    '<b>' . htmlspecialchars($r['nama']) . '</b>',
+    '<div class="d-flex align-items-center"><b>' . $nama_display . '</b>' . $edit_btn . '</div>',
     htmlspecialchars($r['jenis_ptk_id_str'] ?? '-'),
     htmlspecialchars($r['status_kepegawaian_id_str'] ?? '-'),
     htmlspecialchars($r['jabatan_ptk_id_str'] ?? '-')

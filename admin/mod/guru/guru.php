@@ -145,6 +145,41 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       </div>
     </div>
 
+    <!-- Modal Edit Gelar -->
+    <div class="modal fade modal-edit-gelar" tabindex="-1" role="dialog" aria-labelledby="modalEditGelarLabel" aria-hidden="true">
+      <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalEditGelarLabel">Edit Gelar Akademik</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <form class="form-edit-gelar" autocomplete="off">
+            <input type="hidden" name="action" value="edit_gelar">
+            <input type="hidden" name="admin_id" id="edit-gelar-admin-id" value="0">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token'] ?? ''); ?>">
+            <div class="modal-body">
+              <div class="form-group">
+                <label class="form-control-label">Gelar Depan</label>
+                <input type="text" class="form-control" name="gelar_depan" id="edit-gelar-depan" placeholder="Mis: Drs., Dr., S.Pd., dll" maxlength="50">
+                <small class="text-muted">Contoh: Drs., Dr., S.Pd., S.Kom.</small>
+              </div>
+              <div class="form-group mb-0">
+                <label class="form-control-label">Gelar Belakang</label>
+                <input type="text" class="form-control" name="gelar_belakang" id="edit-gelar-belakang" placeholder="Mis: M.Pd., M.Si., dll" maxlength="50">
+                <small class="text-muted">Contoh: M.Pd., M.Si., Ph.D.</small>
+              </div>
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
+              <button type="submit" class="btn btn-primary btn-save-gelar">Simpan</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <?php
   } else {
     hak_akses();

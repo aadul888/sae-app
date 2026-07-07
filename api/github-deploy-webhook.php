@@ -7,9 +7,9 @@
  * 1. Set webhook di repo GitHub → Settings → Webhooks → Add webhook
  *    - Payload URL: https://domain-anda.com/api/github-deploy-webhook.php
  *    - Content type: application/json
- *    - Secret: (isi string random, lalu set GITHUB_WEBHOOK_SECRET di config)
+ *    - Secret: cd3c2eac42000a6bf8c4f2a1f3c60dd0 (lihat library/github-config.php)
  *    - Events: Pushes
- * 2. Tambahkan define('GITHUB_WEBHOOK_SECRET', 'your-secret') di library/config.php
+ * 2. Secret sudah dikonfigurasi di library/github-config.php
  */
 
 require_once __DIR__ . '/../library/config.php';
@@ -28,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $payload = file_get_contents('php://input');
 $signature = $_SERVER['HTTP_X_HUB_SIGNATURE_256'] ?? '';
 
-if (defined('GITHUB_WEBHOOK_SECRET')) {
+if (defined('GITHUB_WEBHOOK_SECRET') && GITHUB_WEBHOOK_SECRET !== '') {
     $expected = 'sha256=' . hash_hmac('sha256', $payload, GITHUB_WEBHOOK_SECRET);
     if (!hash_equals($expected, $signature)) {
         http_response_code(401);
