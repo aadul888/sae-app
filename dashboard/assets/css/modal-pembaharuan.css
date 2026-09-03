@@ -1,0 +1,104 @@
+/* ===============================================
+   MODAL PEMBAHARUAN - COMPACT DESIGN
+   =============================================== */
+
+/* Modal Pembaharuan Styling */
+#modalPembaharuan .modal-content {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+#modalPembaharuan .bg-gradient-primary {
+  background: linear-gradient(90deg, #4c6ef5, #364fc7) !important;
+}
+
+#modalPembaharuan .modal-body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+#modalPembaharuan .modal-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+#modalPembaharuan .modal-body::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 2px;
+}
+
+#modalPembaharuan .modal-body::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+#modalPembaharuan .modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Update List Styling */
+#modalPembaharuan .update-list {
+  padding: 0;
+}
+
+#modalPembaharuan .update-item {
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+}
+
+#modalPembaharuan .update-item:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+#modalPembaharuan .update-text {
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* Badge Styling */
+#modalPembaharuan .badge {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Responsive Design */
+@media (max-width: 576px) {
+  #modalPembaharuan .modal-dialog {
+    margin: 20px 10px;
+    max-width: calc(100% - 20px);
+  }
+
+  #modalPembaharuan .modal-body {
+    max-height: 280px;
+    padding: 10px 12px 6px 12px;
+  }
+
+  #modalPembaharuan .modal-header {
+    padding: 10px 12px 6px 12px;
+  }
+
+  #modalPembaharuan .modal-footer {
+    padding: 6px 12px 10px 12px;
+  }
+
+  #modalPembaharuan .update-text {
+    font-size: 11px !important;
+  }
+
+  #modalPembaharuan .badge {
+    font-size: 8px !important;
+    padding: 2px 4px !important;
+  }
+}
+
+/* Animation */
+#modalPembaharuan.fade .modal-dialog {
+  transform: translateY(-50px);
+  transition: transform 0.3s ease-out;
+}
+
+#modalPembaharuan.show .modal-dialog {
+  transform: translateY(0);
+}

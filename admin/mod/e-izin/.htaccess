@@ -1,0 +1,6 @@
+# Rewrite pretty approve URL to actual PHP handler
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # map /approve?t=...  -> approve.php?t=...
+  RewriteRule ^approve$ approve.php [L,QSA]
+</IfModule>

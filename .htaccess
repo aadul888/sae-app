@@ -1,0 +1,126 @@
+# ===================================================================
+
+# SAE V5 - Apache Rewrite Rules (.htaccess)
+
+# ===================================================================
+
+# PENTING:
+
+# 1. Pastikan modul `mod_rewrite` di Apache sudah aktif.
+
+# 2. File ini harus ada di root direktori aplikasi.
+
+# ===================================================================
+
+# Aktifkan Rewrite Engine
+
+RewriteEngine On
+
+# Tentukan basis URL untuk rewrite rules
+
+# Jika aplikasi Anda berada di sub-folder, ubah / menjadi /nama-folder/
+
+RewriteBase /
+
+# --- Security: Block sensitive files ---
+
+# Blok akses ke file .git, .env, dll.
+
+<FilesMatch "\.(env|git|htaccess|htpasswd|svn|log)$">
+Order allow,deny
+Deny from all
+</FilesMatch>
+
+# --- Security: Hide .php extension ---
+
+# Canonical installer URL tanpa ekstensi
+
+RewriteCond %{THE_REQUEST} \s/+installer\.php[\s?] [NC]
+RewriteRule ^installer\.php$ /installer [R=302,L]
+RewriteRule ^installer/?$ installer.php [L,QSA]
+
+# Pretty URL umum untuk file PHP yang memang diakses langsung
+
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.+?)/?$ $1.php [L]
+
+# --- Block access to sensitive directories ---
+
+RewriteRule ^(vendor)/ - [F,L]
+
+# Izinkan library/google-client karena dibutuhkan oleh beberapa skrip publik
+
+RewriteCond %{REQUEST_URI} !^/library/google-client/
+RewriteRule ^(library|database)/ - [F,L]
+
+# --- GitHub Webhook ---
+
+# Tidak perlu aturan khusus jika file dapat diakses langsung,
+
+# pastikan URL `yourdomain.com/webhook.php` bisa dijangkau.
+
+# Aturan di bawah ini lebih sebagai jaminan.
+
+RewriteRule ^webhook\.php$ webhook.php [L]
+
+# --- Let's Encrypt / ACME challenge ---
+
+RewriteRule ^\.well-known/ - [L]
+
+# --- Favicon fallback ---
+
+RewriteRule ^favicon\.ico$ favicon.php [L]
+
+# --- Maintenance page routing ---
+
+RewriteRule ^maintenance$ maintenance.php [QSA,L]
+
+# --- API sync routes ---
+
+RewriteRule ^api/sync/([^/]+)/?$ api/sync.php?path=$1 [QSA,L]
+RewriteRule ^api/sync/?$ api/sync.php [QSA,L]
+
+# --- E-izin approve pretty URL ---
+
+RewriteRule ^admin/mod/e-izin/approve$ admin/mod/e-izin/approve.php [QSA,L]
+
+# --- Main rewrite rules ---
+
+# Aturan berikut hanya berlaku jika file atau direktori yang diminta tidak ada
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# ---- NISN routes ----
+
+RewriteRule ^nisn/([^/]\*)$ index.php?mod=nisn&nisn=$1 [QSA,L]
+
+# ---- Logout ----
+
+RewriteRule ^logout$ dashboard/oauth/logout.php [L]
+
+# ---- Block direct maintenance.php ----
+
+RewriteRule ^maintenance\.php$ index.php [L,R=404]
+
+# ---- Numeric NISN direct (8+ digit) ----
+
+RewriteRule ^([0-9]{8,})$ index.php?mod=nisn&nisn=$1 [QSA,L]
+
+# ---- Admin routes ----
+
+RewriteRule ^admin/?$ admin/index.php [L]
+RewriteRule ^admin/login/?$ admin/login/index.php [L]
+RewriteRule ^admin/login/forgot\.html$ admin/login/forgot.php [L]
+RewriteRule ^admin/logout$ admin/login/logout.php [L]
+RewriteRule ^admin/([a-zA-Z0-9_-]+)/?$ admin/index.php?mod=$1 [QSA,L]
+
+# ---- Dashboard routes ----
+
+RewriteRule ^dashboard/logout$ dashboard/oauth/logout.php [L]
+RewriteRule ^dashboard/([a-zA-Z0-9_-]+)/?$ dashboard/index.php?mod=$1 [QSA,L]
+
+# ---- Root module routing (HARUS PALING TERAKHIR) ----
+
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?mod=$1 [QSA,L]

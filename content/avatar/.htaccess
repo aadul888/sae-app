@@ -1,0 +1,13 @@
+# Allow images only
+
+<FilesMatch "\.(jpg|jpeg|png|gif|webp)$">
+Order allow,deny
+Allow from all
+</FilesMatch>
+
+# Block PHP and other executable files
+
+<FilesMatch "\.(php|php[0-9]|phtml|pht|phar|shtml|cgi|pl|py|rb|sh|asp|aspx|htaccess|htpasswd)$">
+Order deny,allow
+Deny from all
+</FilesMatch>

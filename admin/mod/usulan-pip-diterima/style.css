@@ -1,0 +1,141 @@
+/* Custom styles for Usulan PIP Diterima Modal */
+.usulan-pip-modal {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.usulan-pip-modal .card {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.usulan-pip-modal .card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.usulan-pip-modal .card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.usulan-pip-modal .card-header.bg-light {
+  background: #f8f9fa !important;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.usulan-pip-modal .badge-lg {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+}
+
+.usulan-pip-modal .table td {
+  padding: 0.375rem 0.75rem;
+  vertical-align: top;
+  border-top: none;
+}
+
+.usulan-pip-modal .table .text-muted {
+  font-weight: 500;
+  color: #6c757d !important;
+}
+
+.usulan-pip-modal .img-fluid.rounded-circle {
+  border: 3px solid #007bff;
+  padding: 2px;
+  background: white;
+}
+
+.usulan-pip-modal .bg-light {
+  background-color: #f8f9fa !important;
+}
+
+.usulan-pip-modal .btn-outline-info {
+  border-color: #17a2b8;
+  color: #17a2b8;
+}
+
+.usulan-pip-modal .btn-outline-info:hover {
+  background-color: #17a2b8;
+  border-color: #17a2b8;
+  color: white;
+}
+
+.usulan-pip-modal .btn-outline-secondary {
+  border-color: #6c757d;
+  color: #6c757d;
+}
+
+.usulan-pip-modal .btn-outline-secondary:hover {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: white;
+}
+
+/* Custom image viewer styles */
+.document-viewer {
+  position: relative;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+.viewer-image {
+  max-width: 100%;
+  max-height: 400px;
+  object-fit: contain;
+  border: 2px solid #e9ecef;
+  border-radius: 0.375rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Status badge improvements */
+.badge-lg {
+  font-size: 0.9rem;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .usulan-pip-modal .modal-dialog {
+    margin: 0.5rem;
+    max-width: calc(100% - 1rem);
+  }
+  
+  .usulan-pip-modal .modal-body {
+    padding: 1rem 0.75rem;
+  }
+  
+  .usulan-pip-modal .card-body {
+    padding: 0.75rem;
+  }
+  
+  .usulan-pip-modal .table td {
+    font-size: 0.875rem;
+  }
+}
+
+/* Document preview styles */
+.document-preview {
+  position: relative;
+  display: inline-block;
+  margin: 0.25rem;
+}
+
+.document-preview img {
+  border-radius: 0.375rem;
+  border: 2px solid #e9ecef;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.document-preview img:hover {
+  border-color: #007bff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.document-download {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+}

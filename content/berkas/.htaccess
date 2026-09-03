@@ -1,0 +1,14 @@
+# Block all direct access — files served through PHP with permission checks
+
+Order deny,allow
+Deny from all
+
+# Optionally allow PDF/doc downloads if needed (uncomment below)
+
+# <FilesMatch "\.(pdf|doc|docx|xls|xlsx|jpg|jpeg|png)$">
+
+# Order allow,deny
+
+# Allow from all
+
+# </FilesMatch>

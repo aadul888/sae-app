@@ -1,0 +1,18 @@
+RewriteEngine On
+Options -Indexes
+
+# Logout
+RewriteRule ^logout$ oauth/logout.php [L]
+
+# Allow existing files (assets, css, js, images)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# Allow existing directories
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Module routing (supports hyphenated names)
+RewriteRule ^([a-zA-Z0-9_-]+)/?$ index.php?mod=$1 [L,QSA]
+
+

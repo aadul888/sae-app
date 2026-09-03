@@ -1,0 +1,21 @@
+# Allow direct access to static media & asset files in content/
+
+<IfModule mod_authz_core.c>
+    Require all granted
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Allow from all
+</IfModule>
+
+# Block execution of PHP scripts uploaded into content directory
+
+<FilesMatch "\.(php|php[0-9]|phtml|phar|pl|py|cgi|sh|exe)$">
+<IfModule mod_authz_core.c>
+Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+Order deny,allow
+Deny from all
+</IfModule>
+</FilesMatch>

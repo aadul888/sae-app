@@ -1,0 +1,773 @@
+/* Custom styles for Usulan PIP Modal */
+.usulan-pip-modal {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Styles for Tambah Usulan Modal */
+#tambahUsulanModal .modal-content {
+  border: none;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+}
+
+#tambahUsulanModal .form-control-lg {
+  border: 2px solid #e3e6f0;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+#tambahUsulanModal .form-control-lg:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+#tambahUsulanModal .form-control.is-valid {
+  border-color: #28a745;
+  box-shadow: 0 0 0 0.2rem rgba(40, 167, 69, 0.25);
+}
+
+#tambahUsulanModal .form-control.is-invalid {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+#tambahUsulanModal .valid-feedback {
+  color: #28a745;
+  font-weight: 500;
+}
+
+#tambahUsulanModal .invalid-feedback {
+  color: #dc3545;
+  font-weight: 500;
+}
+
+#tambahUsulanModal .btn-lg {
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+#tambahUsulanModal .alert {
+  border-radius: 0.5rem;
+  border: none;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+#tambahUsulanModal .card.border-primary {
+  border-width: 2px !important;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+}
+
+#tambahUsulanModal .table td {
+  padding: 0.25rem 0.5rem;
+  border: none;
+  font-size: 0.9rem;
+}
+
+#tambahUsulanModal .spinner-border {
+  width: 3rem;
+  height: 3rem;
+}
+
+/* Animation for modal steps */
+#tambahUsulanModal #step-input-nisn,
+#tambahUsulanModal #step-konfirmasi-siswa {
+  animation: fadeInUp 0.3s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Button hover effects */
+#btnTambahUsulan:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+#btnCariSiswa:hover,
+#btnBuatUsulan:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 123, 255, 0.4);
+}
+
+/* Responsive adjustments for tambah usulan */
+@media (max-width: 768px) {
+  #tambahUsulanModal .modal-dialog {
+    max-width: 95%;
+    margin: 1rem auto;
+  }
+  
+  #tambahUsulanModal .btn-lg {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.95rem;
+  }
+  
+  #tambahUsulanModal .table td {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+  }
+}
+
+/* Verification Cards Styles */
+.verification-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+@media (min-width: 992px) {
+  .verification-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.verification-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 14px;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.06);
+  transition: all 0.3s ease;
+  border: 2px solid #e9ecef;
+  position: relative;
+  overflow: hidden;
+  height: 100%;
+}
+
+.verification-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 4px;
+  transition: height 0.3s ease;
+}
+
+.verification-card.valid {
+  border-color: #28a745;
+  background: linear-gradient(135deg, #f8fff9 0%, #e8f5e8 100%);
+}
+
+.verification-card.valid::before {
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+}
+
+.verification-card.invalid {
+  border-color: #dc3545;
+  background: linear-gradient(135deg, #fffafa 0%, #ffeaea 100%);
+}
+
+.verification-card.invalid::before {
+  background: linear-gradient(90deg, #dc3545 0%, #fd7e14 100%);
+}
+
+.verification-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+}
+
+.verification-card:hover::before {
+  height: 6px;
+}
+
+.verification-card .card-icon {
+  font-size: 2.2rem;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+.verification-card.valid .card-icon {
+  color: #28a745;
+  background: rgba(40, 167, 69, 0.1);
+}
+
+.verification-card.invalid .card-icon {
+  color: #dc3545;
+  background: rgba(220, 53, 69, 0.1);
+}
+
+.verification-card:hover .card-icon {
+  transform: scale(1.1);
+}
+
+.verification-card .card-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.verification-card .card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #2c3e50;
+  line-height: 1.2;
+}
+
+.verification-card .card-description {
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin: 0;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.verification-card .card-description strong {
+  color: #495057;
+  font-weight: 600;
+}
+
+.verification-card .card-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: auto;
+}
+
+.verification-card .status-badge {
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  border: none;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.verification-card .status-badge.valid {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+}
+
+.verification-card .status-badge.invalid {
+  background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+  color: white;
+}
+
+.verification-card .status-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.25);
+}
+
+.verification-card .status-badge i {
+  margin-right: 6px;
+  font-size: 0.75rem;
+}
+
+/* Responsive untuk verification cards */
+@media (max-width: 991px) {
+  .verification-cards {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .verification-cards {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  
+  .verification-card {
+    padding: 14px 12px;
+  }
+  
+  .verification-card .card-icon {
+    font-size: 1.8rem;
+    width: 50px;
+    height: 50px;
+    margin-bottom: 8px;
+  }
+  
+  .verification-card .card-content {
+    margin-bottom: 10px;
+  }
+  
+  .verification-card .card-title {
+    font-size: 1rem;
+    margin-bottom: 5px;
+  }
+  
+  .verification-card .card-description {
+    font-size: 0.75rem;
+    line-height: 1.3;
+  }
+  
+  .verification-card .status-badge {
+    padding: 5px 12px;
+    font-size: 0.65rem;
+  }
+}
+
+@media (max-width: 576px) {
+  .verification-cards {
+    gap: 8px;
+  }
+  
+  .verification-card {
+    padding: 12px 10px;
+  }
+  
+  .verification-card .card-icon {
+    font-size: 1.6rem;
+    width: 45px;
+    height: 45px;
+    margin-bottom: 6px;
+  }
+  
+  .verification-card .card-title {
+    font-size: 0.9rem;
+  }
+  
+  .verification-card .card-description {
+    font-size: 0.7rem;
+  }
+  
+  .verification-card .status-badge {
+    padding: 4px 10px;
+    font-size: 0.6rem;
+  }
+}
+
+/* Filter Dropdowns */
+.filter-kelas, .filter-status {
+  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  border: 1px solid #e3e6f0;
+  padding: 0.5rem 0.75rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.filter-kelas:focus, .filter-status:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+  outline: 0;
+}
+
+.filter-kelas:hover, .filter-status:hover {
+  border-color: #c3c6e0;
+}
+
+/* Responsive untuk filter */
+@media (max-width: 768px) {
+  .card-header .float-right {
+    float: none !important;
+    margin-top: 0.5rem;
+  }
+  
+  .filter-kelas, .filter-status {
+    width: 100% !important;
+    margin: 0.25rem 0 !important;
+    min-width: auto !important;
+  }
+  
+  .card-header h3 {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Stat cards for PIP - same structure as user module */
+.user-stats-wrap {
+  width: 100%;
+  padding: 0 12px;
+}
+.user-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 18px;
+  align-items: stretch;
+  margin: 12px 0 18px 0;
+  padding-bottom: 6px;
+}
+.user-stat-card {
+  width: 100%;
+  position: relative;
+  border-radius: 10px;
+  padding: 14px 18px;
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(2, 6, 23, 0.08);
+  overflow: hidden;
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding-right: 88px;
+}
+.user-stat-card .info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.user-stat-card .label {
+  display: block;
+  font-size: 13px;
+  opacity: 0.95;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.user-stat-card .value {
+  display: block;
+  font-size: 20px;
+  font-weight: 800;
+  margin-top: 6px;
+}
+.user-stat-card .icon {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 6px 12px rgba(15, 23, 42, 0.06);
+}
+.user-stat-card .icon i {
+  font-size: 22px;
+  color: rgba(255, 255, 255, 0.95);
+}
+.user-stat-total {
+  background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+}
+.user-stat-identitas {
+  background: linear-gradient(135deg, #10b981 0%, #047857 100%);
+}
+.user-stat-belum-sesuai {
+  background: linear-gradient(135deg, #f43f5e 0%, #dc2626 100%);
+}
+.user-stat-belum {
+  background: linear-gradient(135deg, #fb923c 0%, #d97706 100%);
+}
+
+.usulan-pip-modal .card {
+  box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  border: 1px solid rgba(0, 0, 0, 0.125);
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.usulan-pip-modal .card:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.usulan-pip-modal .card-header {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+.usulan-pip-modal .card-header.bg-light {
+  background: #f8f9fa !important;
+  border-bottom: 2px solid #e9ecef;
+}
+
+.usulan-pip-modal .badge-lg {
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+}
+
+.usulan-pip-modal .table td {
+  padding: 0.375rem 0.75rem;
+  vertical-align: top;
+  border-top: none;
+}
+
+.usulan-pip-modal .table .text-muted {
+  font-weight: 500;
+  color: #6c757d !important;
+}
+
+.usulan-pip-modal .img-fluid.rounded-circle {
+  border: 3px solid #007bff;
+  padding: 2px;
+  background: white;
+}
+
+.usulan-pip-modal .bg-light {
+  background-color: #f8f9fa !important;
+  border-radius: 0.375rem;
+  border: 1px solid #e9ecef;
+}
+
+.usulan-pip-modal .border-top {
+  border-top: 2px solid #e9ecef !important;
+}
+
+/* Action Panel Styles */
+.usulan-pip-modal .card.border-warning {
+  border-color: #ffc107 !important;
+  border-width: 2px !important;
+}
+
+.usulan-pip-modal .card-header.bg-warning {
+  background: linear-gradient(135deg, #ffc107 0%, #ff8c00 100%) !important;
+  color: #212529 !important;
+  font-weight: 600;
+}
+
+.usulan-pip-modal .btn-md {
+  padding: 0.5rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease-in-out;
+}
+
+.usulan-pip-modal .btn-success:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+.usulan-pip-modal .btn-danger:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+/* Form Styles */
+.usulan-pip-modal .form-control-sm {
+  border-radius: 0.375rem;
+  border: 2px solid #e9ecef;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.usulan-pip-modal .form-control-sm:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.usulan-pip-modal textarea.form-control {
+  border-radius: 0.375rem;
+  border: 2px solid #e9ecef;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.usulan-pip-modal textarea.form-control:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+/* Badge Styles */
+.usulan-pip-modal .badge {
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.25rem;
+}
+
+.usulan-pip-modal .badge-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+/* Animation */
+.usulan-pip-modal .approve-fields-wrapper,
+.usulan-pip-modal .reject-reason-wrapper {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .usulan-pip-modal .modal-dialog {
+    max-width: 95% !important;
+    margin: 1rem auto !important;
+  }
+  
+  .usulan-pip-modal .card-body {
+    padding: 1rem !important;
+  }
+  
+  .usulan-pip-modal .table td {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+  }
+  
+  .usulan-pip-modal .btn-md {
+    padding: 0.375rem 1rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Document preview styles */
+.document-preview {
+  position: relative;
+  display: inline-block;
+  margin: 0.25rem;
+}
+
+.document-preview img {
+  border-radius: 0.375rem;
+  border: 2px solid #e9ecef;
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+}
+
+.document-preview img:hover {
+  border-color: #007bff;
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.document-download {
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  text-decoration: none;
+  display: inline-block;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+
+.document-download:hover {
+  color: white;
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(40, 167, 69, 0.3);
+}
+
+/* Custom scrollbar */
+.usulan-pip-modal .modal-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.usulan-pip-modal .modal-body::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.usulan-pip-modal .modal-body::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.usulan-pip-modal .modal-body::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+/* Keterangan preview in datatable */
+.keterangan-preview {
+  max-width: 640px;
+  white-space: normal;
+  overflow: hidden;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+.keterangan-preview a.keterangan-toggle {
+  color: #007bff;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.keterangan-full {
+  display: none;
+}
+
+/* Stat cards (reuse user module look) */
+.user-stats-wrap { margin-bottom: 1rem; }
+.user-stats { display: flex; gap: 1rem; }
+.user-stat-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-radius: 0.6rem;
+  color: #fff;
+  min-height: 88px;
+  box-shadow: 0 6px 18px rgba(99, 102, 241, 0.08);
+}
+.user-stat-card .info .label { display:block; font-size:0.9rem; color: rgba(255,255,255,0.9); }
+.user-stat-card .info .value { font-size:1.6rem; font-weight:700; margin-top:6px; }
+.user-stat-card .icon { font-size:2.25rem; opacity:0.95; }
+
+.user-stat-total { background: linear-gradient(90deg, #3b82f6 0%, #6366f1 100%); }
+.user-stat-pending { background: linear-gradient(90deg, #fb923c 0%, #fb7185 100%); }
+.user-stat-disetujui { background: linear-gradient(90deg, #10b981 0%, #059669 100%); }
+.user-stat-ditolak { background: linear-gradient(90deg, #ef4444 0%, #f97316 100%); }
+
+@media (max-width: 767px) {
+  .user-stats { 
+    flex-direction: column; 
+    gap: 12px;
+  }
+  .user-stat-card { 
+    min-height: 72px; 
+    padding: 12px 16px;
+  }
+  .user-stat-card .info .label {
+    font-size: 0.8rem;
+  }
+  .user-stat-card .info .value {
+    font-size: 1.4rem;
+  }
+  .user-stat-card .icon {
+    font-size: 2rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .user-stats-wrap {
+    padding: 0 8px;
+  }
+  .user-stat-card {
+    min-height: 68px;
+    padding: 10px 14px;
+  }
+  .user-stat-card .info .label {
+    font-size: 0.75rem;
+  }
+  .user-stat-card .info .value {
+    font-size: 1.3rem;
+    margin-top: 4px;
+  }
+  .user-stat-card .icon {
+    font-size: 1.8rem;
+  }
+}

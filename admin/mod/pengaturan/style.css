@@ -1,0 +1,274 @@
+/* Pengaturan Page Styling */
+
+/* Header Enhancement */
+.header.bg-gradient-primary {
+  background: linear-gradient(135deg, #5e72e4 0%, #825ee4 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.header.bg-gradient-primary::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="white" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="white" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>');
+  pointer-events: none;
+}
+
+/* Card Enhancements */
+.card.shadow {
+  box-shadow: 0 0 2rem 0 rgba(136, 152, 170, 0.15) !important;
+  border: none;
+  border-radius: 0.5rem;
+}
+
+.card-header {
+  background: linear-gradient(135deg, #f8f9fe 0%, #ffffff 100%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 0.5rem 0.5rem 0 0 !important;
+}
+
+/* Navigation Pills Enhancement */
+.nav-pills .nav-link {
+  border-radius: 0.5rem;
+  color: #5e72e4;
+  background: transparent;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+}
+
+.nav-pills .nav-link:hover {
+  background: rgba(94, 114, 228, 0.1);
+  border-color: rgba(94, 114, 228, 0.2);
+  color: #5e72e4;
+  transform: translateY(-2px);
+}
+
+.nav-pills .nav-link.active {
+  background: linear-gradient(45deg, #5e72e4, #825ee4);
+  border-color: #5e72e4;
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(94, 114, 228, 0.3);
+}
+
+.nav-pills .nav-link.active:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(94, 114, 228, 0.4);
+}
+
+/* Tab Content Styling */
+.tab-content {
+  min-height: 400px;
+  padding: 1.5rem 0;
+}
+
+.load-form {
+  min-height: 300px;
+}
+
+/* Loading Animation */
+.spinner-border {
+  width: 3rem;
+  height: 3rem;
+  border-width: 0.3em;
+}
+
+/* Alert Styling */
+.alert {
+  border-radius: 0.5rem;
+  border: none;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.alert-warning {
+  background: linear-gradient(45deg, #fb6340, #fbb140);
+  color: white;
+}
+
+.alert-warning .alert-inner--icon {
+  color: white;
+}
+
+/* Icon Styling */
+.card-header h3 i {
+  background: linear-gradient(45deg, #5e72e4, #825ee4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============================================================
+   Sidebar Info Panels: top on mobile, right on desktop
+   ============================================================ */
+
+/* On mobile: bring sidebar above form content */
+.setting-sidebar {
+  order: -1;
+  margin-bottom: 1rem;
+}
+
+/* On desktop (lg+): sidebar naturally sits to the right in HTML order */
+@media (min-width: 992px) {
+  .setting-sidebar {
+    order: 0;
+    margin-bottom: 0;
+  }
+}
+
+/* ============================================================
+   Responsive Adjustments
+   ============================================================ */
+@media (max-width: 768px) {
+  .nav-pills .nav-link {
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+  }
+
+  .card-header h3 {
+    font-size: 1.25rem;
+  }
+
+  .header-body .col-5 {
+    display: none;
+  }
+
+  /* Force all col-md-* inside form rows to full width on mobile */
+  .load-form .form-group.row > [class*="col-"] {
+    flex: 0 0 100% !important;
+    max-width: 100% !important;
+    text-align: left !important;
+    padding-bottom: 2px;
+  }
+
+  .load-form .form-group.row > label.col-form-label {
+    padding-bottom: 2px !important;
+    padding-top: 0 !important;
+  }
+
+  /* Side-by-side col-lg split → stack on mobile */
+  .load-form .col-lg-8,
+  .load-form .col-lg-6,
+  .load-form .col-lg-4 {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  /* Card headers compact on mobile */
+  .load-form .card-header {
+    padding: 0.75rem 1rem !important;
+  }
+
+  /* Table responsive in forms */
+  .load-form .table-responsive table {
+    min-width: 400px;
+  }
+}
+
+@media (max-width: 576px) {
+  .nav-pills {
+    flex-direction: column;
+  }
+
+  .nav-pills .nav-link {
+    margin-bottom: 0.5rem;
+    text-align: center;
+  }
+}
+
+/* Form Styling when loaded */
+.load-form .form-group {
+  margin-bottom: 1.5rem;
+}
+
+.load-form .form-control {
+  border-radius: 0.5rem;
+  border: 2px solid #e9ecef;
+  transition: all 0.3s ease;
+}
+
+.load-form .form-control:focus {
+  border-color: #5e72e4;
+  box-shadow: 0 0 0 0.2rem rgba(94, 114, 228, 0.25);
+}
+
+/* Button Styling */
+.btn-primary {
+  background: linear-gradient(45deg, #5e72e4, #825ee4);
+  border: none;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(94, 114, 228, 0.4);
+}
+
+/* Success Message */
+.alert-success {
+  background: linear-gradient(45deg, #2dce89, #26d0ce);
+  color: white;
+  border: none;
+}
+
+/* Info Message */
+.alert-info {
+  background: linear-gradient(45deg, #11cdef, #1171ef);
+  color: white;
+  border: none;
+}
+
+/* WhatsApp Gateway Specific Styles */
+.fab.fa-whatsapp {
+  color: #25D366;
+}
+
+.btn-whatsapp {
+  background: linear-gradient(45deg, #25D366, #128C7E);
+  border: none;
+  color: white;
+}
+
+.btn-whatsapp:hover {
+  background: linear-gradient(45deg, #128C7E, #075E54);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
+}
+
+.card.bg-gradient-success {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%);
+}
+
+/* WhatsApp form specific enhancements */
+.form-whatsapp-gateway .form-control:focus {
+  border-color: #25D366;
+  box-shadow: 0 0 0 0.2rem rgba(37, 211, 102, 0.25);
+}
+
+.form-whatsapp-gateway .custom-control-input:checked ~ .custom-control-label::before {
+  background-color: #25D366;
+  border-color: #25D366;
+}
+
+.form-whatsapp-gateway .form-group .pl-4 {
+  padding-left: 2rem !important;
+}
+
+/* Status indicators */
+.status-active {
+  color: #25D366;
+  font-weight: bold;
+}
+
+.status-inactive {
+  color: #dc3545;
+  font-weight: bold;
+}
