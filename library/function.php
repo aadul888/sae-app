@@ -25,6 +25,91 @@ if (!function_exists('debug_log')) {
 }
 
 
+/**
+ * Mengembalikan path absolut ke folder content/ project.
+ * Aman digunakan di Apache maupun Nginx/PHP-FPM karena
+ * tidak bergantung pada getcwd().
+ * 
+ * @param string $sub Sub-path opsional (e.g. 'avatar/', 'assets/logo-jurusan/')
+ * @return string Path absolut ke content/ atau sub-folder-nya
+ */
+if (!function_exists('content_path')) {
+  function content_path(string $sub = ''): string
+  {
+    static $base = null;
+    if ($base === null) {
+      // library/function.php -> dirname = library/ -> parent = root project
+      $base = realpath(dirname(__DIR__) . '/content');
+      if (!$base) {
+        $base = dirname(__DIR__) . '/content';
+      }
+    }
+    if ($sub === '') return $base;
+    return $base . '/' . ltrim($sub, '/\\');
+  }
+}
+
+/**
+ * Helper upload file ke folder content/ dengan fallback bertingkat.
+ * Menangani permission issue di hosting Linux (file owned by root).
+ * 
+ * @param string $tmp_file Path temporary file ($_FILES[x]['tmp_name'])
+ * @param string $filename Nama file tujuan (e.g. 'logoweb1.png')
+ * @param string $sub_dir Sub-direktori di content/ (e.g. 'assets/logo-jurusan')
+ * @return string|false Path absolut file jika berhasil, false jika gagal
+ */
+if (!function_exists('content_upload')) {
+  function content_upload(string $tmp_file, string $filename, string $sub_dir = ''): string|false
+  {
+    $base = content_path();
+    $dirs = [];
+    if ($sub_dir !== '') {
+      $dirs[] = $base . '/' . trim($sub_dir, '/\\');
+    }
+    $dirs[] = $base;
+
+    $target_dir = '';
+    foreach ($dirs as $dir) {
+      if (!file_exists($dir)) {
+        @mkdir($dir, 0755, true);
+      }
+      if (is_dir($dir)) {
+        @chmod($dir, 0755);
+        if (is_writable($dir)) {
+          $target_dir = $dir;
+          break;
+        }
+      }
+    }
+    if ($target_dir === '') return false;
+
+    $dest = rtrim($target_dir, '/\\') . '/' . $filename;
+
+    // Hapus file lama jika ada (bisa owned by root)
+    if (file_exists($dest)) {
+      @chmod($dest, 0666);
+      @unlink($dest);
+    }
+
+    // Coba 3 metode upload
+    if (@move_uploaded_file($tmp_file, $dest)) {
+      @chmod($dest, 0644);
+      return $dest;
+    }
+    if (@copy($tmp_file, $dest)) {
+      @chmod($dest, 0644);
+      return $dest;
+    }
+    $data = @file_get_contents($tmp_file);
+    if ($data !== false && @file_put_contents($dest, $data) !== false) {
+      @chmod($dest, 0644);
+      return $dest;
+    }
+    return false;
+  }
+}
+
+
 function hari_aja()
 {
   $seminggu = array("Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu");

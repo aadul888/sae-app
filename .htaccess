@@ -27,8 +27,13 @@ RewriteBase /
 # Blok akses ke file .git, .env, dll.
 
 <FilesMatch "\.(env|git|htaccess|htpasswd|svn|log)$">
+<IfModule mod_authz_core.c>
+Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
 Order allow,deny
 Deny from all
+</IfModule>
 </FilesMatch>
 
 # --- Security: Hide .php extension ---

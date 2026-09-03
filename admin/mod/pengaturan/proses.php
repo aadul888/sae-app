@@ -241,7 +241,7 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       $size        = $_FILES['file']['size'];
       $error       = $_FILES['file']['error'];
       $tmpName     = $_FILES['file']['tmp_name'];
-      $folder      = (realpath(__DIR__ . '/../../../content') ?: (__DIR__ . '/../../../content')) . '/';
+      $folder      = content_path() . '/';
       $valid       = array('jpg', 'png', 'gif', 'jpeg');
       if (strlen($file_name)) {
         // Ambil ekstensi dari nama file (support nama file dengan titik ganda)
@@ -252,22 +252,25 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           if ($size < 500000) {
             // Perintah pengganti nama files
             $site_logo = 'logoweb1' . $file_ext;
-            $pathFile       = $folder . $site_logo;
 
             $query = "SELECT site_logo FROM setting WHERE site_id=$real_site_id";
             $result = $connection->query($query);
             $rows = $result->fetch_assoc();
             $logo = $rows['site_logo'];
-            if (file_exists("../../../content/$logo")) {
-              unlink("../../../content/$logo");
+            $old_file = content_path($logo);
+            if (!empty($logo) && file_exists($old_file)) {
+              @unlink($old_file);
             }
             $update = "UPDATE setting SET site_logo='$site_logo' WHERE site_id=$real_site_id";
             if ($connection->query($update) === false) {
               echo 'Pengaturan tidak dapat disimpan, coba ulangi beberapa saat lagi.!';
               die($connection->error . __LINE__);
             } else {
-              echo 'success';
-              move_uploaded_file($tmpName, $pathFile);
+              if (content_upload($tmpName, $site_logo)) {
+                echo 'success';
+              } else {
+                echo 'Gagal menyimpan file logo. Periksa permission folder content/.';
+              }
             }
           } else { // Jika Gambar melebihi size 
             echo 'File terlalu besar maksimal files 5MB.!';
@@ -313,7 +316,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       $size        = $_FILES['file2']['size'];
       $error       = $_FILES['file2']['error'];
       $tmpName     = $_FILES['file2']['tmp_name'];
-      $folder      = '../../../content/';
       $valid       = array('jpg', 'png', 'gif', 'jpeg');
       if (strlen($file_name)) {
         $ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
@@ -321,21 +323,24 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         if (in_array($ext, $valid)) {
           if ($size < 500000) {
             $site_logo2 = 'logoweb2' . $file_ext;
-            $pathFile = $folder . $site_logo2;
             $query = "SELECT site_logo2 FROM setting WHERE site_id=$real_site_id";
             $result = $connection->query($query);
             $rows = $result->fetch_assoc();
             $logo2 = $rows['site_logo2'];
-            if (file_exists("../../../content/$logo2")) {
-              unlink("../../../content/$logo2");
+            $old_file = content_path($logo2);
+            if (!empty($logo2) && file_exists($old_file)) {
+              @unlink($old_file);
             }
             $update = "UPDATE setting SET site_logo2='$site_logo2' WHERE site_id=$real_site_id";
             if ($connection->query($update) === false) {
               echo 'Pengaturan tidak dapat disimpan, coba ulangi beberapa saat lagi.!';
               die($connection->error . __LINE__);
             } else {
-              echo 'success';
-              move_uploaded_file($tmpName, $pathFile);
+              if (content_upload($tmpName, $site_logo2)) {
+                echo 'success';
+              } else {
+                echo 'Gagal menyimpan file logo. Periksa permission folder content/.';
+              }
             }
           } else {
             echo 'File terlalu besar maksimal files 5MB.!';
@@ -352,7 +357,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       $size        = $_FILES['file']['size'];
       $error       = $_FILES['file']['error'];
       $tmpName     = $_FILES['file']['tmp_name'];
-      $folder      = '../../../content/';
       $valid       = array('jpg', 'png', 'gif', 'jpeg');
       if (strlen($file_name)) {
         $ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
@@ -360,24 +364,26 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
 
         if (in_array($ext, $valid)) {
           if ($size < 500000) {
-            // Perintah pengganti nama files
-            $site_logo = 'favicon' . $file_ext . '';
-            $pathFile       = $folder . $site_logo;
+            $site_logo = 'favicon' . $file_ext;
 
             $query = "SELECT site_favicon FROM setting WHERE site_id=$real_site_id";
             $result = $connection->query($query);
             $rows = $result->fetch_assoc();
             $favicon = $rows['site_favicon'];
-            if (file_exists("../../../content/$favicon")) {
-              unlink("../../../content/$favicon");
+            $old_file = content_path($favicon);
+            if (!empty($favicon) && file_exists($old_file)) {
+              @unlink($old_file);
             }
             $update = "UPDATE setting SET site_favicon='$site_logo' WHERE site_id=$real_site_id";
             if ($connection->query($update) === false) {
               echo 'Pengaturan tidak dapat disimpan, coba ulangi beberapa saat lagi.!';
               die($connection->error . __LINE__);
             } else {
-              echo 'success';
-              move_uploaded_file($tmpName, $pathFile);
+              if (content_upload($tmpName, $site_logo)) {
+                echo 'success';
+              } else {
+                echo 'Gagal menyimpan file favicon. Periksa permission folder content/.';
+              }
             }
           } else { // Jika Gambar melebihi size 
             echo 'File terlalu besar maksimal files 5MB.!';
@@ -394,7 +400,6 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
       $size        = $_FILES['file_kop']['size'];
       $error       = $_FILES['file_kop']['error'];
       $tmpName     = $_FILES['file_kop']['tmp_name'];
-      $folder      = '../../../content/';
       $valid       = array('jpg', 'png', 'gif', 'jpeg');
       if (strlen($file_name)) {
         $ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
@@ -403,24 +408,21 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           // Allow up to 2MB to match frontend guidance
           if ($size <= 2 * 1024 * 1024) {
             $site_kop = 'kopsekolah' . $file_ext;
-            $pathFile = $folder . $site_kop;
 
             $query = "SELECT site_kop FROM setting WHERE site_id=$real_site_id";
             $result = $connection->query($query);
             $rows = $result->fetch_assoc();
             $kop = $rows['site_kop'];
-            if (!empty($kop) && file_exists("../../../content/$kop")) {
-              unlink("../../../content/$kop");
+            $old_file = content_path($kop);
+            if (!empty($kop) && file_exists($old_file)) {
+              @unlink($old_file);
             }
 
-            // First move the uploaded file to the destination. Only update DB if the move succeeds.
-            if (move_uploaded_file($tmpName, $pathFile)) {
+            $saved = content_upload($tmpName, $site_kop);
+            if ($saved) {
               $update = "UPDATE setting SET site_kop='$site_kop' WHERE site_id=$real_site_id";
               if ($connection->query($update) === false) {
-                // rollback the file if DB update fails
-                if (file_exists($pathFile)) {
-                  unlink($pathFile);
-                }
+                @unlink($saved);
                 echo 'Pengaturan tidak dapat disimpan, coba ulangi beberapa saat lagi.!';
                 die($connection->error . __LINE__);
               } else {
