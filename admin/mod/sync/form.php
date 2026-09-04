@@ -35,13 +35,16 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
     <div class="row">
       <div class="col-lg-12">
         <div class="card shadow border-left-info">
-          <div class="card-header py-3 px-3 module-table-header">
+          <div class="card-header py-3 px-3 module-table-header d-flex justify-content-between align-items-center flex-wrap">
             <h5 class="mb-0"><i class="fas fa-plug text-info mr-2"></i>Info API untuk Loader SAE</h5>
+            <a href="../content/LoaderSAE-Installer-Full.zip" class="btn btn-sm btn-success" download>
+              <i class="fas fa-download mr-1"></i> Unduh Loader SAE
+            </a>
           </div>
           <div class="card-body">
             <div class="alert alert-primary" role="alert">
               <i class="fas fa-info-circle mr-2"></i>
-              Gunakan Token API di bawah ini pada aplikasi <b>Loader SAE</b> yang dipasang di komputer operator (satu PC dengan Dapodik).
+              Gunakan Token API di bawah ini pada aplikasi <b>Loader SAE</b> yang dipasang di komputer operator (satu PC dengan Dapodik). Belum punya aplikasi? <a href="../content/LoaderSAE-Installer-Full.zip" class="font-weight-bold text-white text-underline" download><i class="fas fa-download ml-1 mr-1"></i>Unduh Loader SAE di sini</a>.
             </div>
             <div class="form-group mb-0">
               <label class="form-control-label"><strong>Token API SAE</strong></label>
