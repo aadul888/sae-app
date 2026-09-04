@@ -120,12 +120,14 @@ function submitForm_Logo() {
           title: "Berhasil!",
           text: "Data jurusan berhasil diperbarui.",
           icon: "success",
-          timer: 2500,
+          timer: 1500,
+          buttons: false,
+        }).then(function () {
+          location.reload();
         });
-        $(".form-add").trigger("reset");
-        $("#logo-preview").html("");
-        $(".modal-add").modal("hide");
-        loadData();
+        setTimeout(function () {
+          location.reload();
+        }, 1500);
       } else {
         swal({
           title: "Oops!",
