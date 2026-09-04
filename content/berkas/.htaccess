@@ -1,5 +1,18 @@
-# Block all direct access — files served through PHP with permission checks
+# Allow document and media files
 
+<FilesMatch "\.(pdf|doc|docx|xls|xlsx|csv|zip|rar|jpg|jpeg|png|webp)$">
+<IfModule mod_authz_core.c>
+Require all granted
+</IfModule>
+<IfModule !mod_authz_core.c>
+Order allow,deny
+Allow from all
+</IfModule>
+</FilesMatch>
+
+# Block PHP and executable scripts
+
+<FilesMatch "\.(php|php[0-9]|phtml|phar|pl|py|cgi|sh|exe)$">
 <IfModule mod_authz_core.c>
 Require all denied
 </IfModule>
@@ -7,23 +20,4 @@ Require all denied
 Order deny,allow
 Deny from all
 </IfModule>
-
-# Optionally allow PDF/doc downloads if needed (uncomment below)
-
-# <FilesMatch "\.(pdf|doc|docx|xls|xlsx|jpg|jpeg|png)$">
-
-# <IfModule mod_authz_core.c>
-
-# Require all granted
-
-# </IfModule>
-
-# <IfModule !mod_authz_core.c>
-
-# Order allow,deny
-
-# Allow from all
-
-# </IfModule>
-
-# </FilesMatch>
+</FilesMatch>

@@ -1,3 +1,10 @@
+# Disable directory browsing & disable rewrite engine for static content
+
+Options -Indexes
+<IfModule mod_rewrite.c>
+RewriteEngine Off
+</IfModule>
+
 # Allow direct access to static media & asset files in content/
 
 <IfModule mod_authz_core.c>

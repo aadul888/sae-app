@@ -68,42 +68,35 @@ if (!function_exists('content_upload')) {
     }
     $dirs[] = $base;
 
-    $target_dir = '';
     foreach ($dirs as $dir) {
       if (!file_exists($dir)) {
-        @mkdir($dir, 0755, true);
+        @mkdir($dir, 0777, true);
       }
+
       if (is_dir($dir)) {
-        @chmod($dir, 0755);
-        if (is_writable($dir)) {
-          $target_dir = $dir;
-          break;
+        $dest = rtrim($dir, '/\\') . '/' . $filename;
+
+        // Hapus file lama jika ada
+        if (file_exists($dest)) {
+          @chmod($dest, 0666);
+          @unlink($dest);
+        }
+
+        // Coba 3 metode upload
+        if (@move_uploaded_file($tmp_file, $dest)) {
+          @chmod($dest, 0644);
+          return $dest;
+        }
+        if (@copy($tmp_file, $dest)) {
+          @chmod($dest, 0644);
+          return $dest;
+        }
+        $data = @file_get_contents($tmp_file);
+        if ($data !== false && @file_put_contents($dest, $data) !== false) {
+          @chmod($dest, 0644);
+          return $dest;
         }
       }
-    }
-    if ($target_dir === '') return false;
-
-    $dest = rtrim($target_dir, '/\\') . '/' . $filename;
-
-    // Hapus file lama jika ada (bisa owned by root)
-    if (file_exists($dest)) {
-      @chmod($dest, 0666);
-      @unlink($dest);
-    }
-
-    // Coba 3 metode upload
-    if (@move_uploaded_file($tmp_file, $dest)) {
-      @chmod($dest, 0644);
-      return $dest;
-    }
-    if (@copy($tmp_file, $dest)) {
-      @chmod($dest, 0644);
-      return $dest;
-    }
-    $data = @file_get_contents($tmp_file);
-    if ($data !== false && @file_put_contents($dest, $data) !== false) {
-      @chmod($dest, 0644);
-      return $dest;
     }
     return false;
   }
