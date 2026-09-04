@@ -123,38 +123,43 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
         $jurusan_id = trim((string)$aRow['jurusan_id']);
         $kode_jurusan = trim((string)$aRow['kode_jurusan']);
 
-        $candidates = [];
-        if ($logo_file !== '') {
-            $candidates[] = $logo_file;
-            if (!str_ends_with(strtolower($logo_file), '.png')) {
-                $candidates[] = $logo_file . '.png';
-            }
-        }
-        if ($jurusan_id !== '') {
-            $candidates[] = $jurusan_id . '.png';
-        }
-        if ($kode_jurusan !== '') {
-            $candidates[] = $kode_jurusan . '.png';
-        }
-
-        $candidates = array_unique($candidates);
         $found_web_path = '';
 
-        $content_dir = realpath(__DIR__ . '/../../../content');
-        if (!$content_dir) {
-            $content_dir = __DIR__ . '/../../../content';
-        }
+        if ($logo_file !== '' && str_starts_with($logo_file, 'data:image/')) {
+            $found_web_path = $logo_file;
+        } else {
+            $candidates = [];
+            if ($logo_file !== '') {
+                $candidates[] = $logo_file;
+                if (!str_ends_with(strtolower($logo_file), '.png')) {
+                    $candidates[] = $logo_file . '.png';
+                }
+            }
+            if ($jurusan_id !== '') {
+                $candidates[] = $jurusan_id . '.png';
+            }
+            if ($kode_jurusan !== '') {
+                $candidates[] = $kode_jurusan . '.png';
+            }
 
-        foreach ($candidates as $cand) {
-            $check_map = [
-                $content_dir . '/assets/logo-jurusan/' . $cand => '../content/assets/logo-jurusan/' . $cand,
-                $content_dir . '/logo-jurusan/' . $cand => '../content/logo-jurusan/' . $cand,
-                $content_dir . '/' . $cand => '../content/' . $cand,
-            ];
-            foreach ($check_map as $fs_p => $web_p) {
-                if (file_exists($fs_p)) {
-                    $found_web_path = $web_p;
-                    break 2;
+            $candidates = array_unique($candidates);
+
+            $content_dir = realpath(__DIR__ . '/../../../content');
+            if (!$content_dir) {
+                $content_dir = __DIR__ . '/../../../content';
+            }
+
+            foreach ($candidates as $cand) {
+                $check_map = [
+                    $content_dir . '/assets/logo-jurusan/' . $cand => '../content/assets/logo-jurusan/' . $cand,
+                    $content_dir . '/logo-jurusan/' . $cand => '../content/logo-jurusan/' . $cand,
+                    $content_dir . '/' . $cand => '../content/' . $cand,
+                ];
+                foreach ($check_map as $fs_p => $web_p) {
+                    if (file_exists($fs_p)) {
+                        $found_web_path = $web_p;
+                        break 2;
+                    }
                 }
             }
         }

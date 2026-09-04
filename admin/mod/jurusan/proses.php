@@ -57,7 +57,13 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           exit;
         }
 
-        $logo_db = mysqli_real_escape_string($connection, $logo_filename);
+        // Pastikan kolom logo bisa menampung nama file maupun base64 data URI jika folder hosting read-only
+        if (str_starts_with($saved, 'data:')) {
+          @$connection->query("ALTER TABLE jurusan MODIFY COLUMN logo TEXT NULL");
+          $logo_db = mysqli_real_escape_string($connection, $saved);
+        } else {
+          $logo_db = mysqli_real_escape_string($connection, $logo_filename);
+        }
         $update_parts[] = "logo='$logo_db'";
       } else if (isset($_FILES['logo_jurusan']) && $_FILES['logo_jurusan']['error'] !== UPLOAD_ERR_NO_FILE) {
         echo 'Terjadi kesalahan saat mengunggah file logo (Error code: ' . $_FILES['logo_jurusan']['error'] . ')';

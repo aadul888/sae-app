@@ -82,7 +82,7 @@ if (!function_exists('content_upload')) {
           @unlink($dest);
         }
 
-        // Coba 3 metode upload
+        // Coba 3 metode upload ke disk
         if (@move_uploaded_file($tmp_file, $dest)) {
           @chmod($dest, 0644);
           return $dest;
@@ -98,6 +98,18 @@ if (!function_exists('content_upload')) {
         }
       }
     }
+
+    // Fallback: Jika disk write gagal karena permission hosting (755 owned by root),
+    // ubah file menjadi Data URI base64 agar upload tetap berhasil disimpan
+    $data = @file_get_contents($tmp_file);
+    if ($data !== false) {
+      $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+      $mime = $finfo ? @finfo_file($finfo, $tmp_file) : 'image/png';
+      if ($finfo) @finfo_close($finfo);
+      if (!$mime || $mime === 'text/plain') $mime = 'image/png';
+      return 'data:' . $mime . ';base64,' . base64_encode($data);
+    }
+
     return false;
   }
 }
