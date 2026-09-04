@@ -133,7 +133,7 @@ document.getElementById(\'btn-copy-api-key\').addEventListener(\'click\',functio
         <div class="alert alert-success" role="alert">
           <span class="alert-inner--icon"><i class="fas fa-database"></i></span>
           <span class="alert-inner--text">
-            <strong>Tarik Data Dapodik Terbaru:</strong> Klik satu tombol <b>Tarik Data Dapodik</b> untuk menarik semua data terbaru dari Dapodik dan memprosesnya ke tabel lokal secara berurutan.
+            <strong>Tarik Data Dapodik:</strong> Klik tombol <b>Tarik Data</b> pada masing-masing data untuk memproses data dari Dapodik ke tabel lokal secara mandiri tanpa mengganggu data lainnya.
           </span>
         </div>
       </div>
@@ -141,13 +141,12 @@ document.getElementById(\'btn-copy-api-key\').addEventListener(\'click\',functio
 
     <div class="card shadow">
       <div class="card-header bg-white py-3 sync-simple-header">
-        <h4 class="mb-3"><i class="fas fa-database text-primary mr-2"></i>Tarik Data Dapodik</h4>
-        <div class="sync-main-btn-wrap">
-          <button class="btn btn-success btn-lg px-5 sync-main-btn" id="btnSyncAllData">
-            <i class="fas fa-download mr-1"></i> Tarik Data Dapodik
+        <div class="d-flex justify-content-between align-items-center flex-wrap">
+          <h4 class="mb-0"><i class="fas fa-database text-primary mr-2"></i>Tarik Data Dapodik</h4>
+          <button class="btn btn-outline-primary btn-sm" id="btnSyncAllData">
+            <i class="fas fa-layer-group mr-1"></i> Tarik Semua Data
           </button>
         </div>
-        <div class="mt-2 text-muted small text-center">Satu tombol untuk tarik semua data terbaru secara berurutan.</div>
       </div>
       <div class="card-body p-0">
         <div class="table-responsive">
@@ -158,7 +157,7 @@ document.getElementById(\'btn-copy-api-key\').addEventListener(\'click\',functio
                 <th class="border-0 text-center">JML DATA DAPODIK</th>
                 <th class="border-0 text-center">JML DATA LOKAL</th>
                 <th class="border-0 text-center">TERAKHIR SYNC</th>
-                <th class="border-0">LOG</th>
+                <th class="border-0 text-center" style="width: 220px;">AKSI</th>
               </tr>
             </thead>
             <tbody>';
@@ -186,17 +185,20 @@ document.getElementById(\'btn-copy-api-key\').addEventListener(\'click\',functio
             <td class="text-center">
               <small class="text-muted">' . ($sekolah_date ? date('d/m/Y H:i', strtotime($sekolah_date)) : 'Belum pernah') . '</small>
             </td>
-            <td>';
-
+            <td class="text-center">
+              <div class="mb-1">';
     if ($sekolah_status == 'success') {
-      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
+      echo '<small class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil</small>';
     } elseif ($sekolah_status == 'failed') {
-      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
+      echo '<small class="text-danger font-weight-bold"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal</small>';
     } else {
-      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum sync</small>';
     }
-
-    echo '</td>
+    echo '    </div>
+              <button class="btn btn-sm btn-primary btn-sync-single" data-action="getSekolah" data-label="Sekolah">
+                <i class="fas fa-download mr-1"></i> Tarik Data
+              </button>
+            </td>
           </tr>';
 
     // Data GTK  
@@ -222,17 +224,20 @@ document.getElementById(\'btn-copy-api-key\').addEventListener(\'click\',functio
             <td class="text-center">
               <small class="text-muted">' . ($gtk_date ? date('d/m/Y H:i', strtotime($gtk_date)) : 'Belum pernah') . '</small>
             </td>
-            <td>';
-
+            <td class="text-center">
+              <div class="mb-1">';
     if ($gtk_status == 'success') {
-      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
+      echo '<small class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil</small>';
     } elseif ($gtk_status == 'failed') {
-      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
+      echo '<small class="text-danger font-weight-bold"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal</small>';
     } else {
-      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum sync</small>';
     }
-
-    echo '</td>
+    echo '    </div>
+              <button class="btn btn-sm btn-primary btn-sync-single" data-action="getGtk" data-label="GTK">
+                <i class="fas fa-download mr-1"></i> Tarik Data
+              </button>
+            </td>
           </tr>';
 
     // Data Rombongan Belajar
@@ -258,17 +263,20 @@ document.getElementById(\'btn-copy-api-key\').addEventListener(\'click\',functio
             <td class="text-center">
               <small class="text-muted">' . ($rombel_date ? date('d/m/Y H:i', strtotime($rombel_date)) : 'Belum pernah') . '</small>
             </td>
-            <td>';
-
+            <td class="text-center">
+              <div class="mb-1">';
     if ($rombel_status == 'success') {
-      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
+      echo '<small class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil</small>';
     } elseif ($rombel_status == 'failed') {
-      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
+      echo '<small class="text-danger font-weight-bold"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal</small>';
     } else {
-      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum sync</small>';
     }
-
-    echo '</td>
+    echo '    </div>
+              <button class="btn btn-sm btn-primary btn-sync-single" data-action="getRombonganBelajar" data-label="Rombongan Belajar">
+                <i class="fas fa-download mr-1"></i> Tarik Data
+              </button>
+            </td>
           </tr>';
 
     // Data Peserta Didik
@@ -300,17 +308,20 @@ document.getElementById(\'btn-copy-api-key\').addEventListener(\'click\',functio
             <td class="text-center">
               <small class="text-muted">' . ($siswa_date ? date('d/m/Y H:i', strtotime($siswa_date)) : 'Belum pernah') . '</small>
             </td>
-            <td>';
-
+            <td class="text-center">
+              <div class="mb-1">';
     if ($siswa_status == 'success') {
-      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
+      echo '<small class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil</small>';
     } elseif ($siswa_status == 'failed') {
-      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
+      echo '<small class="text-danger font-weight-bold"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal</small>';
     } else {
-      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum sync</small>';
     }
-
-    echo '</td>
+    echo '    </div>
+              <button class="btn btn-sm btn-primary btn-sync-single" data-action="getPesertaDidik" data-label="Peserta Didik">
+                <i class="fas fa-download mr-1"></i> Tarik Data
+              </button>
+            </td>
           </tr>';
 
     // Data Pengguna
@@ -336,17 +347,20 @@ document.getElementById(\'btn-copy-api-key\').addEventListener(\'click\',functio
             <td class="text-center">
               <small class="text-muted">' . ($user_date ? date('d/m/Y H:i', strtotime($user_date)) : 'Belum pernah') . '</small>
             </td>
-            <td>';
-
+            <td class="text-center">
+              <div class="mb-1">';
     if ($user_status == 'success') {
-      echo '<small class="text-success"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil.</small>';
+      echo '<small class="text-success font-weight-bold"><i class="fas fa-check-circle mr-1"></i>Sinkron berhasil</small>';
     } elseif ($user_status == 'failed') {
-      echo '<small class="text-danger"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal, perlu tarik ulang.</small>';
+      echo '<small class="text-danger font-weight-bold"><i class="fas fa-times-circle mr-1"></i>Sinkron gagal</small>';
     } else {
-      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum ada riwayat sinkron.</small>';
+      echo '<small class="text-muted"><i class="fas fa-clock mr-1"></i>Belum sync</small>';
     }
-
-    echo '</td>
+    echo '    </div>
+              <button class="btn btn-sm btn-primary btn-sync-single" data-action="getPengguna" data-label="Pengguna">
+                <i class="fas fa-download mr-1"></i> Tarik Data
+              </button>
+            </td>
           </tr>';
 
     echo '    </tbody>

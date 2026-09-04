@@ -440,6 +440,96 @@ function runSyncAction(config, callback) {
   });
 }
 
+// Handler Tarik Data Single (Per Data)
+$(document).on("click", ".btn-sync-single", function () {
+  if (syncPullInProgress) {
+    return;
+  }
+
+  const $btn = $(this);
+  const action = $btn.data("action");
+  const label = $btn.data("label") || action;
+  const originalHtml = $btn.html();
+
+  syncPullInProgress = true;
+  syncCompletedActionCount = 0;
+  syncProgressDisplayPercent = 0;
+  syncProgressTargetPercent = 0;
+  syncStepDisplayPercent = 0;
+  syncStepTargetPercent = 0;
+  applySyncProgressPercent(0);
+  applySyncStepBarPercent(0);
+
+  $(".btn-sync-single, #btnSyncAllData").prop("disabled", true);
+  $btn
+    .removeClass("btn-primary btn-success btn-danger")
+    .addClass("btn-warning")
+    .html('<i class="fas fa-spinner fa-spin mr-1"></i> Memproses...');
+
+  setSyncFloatingProgress(
+    0,
+    "Memproses " + label + "...",
+    "Menghubungi server Dapodik...",
+  );
+  startSyncProgressPolling();
+
+  runSyncAction({ action: action, label: label }, function (result) {
+    syncPullInProgress = false;
+    stopSyncProgressPolling();
+    $(".btn-sync-single, #btnSyncAllData").prop("disabled", false);
+
+    if (result.ok) {
+      setSyncFloatingProgress(
+        100,
+        "Tarik " + label + " selesai",
+        result.message || "Data " + label + " berhasil ditarik.",
+      );
+      $btn
+        .removeClass("btn-warning btn-primary")
+        .addClass("btn-success")
+        .html('<i class="fas fa-check mr-1"></i> Berhasil');
+
+      swal({
+        title: "Tarik " + label + " Berhasil",
+        text: result.message || "Data " + label + " berhasil ditarik.",
+        icon: "success",
+        timer: 1800,
+      }).then(function () {
+        loadSetting(8);
+      });
+
+      window.setTimeout(function () {
+        hideSyncFloatingProgress();
+        loadSetting(8);
+      }, 1500);
+    } else {
+      $btn
+        .removeClass("btn-warning")
+        .addClass("btn-danger")
+        .html('<i class="fas fa-exclamation-triangle mr-1"></i> Gagal');
+
+      setSyncFloatingProgress(
+        100,
+        "Tarik " + label + " gagal",
+        result.message || "Terjadi kesalahan.",
+      );
+
+      swal({
+        title: "Tarik " + label + " Gagal",
+        text:
+          result.message ||
+          "Terjadi kesalahan saat menarik data " + label + ".",
+        icon: "error",
+      });
+
+      window.setTimeout(function () {
+        hideSyncFloatingProgress();
+        $btn.html(originalHtml);
+      }, 2000);
+    }
+  });
+});
+
 $(document).on("click", "#btnSyncAllData", function () {
   if (syncPullInProgress) {
     return;
