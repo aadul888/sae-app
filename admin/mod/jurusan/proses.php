@@ -57,9 +57,9 @@ if (!isset($_COOKIE['ADMIN_KEY']) && !isset($_COOKIE['KEY'])) {
           exit;
         }
 
-        // Pastikan kolom logo bisa menampung nama file maupun base64 data URI jika folder hosting read-only
+        // Pastikan kolom logo menggunakan LONGTEXT agar muat menampung gambar base64 (hingga 16MB+)
         if (str_starts_with($saved, 'data:')) {
-          @$connection->query("ALTER TABLE jurusan MODIFY COLUMN logo TEXT NULL");
+          @$connection->query("ALTER TABLE jurusan MODIFY COLUMN logo LONGTEXT NULL");
           $logo_db = mysqli_real_escape_string($connection, $saved);
         } else {
           $logo_db = mysqli_real_escape_string($connection, $logo_filename);
