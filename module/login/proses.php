@@ -3,6 +3,32 @@ require_once '../../library/config.php';
 require_once '../../library/function.php';
 require_once '../../library/sso_config.php';
 
+if (!function_exists('getUserByUsername')) {
+    function getUserByUsername($username, $connection, $type)
+    {
+        if ($type === 'email') {
+            $query = "SELECT user_id, password, status FROM user WHERE email = ? LIMIT 1";
+        } elseif ($type === 'nisn') {
+            $query = "SELECT user_id, password, status FROM user WHERE nisn = ? LIMIT 1";
+        } else {
+            $query = "SELECT user_id, password, status FROM user WHERE username = ? OR nisn = ? LIMIT 1";
+        }
+        $stmt = $connection->prepare($query);
+        if (!$stmt) {
+            return null;
+        }
+        if ($type === 'username') {
+            $stmt->bind_param('ss', $username, $username);
+        } else {
+            $stmt->bind_param('s', $username);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result && $result->num_rows > 0 ? $result->fetch_assoc() : null;
+        $stmt->close();
+        return $row;
+    }
+}
 
 switch (@$_GET['action']) {
     case 'login':
@@ -19,12 +45,11 @@ switch (@$_GET['action']) {
             $username = anti_injection($_POST['username']);
             if (filter_var($username, FILTER_VALIDATE_EMAIL)) {
                 $username_type = 'email';
+            } elseif (is_numeric($username)) {
+                $username_type = 'nisn';
             } else {
-                if (is_numeric($username)) {
-                    $username_type = 'nisn';
-                } else {
-                    $error[] = 'NISN yang Anda masukkan tidak valid';
-                }
+                // Ijinkan login menggunakan username / alphanumeric identifier jika ada
+                $username_type = 'username';
             }
         }
 
@@ -35,26 +60,6 @@ switch (@$_GET['action']) {
         }
 
         if (empty($error)) {
-            // Function untuk mendapatkan user berdasarkan email atau nisn (prepared statement)
-            function getUserByUsername($username, $connection, $type)
-            {
-                if ($type === 'email') {
-                    $query = "SELECT user_id, password, status FROM user WHERE email = ? LIMIT 1";
-                } else {
-                    $query = "SELECT user_id, password, status FROM user WHERE nisn = ? LIMIT 1";
-                }
-                $stmt = $connection->prepare($query);
-                if (!$stmt) {
-                    return null;
-                }
-                $stmt->bind_param('s', $username);
-                $stmt->execute();
-                $result = $stmt->get_result();
-                $row = $result->num_rows > 0 ? $result->fetch_assoc() : null;
-                $stmt->close();
-                return $row;
-            }
-
             // Panggil function untuk mendapatkan user
             $user = getUserByUsername($username, $connection, $username_type);
             if (!$user) {
